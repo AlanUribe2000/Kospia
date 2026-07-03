@@ -4,11 +4,11 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/species_repository.dart';
 import '../../catalog/screens/catalog_screen.dart';
-import '../../collection/screens/new_observation_screen.dart';
-import '../../collection/screens/observations_list_screen.dart';
-import '../../identify/screens/identify_screen.dart';
+import '../../collection/screens/my_plants_screen.dart';
+import '../../identify/screens/identify_flow_screen.dart';
+import '../widgets/dashboard_tab.dart';
 
-/// Pantalla principal con bottom navigation.
+/// Pantalla principal con NavigationRail vertical verde a la izquierda.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -32,6 +32,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _seeded = true);
   }
 
+  void _navigateTo(int index) {
+    setState(() => _currentIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_seeded) {
@@ -39,109 +43,102 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          _DashboardTab(),
-          CatalogScreen(),
-          IdentifyScreen(),
-          ObservationsListScreen(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_florist_rounded),
-            label: 'Catalogo',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search_rounded),
-            label: 'Identificar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.collections_rounded),
-            label: 'Registros',
+      body: Row(
+        children: [
+          // Navigation Rail verde
+          _buildNavRail(),
+          // Content area
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: [
+                DashboardTab(onNavigate: _navigateTo),
+                const IdentifyFlowScreen(),
+                const MyPlantsScreen(),
+                const CatalogScreen(),
+              ],
+            ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const NewObservationScreen()),
-          );
-        },
-        backgroundColor: AppColors.accentOrange,
-        icon: const Icon(Icons.camera_alt_rounded, color: Colors.white),
-        label: const Text(
-          'Registrar',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
       ),
     );
   }
-}
 
-/// Tab de inicio / dashboard.
-class _DashboardTab extends StatelessWidget {
-  const _DashboardTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+  Widget _buildNavRail() {
+    return Container(
+      width: 72,
+      decoration: const BoxDecoration(
+        color: AppColors.accentGreen,
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            Text('Kospia', style: Theme.of(context).textTheme.displayLarge),
-            const SizedBox(height: 4),
-            Text(
-              'Flora Patagonica',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: AppColors.accentGreen),
-            ),
-            const SizedBox(height: 32),
-            _QuickActionCard(
-              icon: Icons.camera_alt_rounded,
-              title: 'Nueva observacion',
-              subtitle: 'Saca una foto y registra ubicacion',
-              color: AppColors.accentOrange,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const NewObservationScreen(),
+            // Logo Kospia
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.eco_rounded,
+                    color: Colors.white,
+                    size: 28,
                   ),
-                );
-              },
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            _QuickActionCard(
+            const SizedBox(height: 4),
+            const Text(
+              'KOSPIA',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Nav items
+            _NavItem(
+              icon: Icons.home_rounded,
+              label: 'HOME',
+              isSelected: _currentIndex == 0,
+              onTap: () => _navigateTo(0),
+            ),
+            const SizedBox(height: 16),
+            _NavItem(
               icon: Icons.search_rounded,
-              title: 'Identificar planta',
-              subtitle: 'Responde preguntas para identificar una especie',
-              color: AppColors.accentGreen,
-              onTap: () {
-                // Navigate to identify tab
-              },
+              label: 'IDENTIFICAR',
+              isSelected: _currentIndex == 1,
+              onTap: () => _navigateTo(1),
             ),
-            const SizedBox(height: 12),
-            _QuickActionCard(
-              icon: Icons.local_florist_rounded,
-              title: 'Catalogo de especies',
-              subtitle: '6 especies de la estepa patagonica',
-              color: AppColors.primaryLilac,
-              onTap: () {
-                // Navigate to catalog tab
-              },
+            const SizedBox(height: 16),
+            _NavItem(
+              icon: Icons.eco_rounded,
+              label: 'MIS PLANTAS',
+              isSelected: _currentIndex == 2,
+              onTap: () => _navigateTo(2),
             ),
+            const SizedBox(height: 16),
+            _NavItem(
+              icon: Icons.menu_book_rounded,
+              label: 'CATALOGO',
+              isSelected: _currentIndex == 3,
+              onTap: () => _navigateTo(3),
+            ),
+            const Spacer(),
           ],
         ),
       ),
@@ -149,58 +146,47 @@ class _DashboardTab extends StatelessWidget {
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
+class _NavItem extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
+  final String label;
+  final bool isSelected;
   final VoidCallback onTap;
 
-  const _QuickActionCard({
+  const _NavItem({
     required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
+    required this.label,
+    required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: AppColors.textLight),
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.white.withValues(alpha: 0.25)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(child: Icon(icon, color: Colors.white, size: 22)),
           ),
-        ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.7),
+              fontSize: 8,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
