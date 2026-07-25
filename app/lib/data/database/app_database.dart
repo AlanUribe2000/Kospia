@@ -10,14 +10,16 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [
-  Species,
-  Questions,
-  QuestionOptions,
-  SpeciesTraits,
-  Observations,
-  Users,
-])
+@DriftDatabase(
+  tables: [
+    Species,
+    Questions,
+    QuestionOptions,
+    SpeciesTraits,
+    Observations,
+    Users,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -28,6 +30,13 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        // Re-crear todas las tablas al actualizar schema
+        for (final table in allTables) {
+          await m.deleteTable(table.actualTableName);
+        }
         await m.createAll();
       },
     );
@@ -43,18 +52,16 @@ class AppDatabase extends _$AppDatabase {
       into(species).insert(entry, mode: InsertMode.insertOrReplace);
 
   // --- Observations queries ---
-  Future<List<Observation>> getAllObservations() =>
-      (select(observations)..orderBy([(t) => OrderingTerm.desc(t.capturedAt)]))
-          .get();
+  Future<List<Observation>> getAllObservations() => (select(
+    observations,
+  )..orderBy([(t) => OrderingTerm.desc(t.capturedAt)])).get();
 
   Future<List<Observation>> getObservationsByUser(String userId) =>
       (select(observations)..where((t) => t.userId.equals(userId))).get();
 
-  Future<List<Observation>> getPendingObservations() =>
-      (select(observations)
-            ..where(
-                (t) => t.syncStatus.equals(AppConstants.syncPending)))
-          .get();
+  Future<List<Observation>> getPendingObservations() => (select(
+    observations,
+  )..where((t) => t.syncStatus.equals(AppConstants.syncPending))).get();
 
   Future<int> insertObservation(ObservationsCompanion entry) =>
       into(observations).insert(entry);
@@ -76,9 +83,11 @@ class AppDatabase extends _$AppDatabase {
           .get();
 
   // --- Species Traits queries ---
-  Future<List<SpeciesTrait>> getTraitsForSpecies(String speciesId) =>
-      (select(speciesTraits)..where((t) => t.speciesId.equals(speciesId)))
-          .get();
+  Future<List<SpeciesTrait>> getAllTraits() => select(speciesTraits).get();
+
+  Future<List<SpeciesTrait>> getTraitsForSpecies(String speciesId) => (select(
+    speciesTraits,
+  )..where((t) => t.speciesId.equals(speciesId))).get();
 
   /// Given a set of selected option IDs, find species that match ALL of them.
   Future<List<Specy>> findSpeciesByTraits(List<String> optionIds) async {
@@ -108,6 +117,22 @@ class AppDatabase extends _$AppDatabase {
         family: row.read<String>('family'),
         habitat: row.read<String>('habitat'),
         flowerColor: row.read<String>('flower_color'),
+        biologicalForm: row.read<String>('biological_form'),
+        approximateHeight: row.read<String>('approximate_height'),
+        leafLength: row.read<String>('leaf_length'),
+        leafShape: row.read<String>('leaf_shape'),
+        leafEdge: row.read<String>('leaf_edge'),
+        leafTexture: row.read<String>('leaf_texture'),
+        hasSpines: row.read<bool>('has_spines'),
+        spineType: row.read<String>('spine_type'),
+        flowerGrouping: row.read<String>('flower_grouping'),
+        petalCount: row.read<String>('petal_count'),
+        flowerSize: row.read<String>('flower_size'),
+        hasFruit: row.read<bool>('has_fruit'),
+        fruitShape: row.read<String>('fruit_shape'),
+        fruitColor: row.read<String>('fruit_color'),
+        fruitSize: row.read<String>('fruit_size'),
+        observations: row.read<String>('observations'),
         isActive: row.read<bool>('is_active'),
         syncStatus: row.read<String>('sync_status'),
         createdAt: row.read<DateTime>('created_at'),
@@ -121,6 +146,19 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> insertUser(UsersCompanion entry) =>
       into(users).insert(entry, mode: InsertMode.insertOrReplace);
+
+  // --- Reset database ---
+  /// Borra todas las tablas y re-inserta datos semilla.
+  Future<void> resetDatabase() async {
+    await transaction(() async {
+      await delete(observations).go();
+      await delete(speciesTraits).go();
+      await delete(questionOptions).go();
+      await delete(questions).go();
+      await delete(species).go();
+      await delete(users).go();
+    });
+  }
 
   // --- Seed helper ---
   Future<void> insertSeedSpecies(List<SpeciesCompanion> entries) async {
@@ -137,8 +175,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertSeedOptions(List<QuestionOptionsCompanion> entries) async {
     await batch((batch) {
-      batch.insertAll(questionOptions, entries,
-          mode: InsertMode.insertOrReplace);
+      batch.insertAll(
+        questionOptions,
+        entries,
+        mode: InsertMode.insertOrReplace,
+      );
     });
   }
 

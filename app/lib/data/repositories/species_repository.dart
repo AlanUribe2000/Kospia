@@ -24,4 +24,13 @@ class SpeciesRepository {
     await _db.insertSeedOptions(SeedData.optionEntries);
     await _db.insertSeedTraits(SeedData.traitEntries);
   }
+
+  /// Borra toda la base de datos y vuelve a cargar los datos semilla.
+  Future<void> resetAndReseed() async {
+    await _db.resetDatabase();
+    await _db.insertSeedSpecies(SeedData.speciesEntries);
+    await _db.insertSeedQuestions(SeedData.questionEntries);
+    await _db.insertSeedOptions(SeedData.optionEntries);
+    await _db.insertSeedTraits(SeedData.traitEntries);
+  }
 }

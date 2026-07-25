@@ -1,5 +1,5 @@
-name: kospia_app
-description: KOSPIA Flora Patagonica
+name: kospia
+description: Kospia - Flora Patagonica
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -31,8 +31,17 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.24.0
   build_runner: ^2.4.13
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#F0E4F1"
+  adaptive_icon_foreground: "assets/images/logo.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/Kospi/

@@ -17,7 +17,7 @@ void main() async {
       providers: [
         Provider<AppDatabase>.value(value: database),
         Provider<SpeciesRepository>(create: (_) => SpeciesRepository(database)),
-        Provider<ObservationRepository>(
+        ChangeNotifierProvider<ObservationRepository>(
           create: (_) => ObservationRepository(database),
         ),
       ],
@@ -32,7 +32,7 @@ class KospiaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kospia - Flora Patagonica',
+      title: 'Kospia',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const HomeScreen(),

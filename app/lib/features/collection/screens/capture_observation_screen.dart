@@ -59,7 +59,8 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Permiso de ubicacion denegado permanentemente')),
+              content: Text('Permiso de ubicacion denegado permanentemente'),
+            ),
           );
         }
         return;
@@ -100,9 +101,9 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
     }
 
     final fileName = '${const Uuid().v4()}.jpg';
-    final savedFile = await File(image.path).copy(
-      p.join(photosDir.path, fileName),
-    );
+    final savedFile = await File(
+      image.path,
+    ).copy(p.join(photosDir.path, fileName));
 
     if (mounted) setState(() => _photo = savedFile);
   }
@@ -124,24 +125,24 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
     }
 
     final fileName = '${const Uuid().v4()}.jpg';
-    final savedFile = await File(image.path).copy(
-      p.join(photosDir.path, fileName),
-    );
+    final savedFile = await File(
+      image.path,
+    ).copy(p.join(photosDir.path, fileName));
 
     if (mounted) setState(() => _photo = savedFile);
   }
 
   Future<void> _saveObservation() async {
     if (_photo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Toma una foto primero')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Toma una foto primero')));
       return;
     }
     if (_position == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Esperando ubicacion...')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Esperando ubicacion...')));
       return;
     }
 
@@ -172,9 +173,9 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error guardando: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error guardando: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -184,9 +185,7 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Registrar ${widget.species.commonName}'),
-      ),
+      appBar: AppBar(title: Text('Registrar ${widget.species.commonName}')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -212,7 +211,9 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('¡Desbloquear esta planta!'),
             ),
@@ -236,26 +237,35 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
                 color: AppColors.accentGreenLight.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.local_florist_rounded,
-                  color: AppColors.accentGreen),
+              child: const Icon(
+                Icons.local_florist_rounded,
+                color: AppColors.accentGreen,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.species.commonName,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(widget.species.scientificName,
-                      style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 12,
-                          color: AppColors.textMedium)),
+                  Text(
+                    widget.species.commonName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    widget.species.scientificName,
+                    style: const TextStyle(
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12,
+                      color: AppColors.textMedium,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.check_circle_rounded,
-                color: AppColors.accentGreen),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.accentGreen,
+            ),
           ],
         ),
       ),
@@ -276,10 +286,21 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: _takePhoto,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Tomar otra foto'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: _takePhoto,
+                icon: const Icon(Icons.camera_alt, size: 18),
+                label: const Text('Cámara'),
+              ),
+              const SizedBox(width: 12),
+              TextButton.icon(
+                onPressed: _pickFromGallery,
+                icon: const Icon(Icons.photo_library, size: 18),
+                label: const Text('Galería'),
+              ),
+            ],
           ),
         ],
       );
@@ -295,11 +316,16 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.camera_alt_rounded,
-              size: 48, color: AppColors.textLight),
+          const Icon(
+            Icons.camera_alt_rounded,
+            size: 48,
+            color: AppColors.textLight,
+          ),
           const SizedBox(height: 12),
-          const Text('Saca una foto de la planta',
-              style: TextStyle(color: AppColors.textMedium)),
+          const Text(
+            'Saca una foto de la planta',
+            style: TextStyle(color: AppColors.textMedium),
+          ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -341,8 +367,9 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
                 _position != null
                     ? Icons.location_on_rounded
                     : Icons.location_searching_rounded,
-                color:
-                    _position != null ? AppColors.success : AppColors.warning,
+                color: _position != null
+                    ? AppColors.success
+                    : AppColors.warning,
                 size: 20,
               ),
             ),
@@ -351,21 +378,21 @@ class _CaptureObservationScreenState extends State<CaptureObservationScreen> {
               child: _isLoadingLocation
                   ? const Text('Obteniendo ubicacion...')
                   : _position != null
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Ubicacion obtenida',
-                                style:
-                                    Theme.of(context).textTheme.titleLarge),
-                            Text(
-                              'Lat: ${_position!.latitude.toStringAsFixed(5)}, '
-                              'Lon: ${_position!.longitude.toStringAsFixed(5)}',
-                              style:
-                                  Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        )
-                      : const Text('Sin ubicacion'),
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ubicacion obtenida',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Text(
+                          'Lat: ${_position!.latitude.toStringAsFixed(5)}, '
+                          'Lon: ${_position!.longitude.toStringAsFixed(5)}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    )
+                  : const Text('Sin ubicacion'),
             ),
             if (!_isLoadingLocation && _position == null)
               IconButton(
@@ -401,8 +428,11 @@ class _SuccessDialog extends StatelessWidget {
               color: AppColors.success.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_rounded,
-                size: 40, color: AppColors.success),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 40,
+              color: AppColors.success,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(

@@ -1,31 +1,97 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/species_repository.dart';
 
-/// Tab de inicio / dashboard.
+/// Tab de inicio / dashboard con Kospi saludando.
 class DashboardTab extends StatelessWidget {
   final ValueChanged<int>? onNavigate;
 
   const DashboardTab({super.key, this.onNavigate});
 
+  void _showResetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpiar base de datos'),
+        content: const Text(
+          '¿Estás seguro? Se borrarán todas tus observaciones y datos. '
+          'Las especies semilla se volverán a cargar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final repo = context.read<SpeciesRepository>();
+              await repo.resetAndReseed();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Base de datos limpiada exitosamente'),
+                  ),
+                );
+              }
+            },
+            child: const Text('Limpiar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 16),
-            Text('Kospia', style: Theme.of(context).textTheme.displayLarge),
-            const SizedBox(height: 4),
-            Text(
-              'Flora Patagonica',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: AppColors.accentGreen),
+            // Kospi saludando
+            Image.asset(
+              'assets/images/Kospi/Kospi saludando.png',
+              height: 180,
+              errorBuilder: (_, __, ___) => Container(
+                width: 120,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: AppColors.accentGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.eco_rounded,
+                  size: 56,
+                  color: AppColors.accentGreen,
+                ),
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+            // Speech bubble
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLilac,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primaryLilac.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                '¡Hola! ¿Qué deseas hacer?',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 28),
+            // Action cards
             _QuickActionCard(
               icon: Icons.search_rounded,
               title: 'Identificar planta',
@@ -44,10 +110,20 @@ class DashboardTab extends StatelessWidget {
             const SizedBox(height: 12),
             _QuickActionCard(
               icon: Icons.menu_book_rounded,
-              title: 'Catalogo',
+              title: 'Catálogo',
               subtitle: 'Explora todas las especies disponibles',
               color: AppColors.accentOrange,
               onTap: () => onNavigate?.call(3),
+            ),
+            const SizedBox(height: 28),
+            // Reset database
+            TextButton.icon(
+              onPressed: () => _showResetDialog(context),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Limpiar base de datos'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textMedium,
+              ),
             ),
           ],
         ),

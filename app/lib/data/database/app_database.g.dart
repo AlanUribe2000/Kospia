@@ -96,6 +96,205 @@ class $SpeciesTable extends Species with TableInfo<$SpeciesTable, Specy> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _biologicalFormMeta = const VerificationMeta(
+    'biologicalForm',
+  );
+  @override
+  late final GeneratedColumn<String> biologicalForm = GeneratedColumn<String>(
+    'biological_form',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _approximateHeightMeta = const VerificationMeta(
+    'approximateHeight',
+  );
+  @override
+  late final GeneratedColumn<String> approximateHeight =
+      GeneratedColumn<String>(
+        'approximate_height',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _leafLengthMeta = const VerificationMeta(
+    'leafLength',
+  );
+  @override
+  late final GeneratedColumn<String> leafLength = GeneratedColumn<String>(
+    'leaf_length',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _leafShapeMeta = const VerificationMeta(
+    'leafShape',
+  );
+  @override
+  late final GeneratedColumn<String> leafShape = GeneratedColumn<String>(
+    'leaf_shape',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _leafEdgeMeta = const VerificationMeta(
+    'leafEdge',
+  );
+  @override
+  late final GeneratedColumn<String> leafEdge = GeneratedColumn<String>(
+    'leaf_edge',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _leafTextureMeta = const VerificationMeta(
+    'leafTexture',
+  );
+  @override
+  late final GeneratedColumn<String> leafTexture = GeneratedColumn<String>(
+    'leaf_texture',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _hasSpinesMeta = const VerificationMeta(
+    'hasSpines',
+  );
+  @override
+  late final GeneratedColumn<bool> hasSpines = GeneratedColumn<bool>(
+    'has_spines',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_spines" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _spineTypeMeta = const VerificationMeta(
+    'spineType',
+  );
+  @override
+  late final GeneratedColumn<String> spineType = GeneratedColumn<String>(
+    'spine_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _flowerGroupingMeta = const VerificationMeta(
+    'flowerGrouping',
+  );
+  @override
+  late final GeneratedColumn<String> flowerGrouping = GeneratedColumn<String>(
+    'flower_grouping',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _petalCountMeta = const VerificationMeta(
+    'petalCount',
+  );
+  @override
+  late final GeneratedColumn<String> petalCount = GeneratedColumn<String>(
+    'petal_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _flowerSizeMeta = const VerificationMeta(
+    'flowerSize',
+  );
+  @override
+  late final GeneratedColumn<String> flowerSize = GeneratedColumn<String>(
+    'flower_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _hasFruitMeta = const VerificationMeta(
+    'hasFruit',
+  );
+  @override
+  late final GeneratedColumn<bool> hasFruit = GeneratedColumn<bool>(
+    'has_fruit',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_fruit" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _fruitShapeMeta = const VerificationMeta(
+    'fruitShape',
+  );
+  @override
+  late final GeneratedColumn<String> fruitShape = GeneratedColumn<String>(
+    'fruit_shape',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _fruitColorMeta = const VerificationMeta(
+    'fruitColor',
+  );
+  @override
+  late final GeneratedColumn<String> fruitColor = GeneratedColumn<String>(
+    'fruit_color',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _fruitSizeMeta = const VerificationMeta(
+    'fruitSize',
+  );
+  @override
+  late final GeneratedColumn<String> fruitSize = GeneratedColumn<String>(
+    'fruit_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _observationsMeta = const VerificationMeta(
+    'observations',
+  );
+  @override
+  late final GeneratedColumn<String> observations = GeneratedColumn<String>(
+    'observations',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -145,6 +344,22 @@ class $SpeciesTable extends Species with TableInfo<$SpeciesTable, Specy> {
     family,
     habitat,
     flowerColor,
+    biologicalForm,
+    approximateHeight,
+    leafLength,
+    leafShape,
+    leafEdge,
+    leafTexture,
+    hasSpines,
+    spineType,
+    flowerGrouping,
+    petalCount,
+    flowerSize,
+    hasFruit,
+    fruitShape,
+    fruitColor,
+    fruitSize,
+    observations,
     isActive,
     syncStatus,
     createdAt,
@@ -223,6 +438,117 @@ class $SpeciesTable extends Species with TableInfo<$SpeciesTable, Specy> {
         ),
       );
     }
+    if (data.containsKey('biological_form')) {
+      context.handle(
+        _biologicalFormMeta,
+        biologicalForm.isAcceptableOrUnknown(
+          data['biological_form']!,
+          _biologicalFormMeta,
+        ),
+      );
+    }
+    if (data.containsKey('approximate_height')) {
+      context.handle(
+        _approximateHeightMeta,
+        approximateHeight.isAcceptableOrUnknown(
+          data['approximate_height']!,
+          _approximateHeightMeta,
+        ),
+      );
+    }
+    if (data.containsKey('leaf_length')) {
+      context.handle(
+        _leafLengthMeta,
+        leafLength.isAcceptableOrUnknown(data['leaf_length']!, _leafLengthMeta),
+      );
+    }
+    if (data.containsKey('leaf_shape')) {
+      context.handle(
+        _leafShapeMeta,
+        leafShape.isAcceptableOrUnknown(data['leaf_shape']!, _leafShapeMeta),
+      );
+    }
+    if (data.containsKey('leaf_edge')) {
+      context.handle(
+        _leafEdgeMeta,
+        leafEdge.isAcceptableOrUnknown(data['leaf_edge']!, _leafEdgeMeta),
+      );
+    }
+    if (data.containsKey('leaf_texture')) {
+      context.handle(
+        _leafTextureMeta,
+        leafTexture.isAcceptableOrUnknown(
+          data['leaf_texture']!,
+          _leafTextureMeta,
+        ),
+      );
+    }
+    if (data.containsKey('has_spines')) {
+      context.handle(
+        _hasSpinesMeta,
+        hasSpines.isAcceptableOrUnknown(data['has_spines']!, _hasSpinesMeta),
+      );
+    }
+    if (data.containsKey('spine_type')) {
+      context.handle(
+        _spineTypeMeta,
+        spineType.isAcceptableOrUnknown(data['spine_type']!, _spineTypeMeta),
+      );
+    }
+    if (data.containsKey('flower_grouping')) {
+      context.handle(
+        _flowerGroupingMeta,
+        flowerGrouping.isAcceptableOrUnknown(
+          data['flower_grouping']!,
+          _flowerGroupingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('petal_count')) {
+      context.handle(
+        _petalCountMeta,
+        petalCount.isAcceptableOrUnknown(data['petal_count']!, _petalCountMeta),
+      );
+    }
+    if (data.containsKey('flower_size')) {
+      context.handle(
+        _flowerSizeMeta,
+        flowerSize.isAcceptableOrUnknown(data['flower_size']!, _flowerSizeMeta),
+      );
+    }
+    if (data.containsKey('has_fruit')) {
+      context.handle(
+        _hasFruitMeta,
+        hasFruit.isAcceptableOrUnknown(data['has_fruit']!, _hasFruitMeta),
+      );
+    }
+    if (data.containsKey('fruit_shape')) {
+      context.handle(
+        _fruitShapeMeta,
+        fruitShape.isAcceptableOrUnknown(data['fruit_shape']!, _fruitShapeMeta),
+      );
+    }
+    if (data.containsKey('fruit_color')) {
+      context.handle(
+        _fruitColorMeta,
+        fruitColor.isAcceptableOrUnknown(data['fruit_color']!, _fruitColorMeta),
+      );
+    }
+    if (data.containsKey('fruit_size')) {
+      context.handle(
+        _fruitSizeMeta,
+        fruitSize.isAcceptableOrUnknown(data['fruit_size']!, _fruitSizeMeta),
+      );
+    }
+    if (data.containsKey('observations')) {
+      context.handle(
+        _observationsMeta,
+        observations.isAcceptableOrUnknown(
+          data['observations']!,
+          _observationsMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -282,6 +608,70 @@ class $SpeciesTable extends Species with TableInfo<$SpeciesTable, Specy> {
         DriftSqlType.string,
         data['${effectivePrefix}flower_color'],
       )!,
+      biologicalForm: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}biological_form'],
+      )!,
+      approximateHeight: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}approximate_height'],
+      )!,
+      leafLength: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}leaf_length'],
+      )!,
+      leafShape: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}leaf_shape'],
+      )!,
+      leafEdge: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}leaf_edge'],
+      )!,
+      leafTexture: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}leaf_texture'],
+      )!,
+      hasSpines: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_spines'],
+      )!,
+      spineType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}spine_type'],
+      )!,
+      flowerGrouping: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}flower_grouping'],
+      )!,
+      petalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}petal_count'],
+      )!,
+      flowerSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}flower_size'],
+      )!,
+      hasFruit: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_fruit'],
+      )!,
+      fruitShape: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fruit_shape'],
+      )!,
+      fruitColor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fruit_color'],
+      )!,
+      fruitSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fruit_size'],
+      )!,
+      observations: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}observations'],
+      )!,
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -312,6 +702,22 @@ class Specy extends DataClass implements Insertable<Specy> {
   final String family;
   final String habitat;
   final String flowerColor;
+  final String biologicalForm;
+  final String approximateHeight;
+  final String leafLength;
+  final String leafShape;
+  final String leafEdge;
+  final String leafTexture;
+  final bool hasSpines;
+  final String spineType;
+  final String flowerGrouping;
+  final String petalCount;
+  final String flowerSize;
+  final bool hasFruit;
+  final String fruitShape;
+  final String fruitColor;
+  final String fruitSize;
+  final String observations;
   final bool isActive;
   final String syncStatus;
   final DateTime createdAt;
@@ -324,6 +730,22 @@ class Specy extends DataClass implements Insertable<Specy> {
     required this.family,
     required this.habitat,
     required this.flowerColor,
+    required this.biologicalForm,
+    required this.approximateHeight,
+    required this.leafLength,
+    required this.leafShape,
+    required this.leafEdge,
+    required this.leafTexture,
+    required this.hasSpines,
+    required this.spineType,
+    required this.flowerGrouping,
+    required this.petalCount,
+    required this.flowerSize,
+    required this.hasFruit,
+    required this.fruitShape,
+    required this.fruitColor,
+    required this.fruitSize,
+    required this.observations,
     required this.isActive,
     required this.syncStatus,
     required this.createdAt,
@@ -339,6 +761,22 @@ class Specy extends DataClass implements Insertable<Specy> {
     map['family'] = Variable<String>(family);
     map['habitat'] = Variable<String>(habitat);
     map['flower_color'] = Variable<String>(flowerColor);
+    map['biological_form'] = Variable<String>(biologicalForm);
+    map['approximate_height'] = Variable<String>(approximateHeight);
+    map['leaf_length'] = Variable<String>(leafLength);
+    map['leaf_shape'] = Variable<String>(leafShape);
+    map['leaf_edge'] = Variable<String>(leafEdge);
+    map['leaf_texture'] = Variable<String>(leafTexture);
+    map['has_spines'] = Variable<bool>(hasSpines);
+    map['spine_type'] = Variable<String>(spineType);
+    map['flower_grouping'] = Variable<String>(flowerGrouping);
+    map['petal_count'] = Variable<String>(petalCount);
+    map['flower_size'] = Variable<String>(flowerSize);
+    map['has_fruit'] = Variable<bool>(hasFruit);
+    map['fruit_shape'] = Variable<String>(fruitShape);
+    map['fruit_color'] = Variable<String>(fruitColor);
+    map['fruit_size'] = Variable<String>(fruitSize);
+    map['observations'] = Variable<String>(observations);
     map['is_active'] = Variable<bool>(isActive);
     map['sync_status'] = Variable<String>(syncStatus);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -355,6 +793,22 @@ class Specy extends DataClass implements Insertable<Specy> {
       family: Value(family),
       habitat: Value(habitat),
       flowerColor: Value(flowerColor),
+      biologicalForm: Value(biologicalForm),
+      approximateHeight: Value(approximateHeight),
+      leafLength: Value(leafLength),
+      leafShape: Value(leafShape),
+      leafEdge: Value(leafEdge),
+      leafTexture: Value(leafTexture),
+      hasSpines: Value(hasSpines),
+      spineType: Value(spineType),
+      flowerGrouping: Value(flowerGrouping),
+      petalCount: Value(petalCount),
+      flowerSize: Value(flowerSize),
+      hasFruit: Value(hasFruit),
+      fruitShape: Value(fruitShape),
+      fruitColor: Value(fruitColor),
+      fruitSize: Value(fruitSize),
+      observations: Value(observations),
       isActive: Value(isActive),
       syncStatus: Value(syncStatus),
       createdAt: Value(createdAt),
@@ -375,6 +829,22 @@ class Specy extends DataClass implements Insertable<Specy> {
       family: serializer.fromJson<String>(json['family']),
       habitat: serializer.fromJson<String>(json['habitat']),
       flowerColor: serializer.fromJson<String>(json['flowerColor']),
+      biologicalForm: serializer.fromJson<String>(json['biologicalForm']),
+      approximateHeight: serializer.fromJson<String>(json['approximateHeight']),
+      leafLength: serializer.fromJson<String>(json['leafLength']),
+      leafShape: serializer.fromJson<String>(json['leafShape']),
+      leafEdge: serializer.fromJson<String>(json['leafEdge']),
+      leafTexture: serializer.fromJson<String>(json['leafTexture']),
+      hasSpines: serializer.fromJson<bool>(json['hasSpines']),
+      spineType: serializer.fromJson<String>(json['spineType']),
+      flowerGrouping: serializer.fromJson<String>(json['flowerGrouping']),
+      petalCount: serializer.fromJson<String>(json['petalCount']),
+      flowerSize: serializer.fromJson<String>(json['flowerSize']),
+      hasFruit: serializer.fromJson<bool>(json['hasFruit']),
+      fruitShape: serializer.fromJson<String>(json['fruitShape']),
+      fruitColor: serializer.fromJson<String>(json['fruitColor']),
+      fruitSize: serializer.fromJson<String>(json['fruitSize']),
+      observations: serializer.fromJson<String>(json['observations']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -392,6 +862,22 @@ class Specy extends DataClass implements Insertable<Specy> {
       'family': serializer.toJson<String>(family),
       'habitat': serializer.toJson<String>(habitat),
       'flowerColor': serializer.toJson<String>(flowerColor),
+      'biologicalForm': serializer.toJson<String>(biologicalForm),
+      'approximateHeight': serializer.toJson<String>(approximateHeight),
+      'leafLength': serializer.toJson<String>(leafLength),
+      'leafShape': serializer.toJson<String>(leafShape),
+      'leafEdge': serializer.toJson<String>(leafEdge),
+      'leafTexture': serializer.toJson<String>(leafTexture),
+      'hasSpines': serializer.toJson<bool>(hasSpines),
+      'spineType': serializer.toJson<String>(spineType),
+      'flowerGrouping': serializer.toJson<String>(flowerGrouping),
+      'petalCount': serializer.toJson<String>(petalCount),
+      'flowerSize': serializer.toJson<String>(flowerSize),
+      'hasFruit': serializer.toJson<bool>(hasFruit),
+      'fruitShape': serializer.toJson<String>(fruitShape),
+      'fruitColor': serializer.toJson<String>(fruitColor),
+      'fruitSize': serializer.toJson<String>(fruitSize),
+      'observations': serializer.toJson<String>(observations),
       'isActive': serializer.toJson<bool>(isActive),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -407,6 +893,22 @@ class Specy extends DataClass implements Insertable<Specy> {
     String? family,
     String? habitat,
     String? flowerColor,
+    String? biologicalForm,
+    String? approximateHeight,
+    String? leafLength,
+    String? leafShape,
+    String? leafEdge,
+    String? leafTexture,
+    bool? hasSpines,
+    String? spineType,
+    String? flowerGrouping,
+    String? petalCount,
+    String? flowerSize,
+    bool? hasFruit,
+    String? fruitShape,
+    String? fruitColor,
+    String? fruitSize,
+    String? observations,
     bool? isActive,
     String? syncStatus,
     DateTime? createdAt,
@@ -419,6 +921,22 @@ class Specy extends DataClass implements Insertable<Specy> {
     family: family ?? this.family,
     habitat: habitat ?? this.habitat,
     flowerColor: flowerColor ?? this.flowerColor,
+    biologicalForm: biologicalForm ?? this.biologicalForm,
+    approximateHeight: approximateHeight ?? this.approximateHeight,
+    leafLength: leafLength ?? this.leafLength,
+    leafShape: leafShape ?? this.leafShape,
+    leafEdge: leafEdge ?? this.leafEdge,
+    leafTexture: leafTexture ?? this.leafTexture,
+    hasSpines: hasSpines ?? this.hasSpines,
+    spineType: spineType ?? this.spineType,
+    flowerGrouping: flowerGrouping ?? this.flowerGrouping,
+    petalCount: petalCount ?? this.petalCount,
+    flowerSize: flowerSize ?? this.flowerSize,
+    hasFruit: hasFruit ?? this.hasFruit,
+    fruitShape: fruitShape ?? this.fruitShape,
+    fruitColor: fruitColor ?? this.fruitColor,
+    fruitSize: fruitSize ?? this.fruitSize,
+    observations: observations ?? this.observations,
     isActive: isActive ?? this.isActive,
     syncStatus: syncStatus ?? this.syncStatus,
     createdAt: createdAt ?? this.createdAt,
@@ -441,6 +959,42 @@ class Specy extends DataClass implements Insertable<Specy> {
       flowerColor: data.flowerColor.present
           ? data.flowerColor.value
           : this.flowerColor,
+      biologicalForm: data.biologicalForm.present
+          ? data.biologicalForm.value
+          : this.biologicalForm,
+      approximateHeight: data.approximateHeight.present
+          ? data.approximateHeight.value
+          : this.approximateHeight,
+      leafLength: data.leafLength.present
+          ? data.leafLength.value
+          : this.leafLength,
+      leafShape: data.leafShape.present ? data.leafShape.value : this.leafShape,
+      leafEdge: data.leafEdge.present ? data.leafEdge.value : this.leafEdge,
+      leafTexture: data.leafTexture.present
+          ? data.leafTexture.value
+          : this.leafTexture,
+      hasSpines: data.hasSpines.present ? data.hasSpines.value : this.hasSpines,
+      spineType: data.spineType.present ? data.spineType.value : this.spineType,
+      flowerGrouping: data.flowerGrouping.present
+          ? data.flowerGrouping.value
+          : this.flowerGrouping,
+      petalCount: data.petalCount.present
+          ? data.petalCount.value
+          : this.petalCount,
+      flowerSize: data.flowerSize.present
+          ? data.flowerSize.value
+          : this.flowerSize,
+      hasFruit: data.hasFruit.present ? data.hasFruit.value : this.hasFruit,
+      fruitShape: data.fruitShape.present
+          ? data.fruitShape.value
+          : this.fruitShape,
+      fruitColor: data.fruitColor.present
+          ? data.fruitColor.value
+          : this.fruitColor,
+      fruitSize: data.fruitSize.present ? data.fruitSize.value : this.fruitSize,
+      observations: data.observations.present
+          ? data.observations.value
+          : this.observations,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
@@ -460,6 +1014,22 @@ class Specy extends DataClass implements Insertable<Specy> {
           ..write('family: $family, ')
           ..write('habitat: $habitat, ')
           ..write('flowerColor: $flowerColor, ')
+          ..write('biologicalForm: $biologicalForm, ')
+          ..write('approximateHeight: $approximateHeight, ')
+          ..write('leafLength: $leafLength, ')
+          ..write('leafShape: $leafShape, ')
+          ..write('leafEdge: $leafEdge, ')
+          ..write('leafTexture: $leafTexture, ')
+          ..write('hasSpines: $hasSpines, ')
+          ..write('spineType: $spineType, ')
+          ..write('flowerGrouping: $flowerGrouping, ')
+          ..write('petalCount: $petalCount, ')
+          ..write('flowerSize: $flowerSize, ')
+          ..write('hasFruit: $hasFruit, ')
+          ..write('fruitShape: $fruitShape, ')
+          ..write('fruitColor: $fruitColor, ')
+          ..write('fruitSize: $fruitSize, ')
+          ..write('observations: $observations, ')
           ..write('isActive: $isActive, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt')
@@ -468,7 +1038,7 @@ class Specy extends DataClass implements Insertable<Specy> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     commonName,
     scientificName,
@@ -477,10 +1047,26 @@ class Specy extends DataClass implements Insertable<Specy> {
     family,
     habitat,
     flowerColor,
+    biologicalForm,
+    approximateHeight,
+    leafLength,
+    leafShape,
+    leafEdge,
+    leafTexture,
+    hasSpines,
+    spineType,
+    flowerGrouping,
+    petalCount,
+    flowerSize,
+    hasFruit,
+    fruitShape,
+    fruitColor,
+    fruitSize,
+    observations,
     isActive,
     syncStatus,
     createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -493,6 +1079,22 @@ class Specy extends DataClass implements Insertable<Specy> {
           other.family == this.family &&
           other.habitat == this.habitat &&
           other.flowerColor == this.flowerColor &&
+          other.biologicalForm == this.biologicalForm &&
+          other.approximateHeight == this.approximateHeight &&
+          other.leafLength == this.leafLength &&
+          other.leafShape == this.leafShape &&
+          other.leafEdge == this.leafEdge &&
+          other.leafTexture == this.leafTexture &&
+          other.hasSpines == this.hasSpines &&
+          other.spineType == this.spineType &&
+          other.flowerGrouping == this.flowerGrouping &&
+          other.petalCount == this.petalCount &&
+          other.flowerSize == this.flowerSize &&
+          other.hasFruit == this.hasFruit &&
+          other.fruitShape == this.fruitShape &&
+          other.fruitColor == this.fruitColor &&
+          other.fruitSize == this.fruitSize &&
+          other.observations == this.observations &&
           other.isActive == this.isActive &&
           other.syncStatus == this.syncStatus &&
           other.createdAt == this.createdAt);
@@ -507,6 +1109,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
   final Value<String> family;
   final Value<String> habitat;
   final Value<String> flowerColor;
+  final Value<String> biologicalForm;
+  final Value<String> approximateHeight;
+  final Value<String> leafLength;
+  final Value<String> leafShape;
+  final Value<String> leafEdge;
+  final Value<String> leafTexture;
+  final Value<bool> hasSpines;
+  final Value<String> spineType;
+  final Value<String> flowerGrouping;
+  final Value<String> petalCount;
+  final Value<String> flowerSize;
+  final Value<bool> hasFruit;
+  final Value<String> fruitShape;
+  final Value<String> fruitColor;
+  final Value<String> fruitSize;
+  final Value<String> observations;
   final Value<bool> isActive;
   final Value<String> syncStatus;
   final Value<DateTime> createdAt;
@@ -520,6 +1138,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
     this.family = const Value.absent(),
     this.habitat = const Value.absent(),
     this.flowerColor = const Value.absent(),
+    this.biologicalForm = const Value.absent(),
+    this.approximateHeight = const Value.absent(),
+    this.leafLength = const Value.absent(),
+    this.leafShape = const Value.absent(),
+    this.leafEdge = const Value.absent(),
+    this.leafTexture = const Value.absent(),
+    this.hasSpines = const Value.absent(),
+    this.spineType = const Value.absent(),
+    this.flowerGrouping = const Value.absent(),
+    this.petalCount = const Value.absent(),
+    this.flowerSize = const Value.absent(),
+    this.hasFruit = const Value.absent(),
+    this.fruitShape = const Value.absent(),
+    this.fruitColor = const Value.absent(),
+    this.fruitSize = const Value.absent(),
+    this.observations = const Value.absent(),
     this.isActive = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -534,6 +1168,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
     this.family = const Value.absent(),
     this.habitat = const Value.absent(),
     this.flowerColor = const Value.absent(),
+    this.biologicalForm = const Value.absent(),
+    this.approximateHeight = const Value.absent(),
+    this.leafLength = const Value.absent(),
+    this.leafShape = const Value.absent(),
+    this.leafEdge = const Value.absent(),
+    this.leafTexture = const Value.absent(),
+    this.hasSpines = const Value.absent(),
+    this.spineType = const Value.absent(),
+    this.flowerGrouping = const Value.absent(),
+    this.petalCount = const Value.absent(),
+    this.flowerSize = const Value.absent(),
+    this.hasFruit = const Value.absent(),
+    this.fruitShape = const Value.absent(),
+    this.fruitColor = const Value.absent(),
+    this.fruitSize = const Value.absent(),
+    this.observations = const Value.absent(),
     this.isActive = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -551,6 +1201,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
     Expression<String>? family,
     Expression<String>? habitat,
     Expression<String>? flowerColor,
+    Expression<String>? biologicalForm,
+    Expression<String>? approximateHeight,
+    Expression<String>? leafLength,
+    Expression<String>? leafShape,
+    Expression<String>? leafEdge,
+    Expression<String>? leafTexture,
+    Expression<bool>? hasSpines,
+    Expression<String>? spineType,
+    Expression<String>? flowerGrouping,
+    Expression<String>? petalCount,
+    Expression<String>? flowerSize,
+    Expression<bool>? hasFruit,
+    Expression<String>? fruitShape,
+    Expression<String>? fruitColor,
+    Expression<String>? fruitSize,
+    Expression<String>? observations,
     Expression<bool>? isActive,
     Expression<String>? syncStatus,
     Expression<DateTime>? createdAt,
@@ -565,6 +1231,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
       if (family != null) 'family': family,
       if (habitat != null) 'habitat': habitat,
       if (flowerColor != null) 'flower_color': flowerColor,
+      if (biologicalForm != null) 'biological_form': biologicalForm,
+      if (approximateHeight != null) 'approximate_height': approximateHeight,
+      if (leafLength != null) 'leaf_length': leafLength,
+      if (leafShape != null) 'leaf_shape': leafShape,
+      if (leafEdge != null) 'leaf_edge': leafEdge,
+      if (leafTexture != null) 'leaf_texture': leafTexture,
+      if (hasSpines != null) 'has_spines': hasSpines,
+      if (spineType != null) 'spine_type': spineType,
+      if (flowerGrouping != null) 'flower_grouping': flowerGrouping,
+      if (petalCount != null) 'petal_count': petalCount,
+      if (flowerSize != null) 'flower_size': flowerSize,
+      if (hasFruit != null) 'has_fruit': hasFruit,
+      if (fruitShape != null) 'fruit_shape': fruitShape,
+      if (fruitColor != null) 'fruit_color': fruitColor,
+      if (fruitSize != null) 'fruit_size': fruitSize,
+      if (observations != null) 'observations': observations,
       if (isActive != null) 'is_active': isActive,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (createdAt != null) 'created_at': createdAt,
@@ -581,6 +1263,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
     Value<String>? family,
     Value<String>? habitat,
     Value<String>? flowerColor,
+    Value<String>? biologicalForm,
+    Value<String>? approximateHeight,
+    Value<String>? leafLength,
+    Value<String>? leafShape,
+    Value<String>? leafEdge,
+    Value<String>? leafTexture,
+    Value<bool>? hasSpines,
+    Value<String>? spineType,
+    Value<String>? flowerGrouping,
+    Value<String>? petalCount,
+    Value<String>? flowerSize,
+    Value<bool>? hasFruit,
+    Value<String>? fruitShape,
+    Value<String>? fruitColor,
+    Value<String>? fruitSize,
+    Value<String>? observations,
     Value<bool>? isActive,
     Value<String>? syncStatus,
     Value<DateTime>? createdAt,
@@ -595,6 +1293,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
       family: family ?? this.family,
       habitat: habitat ?? this.habitat,
       flowerColor: flowerColor ?? this.flowerColor,
+      biologicalForm: biologicalForm ?? this.biologicalForm,
+      approximateHeight: approximateHeight ?? this.approximateHeight,
+      leafLength: leafLength ?? this.leafLength,
+      leafShape: leafShape ?? this.leafShape,
+      leafEdge: leafEdge ?? this.leafEdge,
+      leafTexture: leafTexture ?? this.leafTexture,
+      hasSpines: hasSpines ?? this.hasSpines,
+      spineType: spineType ?? this.spineType,
+      flowerGrouping: flowerGrouping ?? this.flowerGrouping,
+      petalCount: petalCount ?? this.petalCount,
+      flowerSize: flowerSize ?? this.flowerSize,
+      hasFruit: hasFruit ?? this.hasFruit,
+      fruitShape: fruitShape ?? this.fruitShape,
+      fruitColor: fruitColor ?? this.fruitColor,
+      fruitSize: fruitSize ?? this.fruitSize,
+      observations: observations ?? this.observations,
       isActive: isActive ?? this.isActive,
       syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
@@ -629,6 +1343,54 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
     if (flowerColor.present) {
       map['flower_color'] = Variable<String>(flowerColor.value);
     }
+    if (biologicalForm.present) {
+      map['biological_form'] = Variable<String>(biologicalForm.value);
+    }
+    if (approximateHeight.present) {
+      map['approximate_height'] = Variable<String>(approximateHeight.value);
+    }
+    if (leafLength.present) {
+      map['leaf_length'] = Variable<String>(leafLength.value);
+    }
+    if (leafShape.present) {
+      map['leaf_shape'] = Variable<String>(leafShape.value);
+    }
+    if (leafEdge.present) {
+      map['leaf_edge'] = Variable<String>(leafEdge.value);
+    }
+    if (leafTexture.present) {
+      map['leaf_texture'] = Variable<String>(leafTexture.value);
+    }
+    if (hasSpines.present) {
+      map['has_spines'] = Variable<bool>(hasSpines.value);
+    }
+    if (spineType.present) {
+      map['spine_type'] = Variable<String>(spineType.value);
+    }
+    if (flowerGrouping.present) {
+      map['flower_grouping'] = Variable<String>(flowerGrouping.value);
+    }
+    if (petalCount.present) {
+      map['petal_count'] = Variable<String>(petalCount.value);
+    }
+    if (flowerSize.present) {
+      map['flower_size'] = Variable<String>(flowerSize.value);
+    }
+    if (hasFruit.present) {
+      map['has_fruit'] = Variable<bool>(hasFruit.value);
+    }
+    if (fruitShape.present) {
+      map['fruit_shape'] = Variable<String>(fruitShape.value);
+    }
+    if (fruitColor.present) {
+      map['fruit_color'] = Variable<String>(fruitColor.value);
+    }
+    if (fruitSize.present) {
+      map['fruit_size'] = Variable<String>(fruitSize.value);
+    }
+    if (observations.present) {
+      map['observations'] = Variable<String>(observations.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -655,6 +1417,22 @@ class SpeciesCompanion extends UpdateCompanion<Specy> {
           ..write('family: $family, ')
           ..write('habitat: $habitat, ')
           ..write('flowerColor: $flowerColor, ')
+          ..write('biologicalForm: $biologicalForm, ')
+          ..write('approximateHeight: $approximateHeight, ')
+          ..write('leafLength: $leafLength, ')
+          ..write('leafShape: $leafShape, ')
+          ..write('leafEdge: $leafEdge, ')
+          ..write('leafTexture: $leafTexture, ')
+          ..write('hasSpines: $hasSpines, ')
+          ..write('spineType: $spineType, ')
+          ..write('flowerGrouping: $flowerGrouping, ')
+          ..write('petalCount: $petalCount, ')
+          ..write('flowerSize: $flowerSize, ')
+          ..write('hasFruit: $hasFruit, ')
+          ..write('fruitShape: $fruitShape, ')
+          ..write('fruitColor: $fruitColor, ')
+          ..write('fruitSize: $fruitSize, ')
+          ..write('observations: $observations, ')
           ..write('isActive: $isActive, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
@@ -2858,6 +3636,22 @@ typedef $$SpeciesTableCreateCompanionBuilder =
       Value<String> family,
       Value<String> habitat,
       Value<String> flowerColor,
+      Value<String> biologicalForm,
+      Value<String> approximateHeight,
+      Value<String> leafLength,
+      Value<String> leafShape,
+      Value<String> leafEdge,
+      Value<String> leafTexture,
+      Value<bool> hasSpines,
+      Value<String> spineType,
+      Value<String> flowerGrouping,
+      Value<String> petalCount,
+      Value<String> flowerSize,
+      Value<bool> hasFruit,
+      Value<String> fruitShape,
+      Value<String> fruitColor,
+      Value<String> fruitSize,
+      Value<String> observations,
       Value<bool> isActive,
       Value<String> syncStatus,
       Value<DateTime> createdAt,
@@ -2873,6 +3667,22 @@ typedef $$SpeciesTableUpdateCompanionBuilder =
       Value<String> family,
       Value<String> habitat,
       Value<String> flowerColor,
+      Value<String> biologicalForm,
+      Value<String> approximateHeight,
+      Value<String> leafLength,
+      Value<String> leafShape,
+      Value<String> leafEdge,
+      Value<String> leafTexture,
+      Value<bool> hasSpines,
+      Value<String> spineType,
+      Value<String> flowerGrouping,
+      Value<String> petalCount,
+      Value<String> flowerSize,
+      Value<bool> hasFruit,
+      Value<String> fruitShape,
+      Value<String> fruitColor,
+      Value<String> fruitSize,
+      Value<String> observations,
       Value<bool> isActive,
       Value<String> syncStatus,
       Value<DateTime> createdAt,
@@ -2925,6 +3735,86 @@ class $$SpeciesTableFilterComposer
 
   ColumnFilters<String> get flowerColor => $composableBuilder(
     column: $table.flowerColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get biologicalForm => $composableBuilder(
+    column: $table.biologicalForm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get approximateHeight => $composableBuilder(
+    column: $table.approximateHeight,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get leafLength => $composableBuilder(
+    column: $table.leafLength,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get leafShape => $composableBuilder(
+    column: $table.leafShape,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get leafEdge => $composableBuilder(
+    column: $table.leafEdge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get leafTexture => $composableBuilder(
+    column: $table.leafTexture,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasSpines => $composableBuilder(
+    column: $table.hasSpines,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get spineType => $composableBuilder(
+    column: $table.spineType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get flowerGrouping => $composableBuilder(
+    column: $table.flowerGrouping,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get petalCount => $composableBuilder(
+    column: $table.petalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get flowerSize => $composableBuilder(
+    column: $table.flowerSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasFruit => $composableBuilder(
+    column: $table.hasFruit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fruitShape => $composableBuilder(
+    column: $table.fruitShape,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fruitColor => $composableBuilder(
+    column: $table.fruitColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fruitSize => $composableBuilder(
+    column: $table.fruitSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get observations => $composableBuilder(
+    column: $table.observations,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2993,6 +3883,86 @@ class $$SpeciesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get biologicalForm => $composableBuilder(
+    column: $table.biologicalForm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get approximateHeight => $composableBuilder(
+    column: $table.approximateHeight,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get leafLength => $composableBuilder(
+    column: $table.leafLength,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get leafShape => $composableBuilder(
+    column: $table.leafShape,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get leafEdge => $composableBuilder(
+    column: $table.leafEdge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get leafTexture => $composableBuilder(
+    column: $table.leafTexture,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasSpines => $composableBuilder(
+    column: $table.hasSpines,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get spineType => $composableBuilder(
+    column: $table.spineType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get flowerGrouping => $composableBuilder(
+    column: $table.flowerGrouping,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get petalCount => $composableBuilder(
+    column: $table.petalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get flowerSize => $composableBuilder(
+    column: $table.flowerSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasFruit => $composableBuilder(
+    column: $table.hasFruit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fruitShape => $composableBuilder(
+    column: $table.fruitShape,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fruitColor => $composableBuilder(
+    column: $table.fruitColor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fruitSize => $composableBuilder(
+    column: $table.fruitSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get observations => $composableBuilder(
+    column: $table.observations,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -3050,6 +4020,74 @@ class $$SpeciesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get biologicalForm => $composableBuilder(
+    column: $table.biologicalForm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get approximateHeight => $composableBuilder(
+    column: $table.approximateHeight,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get leafLength => $composableBuilder(
+    column: $table.leafLength,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get leafShape =>
+      $composableBuilder(column: $table.leafShape, builder: (column) => column);
+
+  GeneratedColumn<String> get leafEdge =>
+      $composableBuilder(column: $table.leafEdge, builder: (column) => column);
+
+  GeneratedColumn<String> get leafTexture => $composableBuilder(
+    column: $table.leafTexture,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hasSpines =>
+      $composableBuilder(column: $table.hasSpines, builder: (column) => column);
+
+  GeneratedColumn<String> get spineType =>
+      $composableBuilder(column: $table.spineType, builder: (column) => column);
+
+  GeneratedColumn<String> get flowerGrouping => $composableBuilder(
+    column: $table.flowerGrouping,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get petalCount => $composableBuilder(
+    column: $table.petalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get flowerSize => $composableBuilder(
+    column: $table.flowerSize,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hasFruit =>
+      $composableBuilder(column: $table.hasFruit, builder: (column) => column);
+
+  GeneratedColumn<String> get fruitShape => $composableBuilder(
+    column: $table.fruitShape,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fruitColor => $composableBuilder(
+    column: $table.fruitColor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fruitSize =>
+      $composableBuilder(column: $table.fruitSize, builder: (column) => column);
+
+  GeneratedColumn<String> get observations => $composableBuilder(
+    column: $table.observations,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
@@ -3098,6 +4136,22 @@ class $$SpeciesTableTableManager
                 Value<String> family = const Value.absent(),
                 Value<String> habitat = const Value.absent(),
                 Value<String> flowerColor = const Value.absent(),
+                Value<String> biologicalForm = const Value.absent(),
+                Value<String> approximateHeight = const Value.absent(),
+                Value<String> leafLength = const Value.absent(),
+                Value<String> leafShape = const Value.absent(),
+                Value<String> leafEdge = const Value.absent(),
+                Value<String> leafTexture = const Value.absent(),
+                Value<bool> hasSpines = const Value.absent(),
+                Value<String> spineType = const Value.absent(),
+                Value<String> flowerGrouping = const Value.absent(),
+                Value<String> petalCount = const Value.absent(),
+                Value<String> flowerSize = const Value.absent(),
+                Value<bool> hasFruit = const Value.absent(),
+                Value<String> fruitShape = const Value.absent(),
+                Value<String> fruitColor = const Value.absent(),
+                Value<String> fruitSize = const Value.absent(),
+                Value<String> observations = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -3111,6 +4165,22 @@ class $$SpeciesTableTableManager
                 family: family,
                 habitat: habitat,
                 flowerColor: flowerColor,
+                biologicalForm: biologicalForm,
+                approximateHeight: approximateHeight,
+                leafLength: leafLength,
+                leafShape: leafShape,
+                leafEdge: leafEdge,
+                leafTexture: leafTexture,
+                hasSpines: hasSpines,
+                spineType: spineType,
+                flowerGrouping: flowerGrouping,
+                petalCount: petalCount,
+                flowerSize: flowerSize,
+                hasFruit: hasFruit,
+                fruitShape: fruitShape,
+                fruitColor: fruitColor,
+                fruitSize: fruitSize,
+                observations: observations,
                 isActive: isActive,
                 syncStatus: syncStatus,
                 createdAt: createdAt,
@@ -3126,6 +4196,22 @@ class $$SpeciesTableTableManager
                 Value<String> family = const Value.absent(),
                 Value<String> habitat = const Value.absent(),
                 Value<String> flowerColor = const Value.absent(),
+                Value<String> biologicalForm = const Value.absent(),
+                Value<String> approximateHeight = const Value.absent(),
+                Value<String> leafLength = const Value.absent(),
+                Value<String> leafShape = const Value.absent(),
+                Value<String> leafEdge = const Value.absent(),
+                Value<String> leafTexture = const Value.absent(),
+                Value<bool> hasSpines = const Value.absent(),
+                Value<String> spineType = const Value.absent(),
+                Value<String> flowerGrouping = const Value.absent(),
+                Value<String> petalCount = const Value.absent(),
+                Value<String> flowerSize = const Value.absent(),
+                Value<bool> hasFruit = const Value.absent(),
+                Value<String> fruitShape = const Value.absent(),
+                Value<String> fruitColor = const Value.absent(),
+                Value<String> fruitSize = const Value.absent(),
+                Value<String> observations = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -3139,6 +4225,22 @@ class $$SpeciesTableTableManager
                 family: family,
                 habitat: habitat,
                 flowerColor: flowerColor,
+                biologicalForm: biologicalForm,
+                approximateHeight: approximateHeight,
+                leafLength: leafLength,
+                leafShape: leafShape,
+                leafEdge: leafEdge,
+                leafTexture: leafTexture,
+                hasSpines: hasSpines,
+                spineType: spineType,
+                flowerGrouping: flowerGrouping,
+                petalCount: petalCount,
+                flowerSize: flowerSize,
+                hasFruit: hasFruit,
+                fruitShape: fruitShape,
+                fruitColor: fruitColor,
+                fruitSize: fruitSize,
+                observations: observations,
                 isActive: isActive,
                 syncStatus: syncStatus,
                 createdAt: createdAt,

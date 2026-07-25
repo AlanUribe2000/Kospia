@@ -16,23 +16,53 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   List<Specy> _species = [];
+  List<Specy> _filtered = [];
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadSpecies();
+    _searchController.addListener(_applyFilter);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSpecies() async {
     final repo = context.read<SpeciesRepository>();
     final species = await repo.getAll();
+    // Ordenar alfabéticamente por nombre común
+    species.sort(
+      (a, b) =>
+          a.commonName.toLowerCase().compareTo(b.commonName.toLowerCase()),
+    );
     if (mounted) {
       setState(() {
         _species = species;
+        _filtered = species;
         _loading = false;
       });
     }
+  }
+
+  void _applyFilter() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filtered = _species;
+      } else {
+        _filtered = _species.where((sp) {
+          return sp.commonName.toLowerCase().contains(query) ||
+              sp.scientificName.toLowerCase().contains(query) ||
+              sp.family.toLowerCase().contains(query);
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -44,23 +74,57 @@ class _CatalogScreenState extends State<CatalogScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            Text('Catalogo', style: Theme.of(context).textTheme.displayLarge),
+            Text('Catálogo', style: Theme.of(context).textTheme.displayLarge),
             const SizedBox(height: 4),
             Text(
-              'Especies de flora patagonica',
+              '${_species.length} especies de flora patagónica',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            // Search field
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre, especie o familia...',
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textLight,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.surfaceLilac,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _species.isEmpty
-                  ? const Center(child: Text('No hay especies cargadas'))
+                  : _filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        _searchController.text.isEmpty
+                            ? 'No hay especies cargadas'
+                            : 'Sin resultados para "${_searchController.text}"',
+                      ),
+                    )
                   : ListView.separated(
-                      itemCount: _species.length,
+                      itemCount: _filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final sp = _species[index];
+                        final sp = _filtered[index];
                         return _SpeciesCard(
                           species: sp,
                           onTap: () {
@@ -102,7 +166,7 @@ class _SpeciesCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: AppColors.accentGreenLight.withOpacity(0.2),
+                  color: AppColors.accentGreenLight.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(

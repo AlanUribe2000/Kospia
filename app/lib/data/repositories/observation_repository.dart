@@ -1,11 +1,13 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
 
 /// Repositorio de observaciones. Maneja el CRUD de registros de campo.
-class ObservationRepository {
+/// Extiende ChangeNotifier para notificar a listeners cuando hay cambios.
+class ObservationRepository extends ChangeNotifier {
   final AppDatabase _db;
   static const _uuid = Uuid();
 
@@ -19,6 +21,7 @@ class ObservationRepository {
   Future<List<Observation>> getPending() => _db.getPendingObservations();
 
   /// Creates a new observation with photo and geolocation data.
+  /// Notifies listeners after creation.
   Future<String> create({
     required String userId,
     String? speciesId,
@@ -30,27 +33,38 @@ class ObservationRepository {
     String notes = '',
   }) async {
     final id = _uuid.v4();
-    await _db.insertObservation(ObservationsCompanion(
-      id: Value(id),
-      userId: Value(userId),
-      speciesId: Value(speciesId),
-      photoPath: Value(photoPath),
-      latitude: Value(latitude),
-      longitude: Value(longitude),
-      altitude: Value(altitude),
-      accuracy: Value(accuracy),
-      notes: Value(notes),
-      syncStatus: const Value(AppConstants.syncPending),
-    ));
+    await _db.insertObservation(
+      ObservationsCompanion(
+        id: Value(id),
+        userId: Value(userId),
+        speciesId: Value(speciesId),
+        photoPath: Value(photoPath),
+        latitude: Value(latitude),
+        longitude: Value(longitude),
+        altitude: Value(altitude),
+        accuracy: Value(accuracy),
+        notes: Value(notes),
+        syncStatus: const Value(AppConstants.syncPending),
+      ),
+    );
+    notifyListeners();
     return id;
   }
 
   /// Marks an observation as synced.
   Future<void> markSynced(String id) async {
-    await _db.updateObservation(ObservationsCompanion(
-      id: Value(id),
-      syncStatus: const Value(AppConstants.syncSynced),
-      syncedAt: Value(DateTime.now()),
-    ));
+    await _db.updateObservation(
+      ObservationsCompanion(
+        id: Value(id),
+        syncStatus: const Value(AppConstants.syncSynced),
+        syncedAt: Value(DateTime.now()),
+      ),
+    );
+    notifyListeners();
+  }
+
+  /// Notifies listeners to force a refresh (e.g. after DB reset).
+  void refresh() {
+    notifyListeners();
   }
 }

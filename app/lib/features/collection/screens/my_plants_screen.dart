@@ -10,6 +10,7 @@ import '../../../data/repositories/species_repository.dart';
 import 'plant_detail_screen.dart';
 
 /// Pantalla "Mis Plantas" - grid de especies con estado bloqueado/desbloqueado.
+/// Se actualiza automáticamente al desbloquear una planta y soporta pull-to-refresh.
 class MyPlantsScreen extends StatefulWidget {
   const MyPlantsScreen({super.key});
 
@@ -17,8 +18,7 @@ class MyPlantsScreen extends StatefulWidget {
   State<MyPlantsScreen> createState() => _MyPlantsScreenState();
 }
 
-class _MyPlantsScreenState extends State<MyPlantsScreen>
-    with WidgetsBindingObserver {
+class _MyPlantsScreenState extends State<MyPlantsScreen> {
   List<Specy> _allSpecies = [];
   List<Observation> _observations = [];
   bool _loading = true;
@@ -26,27 +26,18 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    // Listen for new observations (auto-refresh)
+    context.read<ObservationRepository>().addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    context.read<ObservationRepository>().removeListener(_onDataChanged);
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _loadData();
-    }
-  }
-
-  /// Reload data every time this widget becomes visible again.
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void _onDataChanged() {
     _loadData();
   }
 
@@ -54,6 +45,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
     final speciesRepo = context.read<SpeciesRepository>();
     final obsRepo = context.read<ObservationRepository>();
     final species = await speciesRepo.getAll();
+    // Ordenar alfabéticamente por nombre común
+    species.sort(
+      (a, b) =>
+          a.commonName.toLowerCase().compareTo(b.commonName.toLowerCase()),
+    );
     final observations = await obsRepo.getAll();
     if (mounted) {
       setState(() {
@@ -105,37 +101,42 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: _allSpecies.length,
-                itemBuilder: (context, index) {
-                  final species = _allSpecies[index];
-                  final observation = _getObservationForSpecies(species.id);
-                  final isUnlocked = observation != null;
+              child: RefreshIndicator(
+                onRefresh: _loadData,
+                color: AppColors.accentGreen,
+                child: GridView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: _allSpecies.length,
+                  itemBuilder: (context, index) {
+                    final species = _allSpecies[index];
+                    final observation = _getObservationForSpecies(species.id);
+                    final isUnlocked = observation != null;
 
-                  return _PlantCard(
-                    species: species,
-                    observation: observation,
-                    isUnlocked: isUnlocked,
-                    onTap: isUnlocked
-                        ? () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => PlantDetailScreen(
-                                  species: species,
-                                  observation: observation,
+                    return _PlantCard(
+                      species: species,
+                      observation: observation,
+                      isUnlocked: isUnlocked,
+                      onTap: isUnlocked
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PlantDetailScreen(
+                                    species: species,
+                                    observation: observation,
+                                  ),
                                 ),
-                              ),
-                            );
-                          }
-                        : null,
-                  );
-                },
+                              );
+                            }
+                          : null,
+                    );
+                  },
+                ),
               ),
             ),
           ],

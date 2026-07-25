@@ -10,6 +10,23 @@ class Species extends Table {
   TextColumn get family => text().withDefault(const Constant(''))();
   TextColumn get habitat => text().withDefault(const Constant(''))();
   TextColumn get flowerColor => text().withDefault(const Constant(''))();
+  // Campos descriptivos extendidos
+  TextColumn get biologicalForm => text().withDefault(const Constant(''))();
+  TextColumn get approximateHeight => text().withDefault(const Constant(''))();
+  TextColumn get leafLength => text().withDefault(const Constant(''))();
+  TextColumn get leafShape => text().withDefault(const Constant(''))();
+  TextColumn get leafEdge => text().withDefault(const Constant(''))();
+  TextColumn get leafTexture => text().withDefault(const Constant(''))();
+  BoolColumn get hasSpines => boolean().withDefault(const Constant(false))();
+  TextColumn get spineType => text().withDefault(const Constant(''))();
+  TextColumn get flowerGrouping => text().withDefault(const Constant(''))();
+  TextColumn get petalCount => text().withDefault(const Constant(''))();
+  TextColumn get flowerSize => text().withDefault(const Constant(''))();
+  BoolColumn get hasFruit => boolean().withDefault(const Constant(false))();
+  TextColumn get fruitShape => text().withDefault(const Constant(''))();
+  TextColumn get fruitColor => text().withDefault(const Constant(''))();
+  TextColumn get fruitSize => text().withDefault(const Constant(''))();
+  TextColumn get observations => text().withDefault(const Constant(''))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get syncStatus => text().withDefault(const Constant('synced'))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

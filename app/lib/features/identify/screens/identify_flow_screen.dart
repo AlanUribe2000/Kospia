@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/repositories/species_repository.dart';
+import '../../../data/services/identification_engine.dart';
+import '../../catalog/screens/species_detail_screen.dart';
 import '../../collection/screens/capture_observation_screen.dart';
 
-/// Pantalla de identificación paso a paso.
-/// Muestra una pregunta a la vez con indicador de progreso.
-/// Al final muestra el resultado en un bottom sheet.
+/// Pantalla de identificación dinámica estilo Akinator con Kospi.
+/// Selecciona la pregunta más discriminante en cada paso.
+/// Termina cuando quedan ≤3 candidatos o no hay más preguntas útiles.
 class IdentifyFlowScreen extends StatefulWidget {
   const IdentifyFlowScreen({super.key});
 
@@ -17,96 +18,121 @@ class IdentifyFlowScreen extends StatefulWidget {
 }
 
 class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
-  List<Question> _questions = [];
-  Map<String, List<QuestionOption>> _optionsByQuestion = {};
-  final List<String> _selectedOptionIds = [];
-  int _currentStep = 0;
+  IdentificationEngine? _engine;
   bool _loading = true;
   bool _started = false;
+  bool _showingResult = false;
+
+  // Estado actual
+  Question? _currentQuestion;
+  List<QuestionOption> _currentOptions = [];
+  final List<MapEntry<String, String>> _answerHistory = [];
 
   @override
   void initState() {
     super.initState();
-    _loadQuestions();
+    _loadData();
   }
 
-  Future<void> _loadQuestions() async {
+  Future<void> _loadData() async {
     final db = context.read<AppDatabase>();
-    final questions = await db.getAllQuestions();
-    final optionsByQuestion = <String, List<QuestionOption>>{};
 
-    for (final q in questions) {
+    final allSpecies = await db.getAllSpecies();
+    final allQuestions = await db.getAllQuestions();
+    final optionsByQuestion = <String, List<QuestionOption>>{};
+    for (final q in allQuestions) {
       optionsByQuestion[q.id] = await db.getOptionsForQuestion(q.id);
     }
+    final allTraits = await db.getAllTraits();
 
     if (mounted) {
       setState(() {
-        _questions = questions;
-        _optionsByQuestion = optionsByQuestion;
+        _engine = IdentificationEngine(
+          allSpecies: allSpecies,
+          allQuestions: allQuestions,
+          optionsByQuestion: optionsByQuestion,
+          allTraits: allTraits,
+        );
         _loading = false;
       });
     }
   }
 
   void _startIdentification() {
+    _engine!.reset();
+    _answerHistory.clear();
+    final nextQ = _engine!.getNextQuestion();
     setState(() {
       _started = true;
-      _currentStep = 0;
-      _selectedOptionIds.clear();
+      _showingResult = false;
+      _currentQuestion = nextQ;
+      _currentOptions = nextQ != null
+          ? _engine!.getRelevantOptions(nextQ.id)
+          : [];
     });
   }
 
-  void _selectOption(String optionId) {
-    setState(() {
-      _selectedOptionIds.add(optionId);
-    });
+  void _selectOption(String questionId, String optionId) {
+    _engine!.applyAnswer(questionId, optionId);
+    _answerHistory.add(MapEntry(questionId, optionId));
 
-    if (_currentStep < _questions.length - 1) {
-      // Next question
-      setState(() => _currentStep++);
-    } else {
-      // All questions answered - show result
-      _showResult();
+    if (_engine!.isFinished) {
+      setState(() => _showingResult = true);
+      return;
     }
+
+    final nextQ = _engine!.getNextQuestion();
+    if (nextQ == null) {
+      setState(() => _showingResult = true);
+      return;
+    }
+
+    setState(() {
+      _currentQuestion = nextQ;
+      _currentOptions = _engine!.getRelevantOptions(nextQ.id);
+    });
   }
 
-  Future<void> _showResult() async {
-    final repo = context.read<SpeciesRepository>();
-    final results = await repo.findByTraits(_selectedOptionIds);
+  void _goBack() {
+    if (_answerHistory.isEmpty) {
+      _reset();
+      return;
+    }
+    _answerHistory.removeLast();
+    _engine!.replayAnswers(_answerHistory);
 
-    if (!mounted) return;
+    final nextQ = _engine!.getNextQuestion();
+    setState(() {
+      _showingResult = false;
+      _currentQuestion = nextQ;
+      _currentOptions = nextQ != null
+          ? _engine!.getRelevantOptions(nextQ.id)
+          : [];
+    });
+  }
 
-    final Specy? selectedSpecies = await showModalBottomSheet<Specy?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _ResultBottomSheet(
-        results: results,
+  void _confirmSpecies(Specy species) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CaptureObservationScreen(species: species),
       ),
     );
-
-    if (selectedSpecies != null && mounted) {
-      // User confirmed species -> go to capture screen
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CaptureObservationScreen(species: selectedSpecies),
-        ),
-      );
-    }
-
-    // Reset flow
-    setState(() {
-      _started = false;
-      _currentStep = 0;
-      _selectedOptionIds.clear();
-    });
+    _reset();
   }
 
-  void _cancel() {
+  void _viewSpeciesDetail(Specy species) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => SpeciesDetailScreen(species: species)),
+    );
+  }
+
+  void _reset() {
     setState(() {
       _started = false;
-      _currentStep = 0;
-      _selectedOptionIds.clear();
+      _showingResult = false;
+      _currentQuestion = null;
+      _currentOptions = [];
+      _answerHistory.clear();
     });
   }
 
@@ -120,9 +146,14 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       return _buildStartScreen();
     }
 
+    if (_showingResult) {
+      return _buildResultScreen();
+    }
+
     return _buildQuestionScreen();
   }
 
+  // --- START SCREEN ---
   Widget _buildStartScreen() {
     return SafeArea(
       child: Padding(
@@ -130,27 +161,38 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.accentGreen.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            Image.asset(
+              'assets/images/Kospi/Kospi saludando.png',
+              height: 160,
+              errorBuilder: (_, __, ___) => Container(
+                width: 100,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: AppColors.accentGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.search_rounded,
+                  size: 48,
+                  color: AppColors.accentGreen,
+                ),
               ),
-              child: const Icon(Icons.search_rounded,
-                  size: 48, color: AppColors.accentGreen),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Identificar Planta',
-              style: Theme.of(context).textTheme.displayLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Responde ${_questions.length} preguntas sobre la planta que estas viendo y te ayudamos a identificarla',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLilac,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primaryLilac.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                '¡Vamos a identificar una planta!\nTe haré unas pocas preguntas para descubrir qué especie estás viendo.',
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -166,57 +208,98 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     );
   }
 
+  // --- QUESTION SCREEN ---
   Widget _buildQuestionScreen() {
-    final question = _questions[_currentStep];
-    final options = _optionsByQuestion[question.id] ?? [];
+    final question = _currentQuestion!;
+    final candidateCount = _engine!.candidates.length;
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const SizedBox(height: 16),
-            // Progress indicator
-            _buildProgressIndicator(),
-            const SizedBox(height: 24),
-            // Question number
+            const SizedBox(height: 8),
+            Image.asset(
+              'assets/images/Kospi/Kospi pensando.png',
+              height: 120,
+              errorBuilder: (_, __, ___) => Container(
+                width: 80,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: AppColors.accentOrange.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  size: 40,
+                  color: AppColors.accentOrange,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Info: candidatos restantes
             Text(
-              'PREGUNTA ${_currentStep + 1} DE ${_questions.length}',
+              'Pregunta ${_answerHistory.length + 1} · $candidateCount especies posibles',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textMedium,
-                letterSpacing: 1,
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(height: 12),
-            // Question text
-            Text(
-              '¿${question.questionText}',
-              style: Theme.of(context).textTheme.headlineMedium,
-              textAlign: TextAlign.center,
+            const SizedBox(height: 10),
+            // Speech bubble
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLilac,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primaryLilac.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                question.questionText,
+                style: Theme.of(context).textTheme.headlineMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
-            const SizedBox(height: 32),
-            // Options list
+            const SizedBox(height: 20),
+            // Options
             Expanded(
               child: ListView.separated(
-                itemCount: options.length,
+                itemCount: _currentOptions.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  final option = options[index];
+                  final option = _currentOptions[index];
                   return _OptionTile(
                     text: option.optionText,
-                    onTap: () => _selectOption(option.id),
+                    onTap: () => _selectOption(question.id, option.id),
                   );
                 },
               ),
             ),
             const SizedBox(height: 12),
-            // Cancel button
-            TextButton(
-              onPressed: _cancel,
-              child: const Text('Cancelar',
-                  style: TextStyle(color: AppColors.textMedium)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton.icon(
+                  onPressed: _goBack,
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: Text(
+                    _answerHistory.isNotEmpty ? 'Anterior' : 'Volver',
+                    style: const TextStyle(color: AppColors.textMedium),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _reset,
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: AppColors.textMedium),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -224,32 +307,119 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     );
   }
 
-  Widget _buildProgressIndicator() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_questions.length, (index) {
-        Color color;
-        if (index < _currentStep) {
-          color = AppColors.accentGreen;
-        } else if (index == _currentStep) {
-          color = AppColors.accentOrange;
-        } else {
-          color = AppColors.surfaceLilac;
-        }
-        return Container(
-          width: 24,
-          height: 6,
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        );
-      }),
+  // --- RESULT SCREEN ---
+  Widget _buildResultScreen() {
+    final results = _engine!.candidates;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Image.asset(
+              'assets/images/Kospi/Kospi tomandose las manos.png',
+              height: 140,
+              errorBuilder: (_, __, ___) => Container(
+                width: 100,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: AppColors.accentGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  size: 48,
+                  color: AppColors.accentGreen,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLilac,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primaryLilac.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                results.isEmpty
+                    ? 'Hmm, no encontré una planta que coincida. ¡Intenta de nuevo!'
+                    : results.length == 1
+                    ? '¡Creo que es:'
+                    : '¡Podría ser una de estas ${results.length} especies!',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_answerHistory.isNotEmpty)
+              Text(
+                'Respondiste ${_answerHistory.length} preguntas',
+                style: TextStyle(fontSize: 12, color: AppColors.textMedium),
+              ),
+            const SizedBox(height: 12),
+            if (results.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.search_off_rounded,
+                        size: 56,
+                        color: AppColors.textLight,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sin coincidencias',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Intenta cambiar tus respuestas',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.separated(
+                  itemCount: results.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final species = results[index];
+                    return _SpeciesResultCard(
+                      species: species,
+                      onViewDetail: () => _viewSpeciesDetail(species),
+                      onConfirm: () => _confirmSpecies(species),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _reset,
+                child: const Text('Intentar de nuevo'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// --- OPTION TILE ---
 class _OptionTile extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
@@ -269,10 +439,7 @@ class _OptionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Text(
             text,
-            style: const TextStyle(
-              fontSize: 15,
-              color: AppColors.textDark,
-            ),
+            style: const TextStyle(fontSize: 15, color: AppColors.textDark),
           ),
         ),
       ),
@@ -280,216 +447,99 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
-/// Bottom sheet que muestra el resultado de la identificación.
-class _ResultBottomSheet extends StatelessWidget {
-  final List<Specy> results;
+// --- SPECIES RESULT CARD ---
+class _SpeciesResultCard extends StatelessWidget {
+  final Specy species;
+  final VoidCallback onViewDetail;
+  final VoidCallback onConfirm;
 
-  const _ResultBottomSheet({required this.results});
+  const _SpeciesResultCard({
+    required this.species,
+    required this.onViewDetail,
+    required this.onConfirm,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.85,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.backgroundLilac,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: onViewDetail,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
                 children: [
-                  // Handle
                   Container(
-                    width: 40,
-                    height: 4,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.textLight,
-                      borderRadius: BorderRadius.circular(2),
+                      color: AppColors.accentGreenLight.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.local_florist_rounded,
+                      color: AppColors.accentGreen,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  if (results.isEmpty) _buildNoResult(context),
-                  if (results.length == 1) _buildSingleResult(context, results.first),
-                  if (results.length > 1) _buildMultipleResults(context),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildNoResult(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.help_outline_rounded,
-              size: 40, color: AppColors.error),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'No encontramos coincidencias',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Intenta responder de nuevo con otras opciones',
-          style: TextStyle(color: AppColors.textMedium),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Volver al inicio'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSingleResult(BuildContext context, Specy species) {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.accentOrange.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.accentOrange, width: 3),
-          ),
-          child: const Icon(Icons.local_florist_rounded,
-              size: 40, color: AppColors.accentOrange),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          '¡CREO QUE ES...!',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.accentOrange,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          species.commonName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          species.scientificName,
-          style: const TextStyle(
-            fontStyle: FontStyle.italic,
-            color: AppColors.textMedium,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            species.description,
-            style: const TextStyle(color: AppColors.textMedium),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(species),
-            child: const Text('¡Desbloquear esta planta!'),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Volver al inicio',
-              style: TextStyle(color: AppColors.textMedium)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMultipleResults(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          'Encontramos varias opciones',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Selecciona la que crees que es',
-          style: TextStyle(color: AppColors.textMedium),
-        ),
-        const SizedBox(height: 20),
-        ...results.map((species) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: () => Navigator.of(context).pop(species),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.accentGreenLight
-                                .withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.local_florist_rounded,
-                              color: AppColors.accentGreen),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(species.commonName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
-                              Text(species.scientificName,
-                                  style: const TextStyle(
-                                      fontStyle: FontStyle.italic,
-                                      fontSize: 12,
-                                      color: AppColors.textMedium)),
-                            ],
+                        Text(
+                          species.commonName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textLight),
+                        Text(
+                          species.scientificName,
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                            color: AppColors.textMedium,
+                          ),
+                        ),
+                        if (species.family.isNotEmpty)
+                          Text(
+                            species.family,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textLight,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
+                  const Icon(Icons.chevron_right, color: AppColors.textLight),
+                ],
               ),
-            )),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Volver al inicio',
-              style: TextStyle(color: AppColors.textMedium)),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onViewDetail,
+                    child: const Text('Ver detalle'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onConfirm,
+                    child: const Text('¡Es esta!'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

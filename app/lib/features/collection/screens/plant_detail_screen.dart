@@ -31,6 +31,18 @@ class PlantDetailScreen extends StatelessWidget {
     );
   }
 
+  void _openFullMap(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullMapScreen(
+          latitude: observation.latitude,
+          longitude: observation.longitude,
+          speciesName: species.commonName,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
@@ -143,8 +155,31 @@ class PlantDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Map
-                  _buildMap(),
+                  // Map (tap to expand fullscreen)
+                  GestureDetector(
+                    onTap: () => _openFullMap(context),
+                    child: Stack(
+                      children: [
+                        _buildMap(),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.fullscreen_rounded,
+                              size: 20,
+                              color: AppColors.textMedium,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -159,7 +194,7 @@ class PlantDetailScreen extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: 200,
+        height: 300,
         child: FlutterMap(
           options: MapOptions(
             initialCenter: point,
@@ -171,18 +206,28 @@ class PlantDetailScreen extends StatelessWidget {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.kospia.kospia_app',
+              userAgentPackageName: 'com.kospia.app',
             ),
             MarkerLayer(
               markers: [
                 Marker(
                   point: point,
-                  width: 40,
-                  height: 40,
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    color: AppColors.accentOrange,
-                    size: 40,
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.accentOrange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accentOrange.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -267,6 +312,66 @@ class _FullPhotoScreen extends StatelessWidget {
             child: Image.file(photoFile, fit: BoxFit.contain),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Pantalla de mapa en pantalla completa con zoom libre.
+class _FullMapScreen extends StatelessWidget {
+  final double latitude;
+  final double longitude;
+  final String speciesName;
+
+  const _FullMapScreen({
+    required this.latitude,
+    required this.longitude,
+    required this.speciesName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final point = LatLng(latitude, longitude);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Ubicación - $speciesName')),
+      body: FlutterMap(
+        options: MapOptions(
+          initialCenter: point,
+          initialZoom: 15,
+          minZoom: 3,
+          maxZoom: 18,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.kospia.app',
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: point,
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.accentOrange,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accentOrange.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
