@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/species_images.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/species_repository.dart';
 import '../../catalog/screens/species_detail_screen.dart';
@@ -50,8 +51,7 @@ class _IdentifyScreenState extends State<IdentifyScreen> {
     if (_selectedOptions.isEmpty) return;
 
     final repo = context.read<SpeciesRepository>();
-    final results =
-        await repo.findByTraits(_selectedOptions.values.toList());
+    final results = await repo.findByTraits(_selectedOptions.values.toList());
 
     if (mounted) {
       setState(() {
@@ -82,15 +82,17 @@ class _IdentifyScreenState extends State<IdentifyScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            Text('Identificar Planta',
-                style: Theme.of(context).textTheme.displayLarge),
-            const SizedBox(height: 4),
-            Text('Responde las preguntas para encontrar la especie',
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _showResults ? _buildResults() : _buildQuestions(),
+            Text(
+              'Identificar Planta',
+              style: Theme.of(context).textTheme.displayLarge,
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Responde las preguntas para encontrar la especie',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 20),
+            Expanded(child: _showResults ? _buildResults() : _buildQuestions()),
           ],
         ),
       ),
@@ -152,14 +154,21 @@ class _IdentifyScreenState extends State<IdentifyScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.search_off_rounded,
-                      size: 64, color: AppColors.textLight),
+                  const Icon(
+                    Icons.search_off_rounded,
+                    size: 64,
+                    color: AppColors.textLight,
+                  ),
                   const SizedBox(height: 12),
-                  Text('No se encontraron coincidencias',
-                      style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'No se encontraron coincidencias',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 8),
-                  Text('Intenta cambiar tus respuestas',
-                      style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                    'Intenta cambiar tus respuestas',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ),
@@ -176,8 +185,7 @@ class _IdentifyScreenState extends State<IdentifyScreen> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            SpeciesDetailScreen(species: species),
+                        builder: (_) => SpeciesDetailScreen(species: species),
                       ),
                     );
                   },
@@ -219,8 +227,10 @@ class _QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(question.questionText,
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              question.questionText,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -234,8 +244,9 @@ class _QuestionCard extends StatelessWidget {
                   selectedColor: AppColors.accentGreenLight,
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.white : AppColors.textDark,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 );
               }).toList(),
@@ -251,30 +262,57 @@ class _SpeciesResultCard extends StatelessWidget {
   final Specy species;
   final VoidCallback onTap;
 
-  const _SpeciesResultCard({
-    required this.species,
-    required this.onTap,
-  });
+  const _SpeciesResultCard({required this.species, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final firstImage = SpeciesImages.getFirstImage(species.scientificName);
+
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppColors.accentGreenLight.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.local_florist_rounded,
-              color: AppColors.accentGreen),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: firstImage != null
+              ? Image.asset(
+                  firstImage,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGreenLight.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.local_florist_rounded,
+                      color: AppColors.accentGreen,
+                    ),
+                  ),
+                )
+              : Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreenLight.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.local_florist_rounded,
+                    color: AppColors.accentGreen,
+                  ),
+                ),
         ),
-        title: Text(species.commonName,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(species.scientificName,
-            style: const TextStyle(fontStyle: FontStyle.italic)),
+        title: Text(
+          species.commonName,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          species.scientificName,
+          style: const TextStyle(fontStyle: FontStyle.italic),
+        ),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: onTap,
       ),

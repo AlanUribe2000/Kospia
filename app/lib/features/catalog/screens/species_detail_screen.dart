@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/species_images.dart';
 import '../../../data/database/app_database.dart';
 
 /// Pantalla de detalle de una especie con información completa.
@@ -11,6 +12,8 @@ class SpeciesDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final images = SpeciesImages.getImages(species.scientificName);
+
     return Scaffold(
       appBar: AppBar(title: Text(species.commonName)),
       body: SingleChildScrollView(
@@ -18,22 +21,25 @@ class SpeciesDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Center(
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.accentGreenLight.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Icon(
-                  Icons.local_florist_rounded,
-                  color: AppColors.accentGreen,
-                  size: 56,
+            // Image gallery
+            if (images.isNotEmpty)
+              _ImageGallery(images: images)
+            else
+              Center(
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreenLight.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(
+                    Icons.local_florist_rounded,
+                    color: AppColors.accentGreen,
+                    size: 56,
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 20),
             Center(
               child: Text(
@@ -303,6 +309,305 @@ class _TagChip extends StatelessWidget {
             style: const TextStyle(fontSize: 12, color: AppColors.accentGreen),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ImageGallery extends StatefulWidget {
+  final List<String> images;
+
+  const _ImageGallery({required this.images});
+
+  @override
+  State<_ImageGallery> createState() => _ImageGalleryState();
+}
+
+class _ImageGalleryState extends State<_ImageGallery> {
+  int _currentIndex = 0;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Main image carousel
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 220,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.images.length,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+              },
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => _showFullScreen(context, index),
+                  child: Image.asset(
+                    widget.images[index],
+                    width: double.infinity,
+                    height: 220,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: AppColors.accentGreenLight.withValues(alpha: 0.2),
+                      child: const Icon(
+                        Icons.broken_image_rounded,
+                        color: AppColors.textLight,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Page indicator dots
+        if (widget.images.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${_currentIndex + 1} / ${widget.images.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textLight,
+                ),
+              ),
+              const SizedBox(width: 10),
+              ...List.generate(widget.images.length, (index) {
+                return Container(
+                  width: index == _currentIndex ? 8 : 6,
+                  height: index == _currentIndex ? 8 : 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: index == _currentIndex
+                        ? AppColors.accentGreen
+                        : AppColors.textLight.withValues(alpha: 0.3),
+                  ),
+                );
+              }),
+            ],
+          ),
+      ],
+    );
+  }
+
+  void _showFullScreen(BuildContext context, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullScreenImageViewer(
+          images: widget.images,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+}
+
+/// Visor de imágenes a pantalla completa con zoom y swipe.
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late int _currentIndex;
+  late final PageController _pageController;
+  bool _isZoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onZoomChanged(bool zoomed) {
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: widget.images.length > 1
+            ? Text(
+                '${_currentIndex + 1} / ${widget.images.length}',
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        physics: _isZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        itemCount: widget.images.length,
+        onPageChanged: (index) {
+          setState(() => _currentIndex = index);
+        },
+        itemBuilder: (context, index) {
+          return _ZoomableImage(
+            imagePath: widget.images[index],
+            onZoomChanged: _onZoomChanged,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Widget individual de imagen con zoom.
+/// Notifica al padre cuando se entra/sale del estado de zoom
+/// para que pueda bloquear el swipe del PageView.
+class _ZoomableImage extends StatefulWidget {
+  final String imagePath;
+  final ValueChanged<bool> onZoomChanged;
+
+  const _ZoomableImage({required this.imagePath, required this.onZoomChanged});
+
+  @override
+  State<_ZoomableImage> createState() => _ZoomableImageState();
+}
+
+class _ZoomableImageState extends State<_ZoomableImage>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformController =
+      TransformationController();
+  late AnimationController _animController;
+  Animation<Matrix4>? _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 250),
+        )..addListener(() {
+          if (_animation != null) {
+            _transformController.value = _animation!.value;
+          }
+        });
+
+    _transformController.addListener(_onTransformChanged);
+  }
+
+  void _onTransformChanged() {
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    widget.onZoomChanged(scale > 1.05);
+  }
+
+  /// Doble tap para alternar zoom 2.5x / reset.
+  void _handleDoubleTap(TapDownDetails details) {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+
+    if (currentScale > 1.05) {
+      _animateToMatrix(Matrix4.identity());
+    } else {
+      final position = details.localPosition;
+      final zoomed = Matrix4(
+        2.5,
+        0,
+        0,
+        0,
+        0,
+        2.5,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -position.dx * 1.5,
+        -position.dy * 1.5,
+        0,
+        1,
+      );
+      _animateToMatrix(zoomed);
+    }
+  }
+
+  void _animateToMatrix(Matrix4 target) {
+    _animation = Matrix4Tween(begin: _transformController.value, end: target)
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
+    _animController.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _transformController.removeListener(_onTransformChanged);
+    _animController.dispose();
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onDoubleTapDown: _handleDoubleTap,
+      onDoubleTap: () {},
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: 1.0,
+        maxScale: 5.0,
+        panEnabled: true,
+        scaleEnabled: true,
+        onInteractionStart: (_) {
+          widget.onZoomChanged(true);
+        },
+        onInteractionEnd: (_) {
+          _onTransformChanged();
+        },
+        child: Center(
+          child: Image.asset(
+            widget.imagePath,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.broken_image_rounded,
+              color: Colors.white54,
+              size: 64,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/species_images.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/services/identification_engine.dart';
 import '../../catalog/screens/species_detail_screen.dart';
@@ -472,17 +473,45 @@ class _SpeciesResultCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGreenLight.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.local_florist_rounded,
-                      color: AppColors.accentGreen,
-                    ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SpeciesImages.hasImages(species.scientificName)
+                        ? Image.asset(
+                            SpeciesImages.getFirstImage(
+                              species.scientificName,
+                            )!,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.accentGreenLight.withValues(
+                                  alpha: 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.local_florist_rounded,
+                                color: AppColors.accentGreen,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.accentGreenLight.withValues(
+                                alpha: 0.2,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.local_florist_rounded,
+                              color: AppColors.accentGreen,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
@@ -9,6 +10,9 @@ import 'features/home/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Ocultar la barra de estado (hora, batería, etc.)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   final database = AppDatabase();
 

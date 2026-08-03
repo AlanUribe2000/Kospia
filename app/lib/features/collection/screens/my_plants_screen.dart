@@ -20,19 +20,23 @@ class MyPlantsScreen extends StatefulWidget {
 
 class _MyPlantsScreenState extends State<MyPlantsScreen> {
   List<Specy> _allSpecies = [];
+  List<Specy> _filtered = [];
   List<Observation> _observations = [];
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _searchController.addListener(_applyFilter);
     // Listen for new observations (auto-refresh)
     context.read<ObservationRepository>().addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
     context.read<ObservationRepository>().removeListener(_onDataChanged);
     super.dispose();
   }
@@ -57,7 +61,23 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
         _observations = observations;
         _loading = false;
       });
+      _applyFilter();
     }
+  }
+
+  void _applyFilter() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filtered = _allSpecies;
+      } else {
+        _filtered = _allSpecies.where((sp) {
+          return sp.commonName.toLowerCase().contains(query) ||
+              sp.scientificName.toLowerCase().contains(query) ||
+              sp.family.toLowerCase().contains(query);
+        }).toList();
+      }
+    });
   }
 
   /// Returns the first observation for a given species, or null if not unlocked.
@@ -99,7 +119,35 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
               '$_unlockedCount de ${_allSpecies.length} desbloqueadas',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            // Search field
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre, especie o familia...',
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textLight,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.surfaceLilac,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadData,
@@ -112,9 +160,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                     mainAxisSpacing: 12,
                     childAspectRatio: 0.85,
                   ),
-                  itemCount: _allSpecies.length,
+                  itemCount: _filtered.length,
                   itemBuilder: (context, index) {
-                    final species = _allSpecies[index];
+                    final species = _filtered[index];
                     final observation = _getObservationForSpecies(species.id);
                     final isUnlocked = observation != null;
 

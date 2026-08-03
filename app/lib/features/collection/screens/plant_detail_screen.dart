@@ -22,12 +22,7 @@ class PlantDetailScreen extends StatelessWidget {
 
   void _showFullPhoto(BuildContext context, File photoFile) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullPhotoScreen(
-          photoFile: photoFile,
-          heroTag: 'plant-photo-${observation.id}',
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => _FullPhotoScreen(photoFile: photoFile)),
     );
   }
 
@@ -55,18 +50,16 @@ class PlantDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Photo - tap to expand
+            // Photo - double-tap to open full screen
             if (hasPhoto)
               GestureDetector(
+                onDoubleTap: () => _showFullPhoto(context, photoFile),
                 onTap: () => _showFullPhoto(context, photoFile),
-                child: Hero(
-                  tag: 'plant-photo-${observation.id}',
-                  child: Image.file(
-                    photoFile,
-                    height: 280,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                child: Image.file(
+                  photoFile,
+                  height: 280,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
                 ),
               )
             else
@@ -287,12 +280,80 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-/// Pantalla de foto en pantalla completa con pinch-to-zoom.
-class _FullPhotoScreen extends StatelessWidget {
+/// Pantalla de foto en pantalla completa con pinch-to-zoom y doble tap.
+class _FullPhotoScreen extends StatefulWidget {
   final File photoFile;
-  final String heroTag;
 
-  const _FullPhotoScreen({required this.photoFile, required this.heroTag});
+  const _FullPhotoScreen({required this.photoFile});
+
+  @override
+  State<_FullPhotoScreen> createState() => _FullPhotoScreenState();
+}
+
+class _FullPhotoScreenState extends State<_FullPhotoScreen>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformController =
+      TransformationController();
+  late AnimationController _animController;
+  Animation<Matrix4>? _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 250),
+        )..addListener(() {
+          if (_animation != null) {
+            _transformController.value = _animation!.value;
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  void _handleDoubleTap(TapDownDetails details) {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+
+    if (currentScale > 1.05) {
+      _animateToMatrix(Matrix4.identity());
+    } else {
+      final position = details.localPosition;
+      final zoomed = Matrix4(
+        2.5,
+        0,
+        0,
+        0,
+        0,
+        2.5,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -position.dx * 1.5,
+        -position.dy * 1.5,
+        0,
+        1,
+      );
+      _animateToMatrix(zoomed);
+    }
+  }
+
+  void _animateToMatrix(Matrix4 target) {
+    _animation = Matrix4Tween(begin: _transformController.value, end: target)
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
+    _animController.forward(from: 0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -301,15 +362,16 @@ class _FullPhotoScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
       ),
-      body: Center(
-        child: Hero(
-          tag: heroTag,
-          child: InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: Image.file(photoFile, fit: BoxFit.contain),
+      body: GestureDetector(
+        onDoubleTapDown: _handleDoubleTap,
+        onDoubleTap: () {},
+        child: InteractiveViewer(
+          transformationController: _transformController,
+          minScale: 1.0,
+          maxScale: 5.0,
+          child: Center(
+            child: Image.file(widget.photoFile, fit: BoxFit.contain),
           ),
         ),
       ),

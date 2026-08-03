@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/species_images.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/species_repository.dart';
 import 'species_detail_screen.dart';
@@ -154,6 +155,8 @@ class _SpeciesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final firstImage = SpeciesImages.getFirstImage(species.scientificName);
+
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -162,18 +165,17 @@ class _SpeciesCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.accentGreenLight.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.local_florist_rounded,
-                  color: AppColors.accentGreen,
-                  size: 28,
-                ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: firstImage != null
+                    ? Image.asset(
+                        firstImage,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _PlaceholderIcon(),
+                      )
+                    : const _PlaceholderIcon(),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -212,6 +214,27 @@ class _SpeciesCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlaceholderIcon extends StatelessWidget {
+  const _PlaceholderIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.accentGreenLight.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.local_florist_rounded,
+        color: AppColors.accentGreen,
+        size: 28,
       ),
     );
   }
