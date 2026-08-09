@@ -4,7 +4,7 @@ class AppConstants {
   static const String appName = 'Kospia';
   static const String appSubtitle = 'Flora Patagonica';
   static const String databaseName = 'kospia_local.db';
-  static const int databaseVersion = 3;
+  static const int databaseVersion = 4;
   static const String testUserId = 'test-user-001';
   static const String testUserName = 'test';
   static const String syncPending = 'pending';

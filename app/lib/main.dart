@@ -11,7 +11,7 @@ import 'features/home/screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Ocultar la barra de estado (hora, batería, etc.)
+  // Ocultar barras del sistema. Solo aparecen al deslizar desde el borde.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   final database = AppDatabase();
@@ -35,11 +35,17 @@ class KospiaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kospia',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+    // Eliminar padding del sistema para que SafeArea no reserve espacio negro
+    return MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(padding: EdgeInsets.zero, viewPadding: EdgeInsets.zero),
+      child: MaterialApp(
+        title: 'Kospia',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const HomeScreen(),
+      ),
     );
   }
 }

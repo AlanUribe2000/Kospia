@@ -17,6 +17,7 @@ part 'app_database.g.dart';
     QuestionOptions,
     SpeciesTraits,
     Observations,
+    ObservationPhotos,
     Users,
   ],
 )
@@ -54,10 +55,13 @@ class AppDatabase extends _$AppDatabase {
   // --- Observations queries ---
   Future<List<Observation>> getAllObservations() => (select(
     observations,
-  )..orderBy([(t) => OrderingTerm.desc(t.capturedAt)])).get();
+  )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
 
   Future<List<Observation>> getObservationsByUser(String userId) =>
       (select(observations)..where((t) => t.userId.equals(userId))).get();
+
+  Future<List<Observation>> getObservationsBySpecies(String speciesId) =>
+      (select(observations)..where((t) => t.speciesId.equals(speciesId))).get();
 
   Future<List<Observation>> getPendingObservations() => (select(
     observations,
@@ -68,6 +72,44 @@ class AppDatabase extends _$AppDatabase {
 
   Future<bool> updateObservation(ObservationsCompanion entry) =>
       update(observations).replace(entry);
+
+  // --- ObservationPhotos queries ---
+  Future<List<ObservationPhoto>> getPhotosForObservation(
+    String observationId,
+  ) =>
+      (select(observationPhotos)
+            ..where((t) => t.observationId.equals(observationId))
+            ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
+          .get();
+
+  Future<List<ObservationPhoto>> getAllPhotosForSpecies(
+    String speciesId,
+  ) async {
+    final obs = await getObservationsBySpecies(speciesId);
+    if (obs.isEmpty) return [];
+    final obsIds = obs.map((o) => o.id).toList();
+    return (select(observationPhotos)
+          ..where((t) => t.observationId.isIn(obsIds))
+          ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)]))
+        .get();
+  }
+
+  /// Returns distinct plant parts photographed for a given species.
+  Future<Set<String>> getPartsForSpecies(String speciesId) async {
+    final photos = await getAllPhotosForSpecies(speciesId);
+    return photos.map((p) => p.plantPart).toSet();
+  }
+
+  Future<int> insertObservationPhoto(ObservationPhotosCompanion entry) =>
+      into(observationPhotos).insert(entry);
+
+  Future<void> insertObservationPhotos(
+    List<ObservationPhotosCompanion> entries,
+  ) async {
+    await batch((batch) {
+      batch.insertAll(observationPhotos, entries);
+    });
+  }
 
   // --- Questions queries ---
   Future<List<Question>> getAllQuestions() =>
@@ -151,6 +193,7 @@ class AppDatabase extends _$AppDatabase {
   /// Borra todas las tablas y re-inserta datos semilla.
   Future<void> resetDatabase() async {
     await transaction(() async {
+      await delete(observationPhotos).go();
       await delete(observations).go();
       await delete(speciesTraits).go();
       await delete(questionOptions).go();

@@ -70,19 +70,39 @@ class SpeciesTraits extends Table {
 }
 
 /// Observaciones: registro principal de ciencia ciudadana.
+/// Una observación agrupa todas las fotos de una misma planta identificada.
 class Observations extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text()();
-  TextColumn get speciesId => text().nullable()();
+  TextColumn get speciesId => text()();
+  TextColumn get notes => text().withDefault(const Constant(''))();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get syncedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Fotos individuales de una observación.
+/// Cada foto tiene su parte de planta, ubicación geográfica y fuente.
+class ObservationPhotos extends Table {
+  TextColumn get id => text()();
+  TextColumn get observationId => text()();
   TextColumn get photoPath => text()();
+
+  /// Parte de la planta: general, hoja, flor, tallo, fruto
+  TextColumn get plantPart => text().withDefault(const Constant('general'))();
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
   RealColumn get altitude => real().withDefault(const Constant(0.0))();
   RealColumn get accuracy => real().withDefault(const Constant(0.0))();
-  TextColumn get notes => text().withDefault(const Constant(''))();
+
+  /// Fuente de la foto: camera, gallery
+  TextColumn get source => text().withDefault(const Constant('camera'))();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
   DateTimeColumn get capturedAt => dateTime().withDefault(currentDateAndTime)();
-  DateTimeColumn get syncedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

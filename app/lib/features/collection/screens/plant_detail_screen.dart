@@ -9,15 +9,15 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/database/app_database.dart';
 
 /// Pantalla de detalle de una planta desbloqueada.
-/// Muestra la foto tomada, información de la especie y un mapa con la ubicación.
+/// Muestra las fotos tomadas, información de la especie y un mapa.
 class PlantDetailScreen extends StatelessWidget {
   final Specy species;
-  final Observation observation;
+  final List<ObservationPhoto> photos;
 
   const PlantDetailScreen({
     super.key,
     required this.species,
-    required this.observation,
+    required this.photos,
   });
 
   void _showFullPhoto(BuildContext context, File photoFile) {
@@ -26,12 +26,12 @@ class PlantDetailScreen extends StatelessWidget {
     );
   }
 
-  void _openFullMap(BuildContext context) {
+  void _openFullMap(BuildContext context, ObservationPhoto photo) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _FullMapScreen(
-          latitude: observation.latitude,
-          longitude: observation.longitude,
+          latitude: photo.latitude,
+          longitude: photo.longitude,
           speciesName: species.commonName,
         ),
       ),
@@ -41,8 +41,8 @@ class PlantDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final photoFile = File(observation.photoPath);
-    final hasPhoto = photoFile.existsSync();
+    final firstPhoto = photos.isNotEmpty ? File(photos.first.photoPath) : null;
+    final hasPhoto = firstPhoto != null && firstPhoto.existsSync();
 
     return Scaffold(
       appBar: AppBar(title: Text(species.commonName)),
@@ -53,10 +53,10 @@ class PlantDetailScreen extends StatelessWidget {
             // Photo - double-tap to open full screen
             if (hasPhoto)
               GestureDetector(
-                onDoubleTap: () => _showFullPhoto(context, photoFile),
-                onTap: () => _showFullPhoto(context, photoFile),
+                onDoubleTap: () => _showFullPhoto(context, firstPhoto),
+                onTap: () => _showFullPhoto(context, firstPhoto),
                 child: Image.file(
-                  photoFile,
+                  firstPhoto,
                   height: 280,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -132,47 +132,50 @@ class PlantDetailScreen extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   // Date
-                  _DetailRow(
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Fecha',
-                    value: dateFormat.format(observation.capturedAt),
-                  ),
+                  if (photos.isNotEmpty)
+                    _DetailRow(
+                      icon: Icons.calendar_today_rounded,
+                      label: 'Fecha',
+                      value: dateFormat.format(photos.first.capturedAt),
+                    ),
                   const SizedBox(height: 10),
 
                   // Location map placeholder
-                  _DetailRow(
-                    icon: Icons.location_on_rounded,
-                    label: 'Ubicacion',
-                    value:
-                        'Lat: ${observation.latitude.toStringAsFixed(5)}, Lon: ${observation.longitude.toStringAsFixed(5)}',
-                  ),
+                  if (photos.isNotEmpty)
+                    _DetailRow(
+                      icon: Icons.location_on_rounded,
+                      label: 'Ubicacion',
+                      value:
+                          'Lat: ${photos.first.latitude.toStringAsFixed(5)}, Lon: ${photos.first.longitude.toStringAsFixed(5)}',
+                    ),
                   const SizedBox(height: 16),
 
                   // Map (tap to expand fullscreen)
-                  GestureDetector(
-                    onTap: () => _openFullMap(context),
-                    child: Stack(
-                      children: [
-                        _buildMap(),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.fullscreen_rounded,
-                              size: 20,
-                              color: AppColors.textMedium,
+                  if (photos.isNotEmpty)
+                    GestureDetector(
+                      onTap: () => _openFullMap(context, photos.first),
+                      child: Stack(
+                        children: [
+                          _buildMap(),
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.fullscreen_rounded,
+                                size: 20,
+                                color: AppColors.textMedium,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -183,7 +186,9 @@ class PlantDetailScreen extends StatelessWidget {
   }
 
   Widget _buildMap() {
-    final point = LatLng(observation.latitude, observation.longitude);
+    if (photos.isEmpty) return const SizedBox.shrink();
+    final photo = photos.first;
+    final point = LatLng(photo.latitude, photo.longitude);
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(

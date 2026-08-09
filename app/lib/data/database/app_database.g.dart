@@ -2475,9 +2475,503 @@ class $ObservationsTable extends Observations
   late final GeneratedColumn<String> speciesId = GeneratedColumn<String>(
     'species_id',
     aliasedName,
-    true,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    speciesId,
+    notes,
+    syncStatus,
+    createdAt,
+    updatedAt,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'observations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Observation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('species_id')) {
+      context.handle(
+        _speciesIdMeta,
+        speciesId.isAcceptableOrUnknown(data['species_id']!, _speciesIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_speciesIdMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Observation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Observation(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      speciesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}species_id'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $ObservationsTable createAlias(String alias) {
+    return $ObservationsTable(attachedDatabase, alias);
+  }
+}
+
+class Observation extends DataClass implements Insertable<Observation> {
+  final String id;
+  final String userId;
+  final String speciesId;
+  final String notes;
+  final String syncStatus;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? syncedAt;
+  const Observation({
+    required this.id,
+    required this.userId,
+    required this.speciesId,
+    required this.notes,
+    required this.syncStatus,
+    required this.createdAt,
+    required this.updatedAt,
+    this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['species_id'] = Variable<String>(speciesId);
+    map['notes'] = Variable<String>(notes);
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || syncedAt != null) {
+      map['synced_at'] = Variable<DateTime>(syncedAt);
+    }
+    return map;
+  }
+
+  ObservationsCompanion toCompanion(bool nullToAbsent) {
+    return ObservationsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      speciesId: Value(speciesId),
+      notes: Value(notes),
+      syncStatus: Value(syncStatus),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncedAt: syncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncedAt),
+    );
+  }
+
+  factory Observation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Observation(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      speciesId: serializer.fromJson<String>(json['speciesId']),
+      notes: serializer.fromJson<String>(json['notes']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'speciesId': serializer.toJson<String>(speciesId),
+      'notes': serializer.toJson<String>(notes),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncedAt': serializer.toJson<DateTime?>(syncedAt),
+    };
+  }
+
+  Observation copyWith({
+    String? id,
+    String? userId,
+    String? speciesId,
+    String? notes,
+    String? syncStatus,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> syncedAt = const Value.absent(),
+  }) => Observation(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    speciesId: speciesId ?? this.speciesId,
+    notes: notes ?? this.notes,
+    syncStatus: syncStatus ?? this.syncStatus,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+  );
+  Observation copyWithCompanion(ObservationsCompanion data) {
+    return Observation(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      speciesId: data.speciesId.present ? data.speciesId.value : this.speciesId,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Observation(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('speciesId: $speciesId, ')
+          ..write('notes: $notes, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    speciesId,
+    notes,
+    syncStatus,
+    createdAt,
+    updatedAt,
+    syncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Observation &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.speciesId == this.speciesId &&
+          other.notes == this.notes &&
+          other.syncStatus == this.syncStatus &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncedAt == this.syncedAt);
+}
+
+class ObservationsCompanion extends UpdateCompanion<Observation> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> speciesId;
+  final Value<String> notes;
+  final Value<String> syncStatus;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> syncedAt;
+  final Value<int> rowid;
+  const ObservationsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.speciesId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ObservationsCompanion.insert({
+    required String id,
+    required String userId,
+    required String speciesId,
+    this.notes = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       speciesId = Value(speciesId);
+  static Insertable<Observation> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? speciesId,
+    Expression<String>? notes,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (speciesId != null) 'species_id': speciesId,
+      if (notes != null) 'notes': notes,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ObservationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? speciesId,
+    Value<String>? notes,
+    Value<String>? syncStatus,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return ObservationsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      speciesId: speciesId ?? this.speciesId,
+      notes: notes ?? this.notes,
+      syncStatus: syncStatus ?? this.syncStatus,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (speciesId.present) {
+      map['species_id'] = Variable<String>(speciesId.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ObservationsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('speciesId: $speciesId, ')
+          ..write('notes: $notes, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ObservationPhotosTable extends ObservationPhotos
+    with TableInfo<$ObservationPhotosTable, ObservationPhoto> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ObservationPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _observationIdMeta = const VerificationMeta(
+    'observationId',
+  );
+  @override
+  late final GeneratedColumn<String> observationId = GeneratedColumn<String>(
+    'observation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _photoPathMeta = const VerificationMeta(
     'photoPath',
@@ -2489,6 +2983,18 @@ class $ObservationsTable extends Observations
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _plantPartMeta = const VerificationMeta(
+    'plantPart',
+  );
+  @override
+  late final GeneratedColumn<String> plantPart = GeneratedColumn<String>(
+    'plant_part',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('general'),
   );
   static const VerificationMeta _latitudeMeta = const VerificationMeta(
     'latitude',
@@ -2536,15 +3042,15 @@ class $ObservationsTable extends Observations
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
-  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
   @override
-  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-    'notes',
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(''),
+    defaultValue: const Constant('camera'),
   );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
@@ -2570,40 +3076,28 @@ class $ObservationsTable extends Observations
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
-  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
-    'syncedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
-    'synced_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    userId,
-    speciesId,
+    observationId,
     photoPath,
+    plantPart,
     latitude,
     longitude,
     altitude,
     accuracy,
-    notes,
+    source,
     syncStatus,
     capturedAt,
-    syncedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'observations';
+  static const String $name = 'observation_photos';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Observation> instance, {
+    Insertable<ObservationPhoto> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2613,19 +3107,16 @@ class $ObservationsTable extends Observations
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('user_id')) {
+    if (data.containsKey('observation_id')) {
       context.handle(
-        _userIdMeta,
-        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+        _observationIdMeta,
+        observationId.isAcceptableOrUnknown(
+          data['observation_id']!,
+          _observationIdMeta,
+        ),
       );
     } else if (isInserting) {
-      context.missing(_userIdMeta);
-    }
-    if (data.containsKey('species_id')) {
-      context.handle(
-        _speciesIdMeta,
-        speciesId.isAcceptableOrUnknown(data['species_id']!, _speciesIdMeta),
-      );
+      context.missing(_observationIdMeta);
     }
     if (data.containsKey('photo_path')) {
       context.handle(
@@ -2634,6 +3125,12 @@ class $ObservationsTable extends Observations
       );
     } else if (isInserting) {
       context.missing(_photoPathMeta);
+    }
+    if (data.containsKey('plant_part')) {
+      context.handle(
+        _plantPartMeta,
+        plantPart.isAcceptableOrUnknown(data['plant_part']!, _plantPartMeta),
+      );
     }
     if (data.containsKey('latitude')) {
       context.handle(
@@ -2663,10 +3160,10 @@ class $ObservationsTable extends Observations
         accuracy.isAcceptableOrUnknown(data['accuracy']!, _accuracyMeta),
       );
     }
-    if (data.containsKey('notes')) {
+    if (data.containsKey('source')) {
       context.handle(
-        _notesMeta,
-        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
       );
     }
     if (data.containsKey('sync_status')) {
@@ -2681,36 +3178,30 @@ class $ObservationsTable extends Observations
         capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
       );
     }
-    if (data.containsKey('synced_at')) {
-      context.handle(
-        _syncedAtMeta,
-        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
-      );
-    }
     return context;
   }
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Observation map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ObservationPhoto map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Observation(
+    return ObservationPhoto(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      userId: attachedDatabase.typeMapping.read(
+      observationId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}user_id'],
+        data['${effectivePrefix}observation_id'],
       )!,
-      speciesId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}species_id'],
-      ),
       photoPath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}photo_path'],
+      )!,
+      plantPart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plant_part'],
       )!,
       latitude: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -2728,9 +3219,9 @@ class $ObservationsTable extends Observations
         DriftSqlType.double,
         data['${effectivePrefix}accuracy'],
       )!,
-      notes: attachedDatabase.typeMapping.read(
+      source: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}notes'],
+        data['${effectivePrefix}source'],
       )!,
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -2740,107 +3231,95 @@ class $ObservationsTable extends Observations
         DriftSqlType.dateTime,
         data['${effectivePrefix}captured_at'],
       )!,
-      syncedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}synced_at'],
-      ),
     );
   }
 
   @override
-  $ObservationsTable createAlias(String alias) {
-    return $ObservationsTable(attachedDatabase, alias);
+  $ObservationPhotosTable createAlias(String alias) {
+    return $ObservationPhotosTable(attachedDatabase, alias);
   }
 }
 
-class Observation extends DataClass implements Insertable<Observation> {
+class ObservationPhoto extends DataClass
+    implements Insertable<ObservationPhoto> {
   final String id;
-  final String userId;
-  final String? speciesId;
+  final String observationId;
   final String photoPath;
+
+  /// Parte de la planta: general, hoja, flor, tallo, fruto
+  final String plantPart;
   final double latitude;
   final double longitude;
   final double altitude;
   final double accuracy;
-  final String notes;
+
+  /// Fuente de la foto: camera, gallery
+  final String source;
   final String syncStatus;
   final DateTime capturedAt;
-  final DateTime? syncedAt;
-  const Observation({
+  const ObservationPhoto({
     required this.id,
-    required this.userId,
-    this.speciesId,
+    required this.observationId,
     required this.photoPath,
+    required this.plantPart,
     required this.latitude,
     required this.longitude,
     required this.altitude,
     required this.accuracy,
-    required this.notes,
+    required this.source,
     required this.syncStatus,
     required this.capturedAt,
-    this.syncedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['user_id'] = Variable<String>(userId);
-    if (!nullToAbsent || speciesId != null) {
-      map['species_id'] = Variable<String>(speciesId);
-    }
+    map['observation_id'] = Variable<String>(observationId);
     map['photo_path'] = Variable<String>(photoPath);
+    map['plant_part'] = Variable<String>(plantPart);
     map['latitude'] = Variable<double>(latitude);
     map['longitude'] = Variable<double>(longitude);
     map['altitude'] = Variable<double>(altitude);
     map['accuracy'] = Variable<double>(accuracy);
-    map['notes'] = Variable<String>(notes);
+    map['source'] = Variable<String>(source);
     map['sync_status'] = Variable<String>(syncStatus);
     map['captured_at'] = Variable<DateTime>(capturedAt);
-    if (!nullToAbsent || syncedAt != null) {
-      map['synced_at'] = Variable<DateTime>(syncedAt);
-    }
     return map;
   }
 
-  ObservationsCompanion toCompanion(bool nullToAbsent) {
-    return ObservationsCompanion(
+  ObservationPhotosCompanion toCompanion(bool nullToAbsent) {
+    return ObservationPhotosCompanion(
       id: Value(id),
-      userId: Value(userId),
-      speciesId: speciesId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(speciesId),
+      observationId: Value(observationId),
       photoPath: Value(photoPath),
+      plantPart: Value(plantPart),
       latitude: Value(latitude),
       longitude: Value(longitude),
       altitude: Value(altitude),
       accuracy: Value(accuracy),
-      notes: Value(notes),
+      source: Value(source),
       syncStatus: Value(syncStatus),
       capturedAt: Value(capturedAt),
-      syncedAt: syncedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncedAt),
     );
   }
 
-  factory Observation.fromJson(
+  factory ObservationPhoto.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Observation(
+    return ObservationPhoto(
       id: serializer.fromJson<String>(json['id']),
-      userId: serializer.fromJson<String>(json['userId']),
-      speciesId: serializer.fromJson<String?>(json['speciesId']),
+      observationId: serializer.fromJson<String>(json['observationId']),
       photoPath: serializer.fromJson<String>(json['photoPath']),
+      plantPart: serializer.fromJson<String>(json['plantPart']),
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       altitude: serializer.fromJson<double>(json['altitude']),
       accuracy: serializer.fromJson<double>(json['accuracy']),
-      notes: serializer.fromJson<String>(json['notes']),
+      source: serializer.fromJson<String>(json['source']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
-      syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
     );
   }
   @override
@@ -2848,83 +3327,80 @@ class Observation extends DataClass implements Insertable<Observation> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'userId': serializer.toJson<String>(userId),
-      'speciesId': serializer.toJson<String?>(speciesId),
+      'observationId': serializer.toJson<String>(observationId),
       'photoPath': serializer.toJson<String>(photoPath),
+      'plantPart': serializer.toJson<String>(plantPart),
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'altitude': serializer.toJson<double>(altitude),
       'accuracy': serializer.toJson<double>(accuracy),
-      'notes': serializer.toJson<String>(notes),
+      'source': serializer.toJson<String>(source),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'capturedAt': serializer.toJson<DateTime>(capturedAt),
-      'syncedAt': serializer.toJson<DateTime?>(syncedAt),
     };
   }
 
-  Observation copyWith({
+  ObservationPhoto copyWith({
     String? id,
-    String? userId,
-    Value<String?> speciesId = const Value.absent(),
+    String? observationId,
     String? photoPath,
+    String? plantPart,
     double? latitude,
     double? longitude,
     double? altitude,
     double? accuracy,
-    String? notes,
+    String? source,
     String? syncStatus,
     DateTime? capturedAt,
-    Value<DateTime?> syncedAt = const Value.absent(),
-  }) => Observation(
+  }) => ObservationPhoto(
     id: id ?? this.id,
-    userId: userId ?? this.userId,
-    speciesId: speciesId.present ? speciesId.value : this.speciesId,
+    observationId: observationId ?? this.observationId,
     photoPath: photoPath ?? this.photoPath,
+    plantPart: plantPart ?? this.plantPart,
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     altitude: altitude ?? this.altitude,
     accuracy: accuracy ?? this.accuracy,
-    notes: notes ?? this.notes,
+    source: source ?? this.source,
     syncStatus: syncStatus ?? this.syncStatus,
     capturedAt: capturedAt ?? this.capturedAt,
-    syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
   );
-  Observation copyWithCompanion(ObservationsCompanion data) {
-    return Observation(
+  ObservationPhoto copyWithCompanion(ObservationPhotosCompanion data) {
+    return ObservationPhoto(
       id: data.id.present ? data.id.value : this.id,
-      userId: data.userId.present ? data.userId.value : this.userId,
-      speciesId: data.speciesId.present ? data.speciesId.value : this.speciesId,
+      observationId: data.observationId.present
+          ? data.observationId.value
+          : this.observationId,
       photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
+      plantPart: data.plantPart.present ? data.plantPart.value : this.plantPart,
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       altitude: data.altitude.present ? data.altitude.value : this.altitude,
       accuracy: data.accuracy.present ? data.accuracy.value : this.accuracy,
-      notes: data.notes.present ? data.notes.value : this.notes,
+      source: data.source.present ? data.source.value : this.source,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
       capturedAt: data.capturedAt.present
           ? data.capturedAt.value
           : this.capturedAt,
-      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('Observation(')
+    return (StringBuffer('ObservationPhoto(')
           ..write('id: $id, ')
-          ..write('userId: $userId, ')
-          ..write('speciesId: $speciesId, ')
+          ..write('observationId: $observationId, ')
           ..write('photoPath: $photoPath, ')
+          ..write('plantPart: $plantPart, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('altitude: $altitude, ')
           ..write('accuracy: $accuracy, ')
-          ..write('notes: $notes, ')
+          ..write('source: $source, ')
           ..write('syncStatus: $syncStatus, ')
-          ..write('capturedAt: $capturedAt, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('capturedAt: $capturedAt')
           ..write(')'))
         .toString();
   }
@@ -2932,144 +3408,135 @@ class Observation extends DataClass implements Insertable<Observation> {
   @override
   int get hashCode => Object.hash(
     id,
-    userId,
-    speciesId,
+    observationId,
     photoPath,
+    plantPart,
     latitude,
     longitude,
     altitude,
     accuracy,
-    notes,
+    source,
     syncStatus,
     capturedAt,
-    syncedAt,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Observation &&
+      (other is ObservationPhoto &&
           other.id == this.id &&
-          other.userId == this.userId &&
-          other.speciesId == this.speciesId &&
+          other.observationId == this.observationId &&
           other.photoPath == this.photoPath &&
+          other.plantPart == this.plantPart &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.altitude == this.altitude &&
           other.accuracy == this.accuracy &&
-          other.notes == this.notes &&
+          other.source == this.source &&
           other.syncStatus == this.syncStatus &&
-          other.capturedAt == this.capturedAt &&
-          other.syncedAt == this.syncedAt);
+          other.capturedAt == this.capturedAt);
 }
 
-class ObservationsCompanion extends UpdateCompanion<Observation> {
+class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
   final Value<String> id;
-  final Value<String> userId;
-  final Value<String?> speciesId;
+  final Value<String> observationId;
   final Value<String> photoPath;
+  final Value<String> plantPart;
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<double> altitude;
   final Value<double> accuracy;
-  final Value<String> notes;
+  final Value<String> source;
   final Value<String> syncStatus;
   final Value<DateTime> capturedAt;
-  final Value<DateTime?> syncedAt;
   final Value<int> rowid;
-  const ObservationsCompanion({
+  const ObservationPhotosCompanion({
     this.id = const Value.absent(),
-    this.userId = const Value.absent(),
-    this.speciesId = const Value.absent(),
+    this.observationId = const Value.absent(),
     this.photoPath = const Value.absent(),
+    this.plantPart = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.altitude = const Value.absent(),
     this.accuracy = const Value.absent(),
-    this.notes = const Value.absent(),
+    this.source = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.capturedAt = const Value.absent(),
-    this.syncedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  ObservationsCompanion.insert({
+  ObservationPhotosCompanion.insert({
     required String id,
-    required String userId,
-    this.speciesId = const Value.absent(),
+    required String observationId,
     required String photoPath,
+    this.plantPart = const Value.absent(),
     required double latitude,
     required double longitude,
     this.altitude = const Value.absent(),
     this.accuracy = const Value.absent(),
-    this.notes = const Value.absent(),
+    this.source = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.capturedAt = const Value.absent(),
-    this.syncedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       userId = Value(userId),
+       observationId = Value(observationId),
        photoPath = Value(photoPath),
        latitude = Value(latitude),
        longitude = Value(longitude);
-  static Insertable<Observation> custom({
+  static Insertable<ObservationPhoto> custom({
     Expression<String>? id,
-    Expression<String>? userId,
-    Expression<String>? speciesId,
+    Expression<String>? observationId,
     Expression<String>? photoPath,
+    Expression<String>? plantPart,
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<double>? altitude,
     Expression<double>? accuracy,
-    Expression<String>? notes,
+    Expression<String>? source,
     Expression<String>? syncStatus,
     Expression<DateTime>? capturedAt,
-    Expression<DateTime>? syncedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (userId != null) 'user_id': userId,
-      if (speciesId != null) 'species_id': speciesId,
+      if (observationId != null) 'observation_id': observationId,
       if (photoPath != null) 'photo_path': photoPath,
+      if (plantPart != null) 'plant_part': plantPart,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (altitude != null) 'altitude': altitude,
       if (accuracy != null) 'accuracy': accuracy,
-      if (notes != null) 'notes': notes,
+      if (source != null) 'source': source,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (capturedAt != null) 'captured_at': capturedAt,
-      if (syncedAt != null) 'synced_at': syncedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  ObservationsCompanion copyWith({
+  ObservationPhotosCompanion copyWith({
     Value<String>? id,
-    Value<String>? userId,
-    Value<String?>? speciesId,
+    Value<String>? observationId,
     Value<String>? photoPath,
+    Value<String>? plantPart,
     Value<double>? latitude,
     Value<double>? longitude,
     Value<double>? altitude,
     Value<double>? accuracy,
-    Value<String>? notes,
+    Value<String>? source,
     Value<String>? syncStatus,
     Value<DateTime>? capturedAt,
-    Value<DateTime?>? syncedAt,
     Value<int>? rowid,
   }) {
-    return ObservationsCompanion(
+    return ObservationPhotosCompanion(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
-      speciesId: speciesId ?? this.speciesId,
+      observationId: observationId ?? this.observationId,
       photoPath: photoPath ?? this.photoPath,
+      plantPart: plantPart ?? this.plantPart,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       altitude: altitude ?? this.altitude,
       accuracy: accuracy ?? this.accuracy,
-      notes: notes ?? this.notes,
+      source: source ?? this.source,
       syncStatus: syncStatus ?? this.syncStatus,
       capturedAt: capturedAt ?? this.capturedAt,
-      syncedAt: syncedAt ?? this.syncedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3080,14 +3547,14 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (userId.present) {
-      map['user_id'] = Variable<String>(userId.value);
-    }
-    if (speciesId.present) {
-      map['species_id'] = Variable<String>(speciesId.value);
+    if (observationId.present) {
+      map['observation_id'] = Variable<String>(observationId.value);
     }
     if (photoPath.present) {
       map['photo_path'] = Variable<String>(photoPath.value);
+    }
+    if (plantPart.present) {
+      map['plant_part'] = Variable<String>(plantPart.value);
     }
     if (latitude.present) {
       map['latitude'] = Variable<double>(latitude.value);
@@ -3101,17 +3568,14 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     if (accuracy.present) {
       map['accuracy'] = Variable<double>(accuracy.value);
     }
-    if (notes.present) {
-      map['notes'] = Variable<String>(notes.value);
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
     }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
     if (capturedAt.present) {
       map['captured_at'] = Variable<DateTime>(capturedAt.value);
-    }
-    if (syncedAt.present) {
-      map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -3121,19 +3585,18 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
 
   @override
   String toString() {
-    return (StringBuffer('ObservationsCompanion(')
+    return (StringBuffer('ObservationPhotosCompanion(')
           ..write('id: $id, ')
-          ..write('userId: $userId, ')
-          ..write('speciesId: $speciesId, ')
+          ..write('observationId: $observationId, ')
           ..write('photoPath: $photoPath, ')
+          ..write('plantPart: $plantPart, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('altitude: $altitude, ')
           ..write('accuracy: $accuracy, ')
-          ..write('notes: $notes, ')
+          ..write('source: $source, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('capturedAt: $capturedAt, ')
-          ..write('syncedAt: $syncedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3611,6 +4074,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $SpeciesTraitsTable speciesTraits = $SpeciesTraitsTable(this);
   late final $ObservationsTable observations = $ObservationsTable(this);
+  late final $ObservationPhotosTable observationPhotos =
+      $ObservationPhotosTable(this);
   late final $UsersTable users = $UsersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3622,6 +4087,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     questionOptions,
     speciesTraits,
     observations,
+    observationPhotos,
     users,
   ];
 }
@@ -4848,15 +5314,11 @@ typedef $$ObservationsTableCreateCompanionBuilder =
     ObservationsCompanion Function({
       required String id,
       required String userId,
-      Value<String?> speciesId,
-      required String photoPath,
-      required double latitude,
-      required double longitude,
-      Value<double> altitude,
-      Value<double> accuracy,
+      required String speciesId,
       Value<String> notes,
       Value<String> syncStatus,
-      Value<DateTime> capturedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
       Value<DateTime?> syncedAt,
       Value<int> rowid,
     });
@@ -4864,15 +5326,11 @@ typedef $$ObservationsTableUpdateCompanionBuilder =
     ObservationsCompanion Function({
       Value<String> id,
       Value<String> userId,
-      Value<String?> speciesId,
-      Value<String> photoPath,
-      Value<double> latitude,
-      Value<double> longitude,
-      Value<double> altitude,
-      Value<double> accuracy,
+      Value<String> speciesId,
       Value<String> notes,
       Value<String> syncStatus,
-      Value<DateTime> capturedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
       Value<DateTime?> syncedAt,
       Value<int> rowid,
     });
@@ -4901,31 +5359,6 @@ class $$ObservationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get photoPath => $composableBuilder(
-    column: $table.photoPath,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<double> get latitude => $composableBuilder(
-    column: $table.latitude,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<double> get longitude => $composableBuilder(
-    column: $table.longitude,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<double> get altitude => $composableBuilder(
-    column: $table.altitude,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<double> get accuracy => $composableBuilder(
-    column: $table.accuracy,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnFilters(column),
@@ -4936,8 +5369,13 @@ class $$ObservationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
-    column: $table.capturedAt,
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4971,31 +5409,6 @@ class $$ObservationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get photoPath => $composableBuilder(
-    column: $table.photoPath,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<double> get latitude => $composableBuilder(
-    column: $table.latitude,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<double> get longitude => $composableBuilder(
-    column: $table.longitude,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<double> get altitude => $composableBuilder(
-    column: $table.altitude,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<double> get accuracy => $composableBuilder(
-    column: $table.accuracy,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -5006,8 +5419,13 @@ class $$ObservationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
-    column: $table.capturedAt,
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5035,21 +5453,6 @@ class $$ObservationsTableAnnotationComposer
   GeneratedColumn<String> get speciesId =>
       $composableBuilder(column: $table.speciesId, builder: (column) => column);
 
-  GeneratedColumn<String> get photoPath =>
-      $composableBuilder(column: $table.photoPath, builder: (column) => column);
-
-  GeneratedColumn<double> get latitude =>
-      $composableBuilder(column: $table.latitude, builder: (column) => column);
-
-  GeneratedColumn<double> get longitude =>
-      $composableBuilder(column: $table.longitude, builder: (column) => column);
-
-  GeneratedColumn<double> get altitude =>
-      $composableBuilder(column: $table.altitude, builder: (column) => column);
-
-  GeneratedColumn<double> get accuracy =>
-      $composableBuilder(column: $table.accuracy, builder: (column) => column);
-
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -5058,10 +5461,11 @@ class $$ObservationsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
-    column: $table.capturedAt,
-    builder: (column) => column,
-  );
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
@@ -5100,29 +5504,21 @@ class $$ObservationsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> userId = const Value.absent(),
-                Value<String?> speciesId = const Value.absent(),
-                Value<String> photoPath = const Value.absent(),
-                Value<double> latitude = const Value.absent(),
-                Value<double> longitude = const Value.absent(),
-                Value<double> altitude = const Value.absent(),
-                Value<double> accuracy = const Value.absent(),
+                Value<String> speciesId = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
-                Value<DateTime> capturedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ObservationsCompanion(
                 id: id,
                 userId: userId,
                 speciesId: speciesId,
-                photoPath: photoPath,
-                latitude: latitude,
-                longitude: longitude,
-                altitude: altitude,
-                accuracy: accuracy,
                 notes: notes,
                 syncStatus: syncStatus,
-                capturedAt: capturedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
                 syncedAt: syncedAt,
                 rowid: rowid,
               ),
@@ -5130,29 +5526,21 @@ class $$ObservationsTableTableManager
               ({
                 required String id,
                 required String userId,
-                Value<String?> speciesId = const Value.absent(),
-                required String photoPath,
-                required double latitude,
-                required double longitude,
-                Value<double> altitude = const Value.absent(),
-                Value<double> accuracy = const Value.absent(),
+                required String speciesId,
                 Value<String> notes = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
-                Value<DateTime> capturedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ObservationsCompanion.insert(
                 id: id,
                 userId: userId,
                 speciesId: speciesId,
-                photoPath: photoPath,
-                latitude: latitude,
-                longitude: longitude,
-                altitude: altitude,
-                accuracy: accuracy,
                 notes: notes,
                 syncStatus: syncStatus,
-                capturedAt: capturedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
                 syncedAt: syncedAt,
                 rowid: rowid,
               ),
@@ -5179,6 +5567,339 @@ typedef $$ObservationsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $ObservationsTable, Observation>,
       ),
       Observation,
+      PrefetchHooks Function()
+    >;
+typedef $$ObservationPhotosTableCreateCompanionBuilder =
+    ObservationPhotosCompanion Function({
+      required String id,
+      required String observationId,
+      required String photoPath,
+      Value<String> plantPart,
+      required double latitude,
+      required double longitude,
+      Value<double> altitude,
+      Value<double> accuracy,
+      Value<String> source,
+      Value<String> syncStatus,
+      Value<DateTime> capturedAt,
+      Value<int> rowid,
+    });
+typedef $$ObservationPhotosTableUpdateCompanionBuilder =
+    ObservationPhotosCompanion Function({
+      Value<String> id,
+      Value<String> observationId,
+      Value<String> photoPath,
+      Value<String> plantPart,
+      Value<double> latitude,
+      Value<double> longitude,
+      Value<double> altitude,
+      Value<double> accuracy,
+      Value<String> source,
+      Value<String> syncStatus,
+      Value<DateTime> capturedAt,
+      Value<int> rowid,
+    });
+
+class $$ObservationPhotosTableFilterComposer
+    extends Composer<_$AppDatabase, $ObservationPhotosTable> {
+  $$ObservationPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get plantPart => $composableBuilder(
+    column: $table.plantPart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get altitude => $composableBuilder(
+    column: $table.altitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get accuracy => $composableBuilder(
+    column: $table.accuracy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ObservationPhotosTableOrderingComposer
+    extends Composer<_$AppDatabase, $ObservationPhotosTable> {
+  $$ObservationPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get plantPart => $composableBuilder(
+    column: $table.plantPart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get altitude => $composableBuilder(
+    column: $table.altitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get accuracy => $composableBuilder(
+    column: $table.accuracy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ObservationPhotosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ObservationPhotosTable> {
+  $$ObservationPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get photoPath =>
+      $composableBuilder(column: $table.photoPath, builder: (column) => column);
+
+  GeneratedColumn<String> get plantPart =>
+      $composableBuilder(column: $table.plantPart, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<double> get altitude =>
+      $composableBuilder(column: $table.altitude, builder: (column) => column);
+
+  GeneratedColumn<double> get accuracy =>
+      $composableBuilder(column: $table.accuracy, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ObservationPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ObservationPhotosTable,
+          ObservationPhoto,
+          $$ObservationPhotosTableFilterComposer,
+          $$ObservationPhotosTableOrderingComposer,
+          $$ObservationPhotosTableAnnotationComposer,
+          $$ObservationPhotosTableCreateCompanionBuilder,
+          $$ObservationPhotosTableUpdateCompanionBuilder,
+          (
+            ObservationPhoto,
+            BaseReferences<
+              _$AppDatabase,
+              $ObservationPhotosTable,
+              ObservationPhoto
+            >,
+          ),
+          ObservationPhoto,
+          PrefetchHooks Function()
+        > {
+  $$ObservationPhotosTableTableManager(
+    _$AppDatabase db,
+    $ObservationPhotosTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ObservationPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ObservationPhotosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ObservationPhotosTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> observationId = const Value.absent(),
+                Value<String> photoPath = const Value.absent(),
+                Value<String> plantPart = const Value.absent(),
+                Value<double> latitude = const Value.absent(),
+                Value<double> longitude = const Value.absent(),
+                Value<double> altitude = const Value.absent(),
+                Value<double> accuracy = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<DateTime> capturedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ObservationPhotosCompanion(
+                id: id,
+                observationId: observationId,
+                photoPath: photoPath,
+                plantPart: plantPart,
+                latitude: latitude,
+                longitude: longitude,
+                altitude: altitude,
+                accuracy: accuracy,
+                source: source,
+                syncStatus: syncStatus,
+                capturedAt: capturedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String observationId,
+                required String photoPath,
+                Value<String> plantPart = const Value.absent(),
+                required double latitude,
+                required double longitude,
+                Value<double> altitude = const Value.absent(),
+                Value<double> accuracy = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<DateTime> capturedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ObservationPhotosCompanion.insert(
+                id: id,
+                observationId: observationId,
+                photoPath: photoPath,
+                plantPart: plantPart,
+                latitude: latitude,
+                longitude: longitude,
+                altitude: altitude,
+                accuracy: accuracy,
+                source: source,
+                syncStatus: syncStatus,
+                capturedAt: capturedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ObservationPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ObservationPhotosTable,
+      ObservationPhoto,
+      $$ObservationPhotosTableFilterComposer,
+      $$ObservationPhotosTableOrderingComposer,
+      $$ObservationPhotosTableAnnotationComposer,
+      $$ObservationPhotosTableCreateCompanionBuilder,
+      $$ObservationPhotosTableUpdateCompanionBuilder,
+      (
+        ObservationPhoto,
+        BaseReferences<
+          _$AppDatabase,
+          $ObservationPhotosTable,
+          ObservationPhoto
+        >,
+      ),
+      ObservationPhoto,
       PrefetchHooks Function()
     >;
 typedef $$UsersTableCreateCompanionBuilder =
@@ -5432,6 +6153,8 @@ class $AppDatabaseManager {
       $$SpeciesTraitsTableTableManager(_db, _db.speciesTraits);
   $$ObservationsTableTableManager get observations =>
       $$ObservationsTableTableManager(_db, _db.observations);
+  $$ObservationPhotosTableTableManager get observationPhotos =>
+      $$ObservationPhotosTableTableManager(_db, _db.observationPhotos);
   $$UsersTableTableManager get users =>
       $$UsersTableTableManager(_db, _db.users);
 }
