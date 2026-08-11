@@ -35,7 +35,7 @@ class ObservationRepository extends ChangeNotifier {
       _db.getPartsForSpecies(speciesId);
 
   /// Calcula el progreso de una especie (0.0 a 1.0).
-  /// 5 partes posibles: general, hoja, flor, tallo, fruto.
+  /// 5 partes posibles: general, hoja, flor, espinas, fruto.
   Future<double> getProgressForSpecies(String speciesId) async {
     final parts = await getPartsForSpecies(speciesId);
     return parts.length / 5.0;

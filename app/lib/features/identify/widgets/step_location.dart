@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../screens/identify_flow_screen.dart';
 
@@ -81,10 +83,13 @@ class _StepLocationState extends State<StepLocation> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Image.asset(
-            'assets/images/Kospi/Kospi tomandose las manos.png',
-            height: 80,
-            errorBuilder: (_, __, ___) => const SizedBox(height: 80),
+          SizedBox(
+            height: AppConstants.kospiImageHeight,
+            child: Image.asset(
+              'assets/images/Kospi/Kospi tomandose las manos.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -138,15 +143,18 @@ class _StepLocationState extends State<StepLocation> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: widget.onBack,
-                  child: const Text('Atrás', maxLines: 1),
+              OutlinedButton(
+                onPressed: widget.onBack,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
+                child: const Text('Atrás'),
               ),
               const SizedBox(width: 12),
               Expanded(
-                flex: 2,
                 child: ElevatedButton(
                   onPressed: allHaveLocation ? widget.onNext : null,
                   child: const Text('Siguiente'),
@@ -229,42 +237,59 @@ class _PhotoLocationCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
                   height: 120,
-                  child: IgnorePointer(
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(
-                          photo.latitude!,
-                          photo.longitude!,
-                        ),
-                        initialZoom: 14,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.kospia.app',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: LatLng(photo.latitude!, photo.longitude!),
-                              width: 20,
-                              height: 20,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.accentOrange,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
+                  child: Stack(
+                    children: [
+                      IgnorePointer(
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: LatLng(
+                              photo.latitude!,
+                              photo.longitude!,
+                            ),
+                            initialZoom: 14,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.kospia.app',
+                              errorImage: const AssetImage(
+                                'assets/images/logo.png',
+                              ),
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(
+                                    photo.latitude!,
+                                    photo.longitude!,
+                                  ),
+                                  width: 20,
+                                  height: 20,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentOrange,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      // Offline fallback overlay
+                      Positioned.fill(
+                        child: _OfflineMapOverlay(
+                          latitude: photo.latitude!,
+                          longitude: photo.longitude!,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -283,8 +308,8 @@ class _PhotoLocationCard extends StatelessWidget {
         return 'Hoja';
       case 'flor':
         return 'Flor';
-      case 'tallo':
-        return 'Tallo';
+      case 'espinas':
+        return 'Espinas';
       case 'fruto':
         return 'Fruto';
       default:
@@ -390,6 +415,74 @@ class _MapPickerScreenState extends State<_MapPickerScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Overlay que muestra un mensaje cuando no hay internet para el mapa.
+class _OfflineMapOverlay extends StatefulWidget {
+  final double latitude;
+  final double longitude;
+
+  const _OfflineMapOverlay({required this.latitude, required this.longitude});
+
+  @override
+  State<_OfflineMapOverlay> createState() => _OfflineMapOverlayState();
+}
+
+class _OfflineMapOverlayState extends State<_OfflineMapOverlay> {
+  bool _isOffline = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectivity();
+  }
+
+  Future<void> _checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    if (mounted) {
+      setState(() {
+        _isOffline = result.contains(ConnectivityResult.none);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isOffline) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLilac.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: AppColors.textLight,
+              size: 24,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Mapa no visible sin internet',
+              style: TextStyle(fontSize: 11, color: AppColors.textMedium),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${widget.latitude.toStringAsFixed(5)}, ${widget.longitude.toStringAsFixed(5)}',
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppColors.textLight,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

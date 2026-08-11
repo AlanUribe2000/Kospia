@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/repositories/species_repository.dart';
 
@@ -54,20 +55,23 @@ class DashboardTab extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             // Kospi saludando
-            Image.asset(
-              'assets/images/Kospi/Kospi saludando.png',
-              height: 180,
-              errorBuilder: (_, __, ___) => Container(
-                width: 120,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: AppColors.accentGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.eco_rounded,
-                  size: 56,
-                  color: AppColors.accentGreen,
+            SizedBox(
+              height: AppConstants.kospiImageHeight,
+              child: Image.asset(
+                'assets/images/Kospi/Kospi saludando.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 120,
+                  height: AppConstants.kospiImageHeight,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.eco_rounded,
+                    size: 56,
+                    color: AppColors.accentGreen,
+                  ),
                 ),
               ),
             ),

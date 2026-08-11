@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:exif/exif.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,10 +8,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../screens/identify_flow_screen.dart';
 
-/// Paso 1: Captura de fotos con selección de parte de planta.
+/// Paso 1: Captura de fotos organizadas por parte de la planta.
+/// 5 tarjetas (General, Hoja, Espinas, Flor, Fruto) con botones de cámara y galería.
 class StepPhotos extends StatefulWidget {
   final List<CapturedPhoto> photos;
   final ValueChanged<List<CapturedPhoto>> onPhotosChanged;
@@ -31,15 +34,52 @@ class _StepPhotosState extends State<StepPhotos> {
   final _picker = ImagePicker();
   static const _uuid = Uuid();
 
-  static const _plantParts = [
-    ('general', 'General'),
-    ('hoja', 'Hoja'),
-    ('flor', 'Flor'),
-    ('tallo', 'Tallo'),
-    ('fruto', 'Fruto'),
+  /// GPS de la sesión: se obtiene una vez y se usa para todas las fotos de cámara.
+  Position? _sessionPosition;
+  bool _gpsObtained = false;
+
+  static const _parts = [
+    (AppConstants.partGeneral, 'General', Icons.nature_rounded),
+    (AppConstants.partHoja, 'Hoja', Icons.eco_rounded),
+    (AppConstants.partEspinas, 'Espinas', Icons.grass_rounded),
+    (AppConstants.partFlor, 'Flor', Icons.local_florist_rounded),
+    (AppConstants.partFruto, 'Fruto', Icons.spa_rounded),
   ];
 
-  Future<void> _takePhoto() async {
+  @override
+  void initState() {
+    super.initState();
+    _obtainSessionGps();
+  }
+
+  /// Obtiene GPS una sola vez para toda la sesión de fotos.
+  Future<void> _obtainSessionGps() async {
+    if (_gpsObtained) return;
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      _sessionPosition = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+    } catch (_) {}
+    _gpsObtained = true;
+  }
+
+  List<CapturedPhoto> _photosForPart(String part) {
+    return widget.photos.where((p) => p.plantPart == part).toList();
+  }
+
+  Future<void> _takePhoto(String part) async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.camera,
       maxWidth: 1920,
@@ -48,16 +88,7 @@ class _StepPhotosState extends State<StepPhotos> {
     );
     if (image == null) return;
 
-    // Capture GPS at moment of photo
-    Position? position;
-    try {
-      position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-    } catch (_) {}
+    if (!_gpsObtained) await _obtainSessionGps();
 
     final saved = await _saveImage(image);
     if (saved == null) return;
@@ -65,34 +96,98 @@ class _StepPhotosState extends State<StepPhotos> {
     final photo = CapturedPhoto(
       path: saved.path,
       source: 'camera',
-      latitude: position?.latitude,
-      longitude: position?.longitude,
-      altitude: position?.altitude ?? 0.0,
-      accuracy: position?.accuracy ?? 0.0,
+      plantPart: part,
+      latitude: _sessionPosition?.latitude,
+      longitude: _sessionPosition?.longitude,
+      altitude: _sessionPosition?.altitude ?? 0.0,
+      accuracy: _sessionPosition?.accuracy ?? 0.0,
     );
 
-    final updated = [...widget.photos, photo];
-    widget.onPhotosChanged(updated);
+    widget.onPhotosChanged([...widget.photos, photo]);
   }
 
-  Future<void> _pickFromGallery() async {
-    final List<XFile> images = await _picker.pickMultiImage(
-      maxWidth: 1920,
-      maxHeight: 1080,
-      imageQuality: 85,
-    );
+  Future<void> _pickFromGallery(String part) async {
+    final List<XFile> images = await _picker.pickMultiImage();
     if (images.isEmpty) return;
+
+    if (!_gpsObtained) await _obtainSessionGps();
 
     final newPhotos = <CapturedPhoto>[];
     for (final image in images) {
+      // Leer EXIF GPS del archivo original (antes de comprimir)
+      final exifGps = await _extractExifGps(image.path);
+
       final saved = await _saveImage(image);
       if (saved != null) {
-        newPhotos.add(CapturedPhoto(path: saved.path, source: 'gallery'));
+        // Si EXIF no tiene GPS, usar GPS de la sesión como fallback
+        final lat = exifGps?.$1 ?? _sessionPosition?.latitude;
+        final lng = exifGps?.$2 ?? _sessionPosition?.longitude;
+        newPhotos.add(
+          CapturedPhoto(
+            path: saved.path,
+            source: 'gallery',
+            plantPart: part,
+            latitude: lat,
+            longitude: lng,
+          ),
+        );
       }
     }
 
-    final updated = [...widget.photos, ...newPhotos];
-    widget.onPhotosChanged(updated);
+    widget.onPhotosChanged([...widget.photos, ...newPhotos]);
+  }
+
+  /// Extrae coordenadas GPS de la metadata EXIF de una imagen.
+  Future<(double, double)?> _extractExifGps(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final data = await readExifFromBytes(bytes);
+      if (data.isEmpty) return null;
+
+      final latTag = data['GPS GPSLatitude'];
+      final latRef = data['GPS GPSLatitudeRef'];
+      final lngTag = data['GPS GPSLongitude'];
+      final lngRef = data['GPS GPSLongitudeRef'];
+
+      if (latTag == null || lngTag == null) return null;
+
+      final lat = _gpsToDecimal(latTag.values, latRef?.printable ?? 'N');
+      final lng = _gpsToDecimal(lngTag.values, lngRef?.printable ?? 'E');
+
+      // Validar que no sea NaN, Infinity, o (0,0)
+      if (lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
+        return null;
+      }
+      if (lat == 0.0 && lng == 0.0) return null;
+      return (lat, lng);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Convierte coordenadas GPS EXIF (grados/minutos/segundos) a decimal.
+  double _gpsToDecimal(IfdValues values, String ref) {
+    try {
+      final ratios = values.toList();
+      if (ratios.length < 3) return 0.0;
+
+      final dDen = (ratios[0] as Ratio).denominator.toDouble();
+      final mDen = (ratios[1] as Ratio).denominator.toDouble();
+      final sDen = (ratios[2] as Ratio).denominator.toDouble();
+
+      // Proteger contra divisiones por cero
+      if (dDen == 0 || mDen == 0 || sDen == 0) return 0.0;
+
+      final d = (ratios[0] as Ratio).numerator.toDouble() / dDen;
+      final m = (ratios[1] as Ratio).numerator.toDouble() / mDen;
+      final s = (ratios[2] as Ratio).numerator.toDouble() / sDen;
+
+      var decimal = d + (m / 60.0) + (s / 3600.0);
+      if (ref == 'S' || ref == 'W') decimal = -decimal;
+      return decimal;
+    } catch (_) {
+      return 0.0;
+    }
   }
 
   Future<File?> _saveImage(XFile image) async {
@@ -109,28 +204,32 @@ class _StepPhotosState extends State<StepPhotos> {
     }
   }
 
-  void _removePhoto(int index) {
-    final updated = [...widget.photos]..removeAt(index);
+  void _removePhoto(CapturedPhoto photo) {
+    final updated = widget.photos.where((p) => p != photo).toList();
     widget.onPhotosChanged(updated);
   }
 
-  void _updatePlantPart(int index, String part) {
-    final updated = [...widget.photos];
-    updated[index].plantPart = part;
-    widget.onPhotosChanged(updated);
+  void _openFullPhoto(String path) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPath: path)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
+          const SizedBox(height: 12),
           // Kospi + title
-          Image.asset(
-            'assets/images/Kospi/Kospi saludando.png',
-            height: 80,
-            errorBuilder: (_, __, ___) => const SizedBox(height: 80),
+          SizedBox(
+            height: AppConstants.kospiImageHeight,
+            child: Image.asset(
+              'assets/images/Kospi/Kospi saludando.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -141,47 +240,31 @@ class _StepPhotosState extends State<StepPhotos> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Podés tomar varias fotos de distintas partes',
+            'Cargá fotos en las partes que puedas observar',
             style: TextStyle(color: AppColors.textMedium, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _takePhoto,
-                  icon: const Icon(Icons.camera_alt_rounded, size: 18),
-                  label: const Text(
-                    'Cámara',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickFromGallery,
-                  icon: const Icon(Icons.photo_library_rounded, size: 18),
-                  label: const Text(
-                    'Galería',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-            ],
+          // Part cards - scrollable
+          Expanded(
+            child: ListView.separated(
+              itemCount: _parts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final part = _parts[index];
+                final photos = _photosForPart(part.$1);
+                return _PartCard(
+                  partId: part.$1,
+                  partLabel: part.$2,
+                  partIcon: part.$3,
+                  photos: photos,
+                  onTakePhoto: () => _takePhoto(part.$1),
+                  onPickGallery: () => _pickFromGallery(part.$1),
+                  onRemovePhoto: _removePhoto,
+                  onTapPhoto: _openFullPhoto,
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 16),
-          // Photos grid
-          Expanded(child: _buildPhotosList()),
           // Next button
           const SizedBox(height: 12),
           SizedBox(
@@ -191,146 +274,222 @@ class _StepPhotosState extends State<StepPhotos> {
               child: const Text('Siguiente'),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
+}
 
-  Widget _buildPhotosList() {
-    if (widget.photos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.add_a_photo_rounded,
-              size: 48,
-              color: AppColors.textLight,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Aún no hay fotos',
-              style: TextStyle(color: AppColors.textLight),
+/// Tarjeta de una parte de la planta con botones de cámara/galería y miniaturas.
+class _PartCard extends StatelessWidget {
+  final String partId;
+  final String partLabel;
+  final IconData partIcon;
+  final List<CapturedPhoto> photos;
+  final VoidCallback onTakePhoto;
+  final VoidCallback onPickGallery;
+  final ValueChanged<CapturedPhoto> onRemovePhoto;
+  final ValueChanged<String> onTapPhoto;
+
+  const _PartCard({
+    required this.partId,
+    required this.partLabel,
+    required this.partIcon,
+    required this.photos,
+    required this.onTakePhoto,
+    required this.onPickGallery,
+    required this.onRemovePhoto,
+    required this.onTapPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: photos.isNotEmpty
+            ? AppColors.accentGreen.withValues(alpha: 0.06)
+            : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: photos.isNotEmpty
+              ? AppColors.accentGreenLight
+              : AppColors.surfaceLilac,
+          width: photos.isNotEmpty ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row: icon + label + action buttons
+          Row(
+            children: [
+              Icon(
+                partIcon,
+                size: 20,
+                color: photos.isNotEmpty
+                    ? AppColors.accentGreen
+                    : AppColors.textLight,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  partLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: photos.isNotEmpty
+                        ? AppColors.textDark
+                        : AppColors.textMedium,
+                  ),
+                ),
+              ),
+              if (photos.isNotEmpty)
+                Text(
+                  '${photos.length}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.accentGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              const SizedBox(width: 8),
+              // Camera button
+              _IconActionButton(
+                icon: Icons.camera_alt_rounded,
+                onPressed: onTakePhoto,
+                filled: true,
+              ),
+              const SizedBox(width: 6),
+              // Gallery button
+              _IconActionButton(
+                icon: Icons.photo_library_rounded,
+                onPressed: onPickGallery,
+                filled: false,
+              ),
+            ],
+          ),
+          // Photo thumbnails
+          if (photos.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: photos.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final photo = photos[index];
+                  return _PhotoThumbnail(
+                    photo: photo,
+                    onTap: () => onTapPhoto(photo.path),
+                    onRemove: () => onRemovePhoto(photo),
+                  );
+                },
+              ),
             ),
           ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      itemCount: widget.photos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final photo = widget.photos[index];
-        return _PhotoCard(
-          photo: photo,
-          plantParts: _plantParts,
-          onPartChanged: (part) => _updatePlantPart(index, part),
-          onRemove: () => _removePhoto(index),
-        );
-      },
+        ],
+      ),
     );
   }
 }
 
-class _PhotoCard extends StatelessWidget {
-  final CapturedPhoto photo;
-  final List<(String, String)> plantParts;
-  final ValueChanged<String> onPartChanged;
-  final VoidCallback onRemove;
+/// Botón de acción con solo ícono (cámara o galería).
+class _IconActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool filled;
 
-  const _PhotoCard({
-    required this.photo,
-    required this.plantParts,
-    required this.onPartChanged,
-    required this.onRemove,
+  const _IconActionButton({
+    required this.icon,
+    required this.onPressed,
+    required this.filled,
   });
-
-  void _openFullScreen(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullPhotoViewer(photoPath: photo.path),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            // Thumbnail - tappable
-            GestureDetector(
-              onTap: () => _openFullScreen(context),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  File(photo.path),
-                  width: 64,
-                  height: 64,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 64,
-                    height: 64,
-                    color: AppColors.surfaceLilac,
-                    child: const Icon(Icons.broken_image),
-                  ),
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: filled
+          ? ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              child: Icon(icon, size: 18),
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Icon(icon, size: 18),
             ),
-            const SizedBox(width: 12),
-            // Dropdown for plant part
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Parte de la planta',
-                    style: TextStyle(fontSize: 11, color: AppColors.textLight),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLilac,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: photo.plantPart,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textDark,
-                        ),
-                        items: plantParts.map((part) {
-                          return DropdownMenuItem(
-                            value: part.$1,
-                            child: Text(part.$2),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) onPartChanged(val);
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+    );
+  }
+}
+
+/// Miniatura de foto con botón de eliminar y tap para agrandar.
+class _PhotoThumbnail extends StatelessWidget {
+  final CapturedPhoto photo;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const _PhotoThumbnail({
+    required this.photo,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(photo.path),
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 56,
+                height: 56,
+                color: AppColors.surfaceLilac,
+                child: const Icon(Icons.broken_image, size: 18),
               ),
             ),
-            const SizedBox(width: 8),
-            // Remove button
-            IconButton(
-              onPressed: onRemove,
-              icon: const Icon(Icons.close_rounded, size: 20),
-              color: AppColors.error,
-              tooltip: 'Eliminar',
-            ),
-          ],
+          ),
         ),
-      ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: const Icon(Icons.close, size: 10, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -338,7 +497,6 @@ class _PhotoCard extends StatelessWidget {
 /// Visor de foto a pantalla completa con zoom y doble tap.
 class _FullPhotoViewer extends StatefulWidget {
   final String photoPath;
-
   const _FullPhotoViewer({required this.photoPath});
 
   @override
@@ -347,10 +505,9 @@ class _FullPhotoViewer extends StatefulWidget {
 
 class _FullPhotoViewerState extends State<_FullPhotoViewer>
     with SingleTickerProviderStateMixin {
-  final TransformationController _transformController =
-      TransformationController();
+  final TransformationController _tc = TransformationController();
   late AnimationController _animController;
-  Animation<Matrix4>? _animation;
+  Animation<Matrix4>? _anim;
 
   @override
   void initState() {
@@ -360,52 +517,49 @@ class _FullPhotoViewerState extends State<_FullPhotoViewer>
           vsync: this,
           duration: const Duration(milliseconds: 250),
         )..addListener(() {
-          if (_animation != null) {
-            _transformController.value = _animation!.value;
-          }
+          if (_anim != null) _tc.value = _anim!.value;
         });
   }
 
   @override
   void dispose() {
     _animController.dispose();
-    _transformController.dispose();
+    _tc.dispose();
     super.dispose();
   }
 
-  void _handleDoubleTap(TapDownDetails details) {
-    final currentScale = _transformController.value.getMaxScaleOnAxis();
-    if (currentScale > 1.05) {
-      _animateToMatrix(Matrix4.identity());
+  void _onDoubleTap(TapDownDetails d) {
+    if (_tc.value.getMaxScaleOnAxis() > 1.05) {
+      _animateTo(Matrix4.identity());
     } else {
-      final position = details.localPosition;
-      final zoomed = Matrix4(
-        2.5,
-        0,
-        0,
-        0,
-        0,
-        2.5,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        -position.dx * 1.5,
-        -position.dy * 1.5,
-        0,
-        1,
+      final pos = d.localPosition;
+      _animateTo(
+        Matrix4(
+          2.5,
+          0,
+          0,
+          0,
+          0,
+          2.5,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -pos.dx * 1.5,
+          -pos.dy * 1.5,
+          0,
+          1,
+        ),
       );
-      _animateToMatrix(zoomed);
     }
   }
 
-  void _animateToMatrix(Matrix4 target) {
-    _animation = Matrix4Tween(begin: _transformController.value, end: target)
-        .animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-        );
+  void _animateTo(Matrix4 target) {
+    _anim = Matrix4Tween(begin: _tc.value, end: target).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    );
     _animController.forward(from: 0);
   }
 
@@ -418,10 +572,10 @@ class _FullPhotoViewerState extends State<_FullPhotoViewer>
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: GestureDetector(
-        onDoubleTapDown: _handleDoubleTap,
+        onDoubleTapDown: _onDoubleTap,
         onDoubleTap: () {},
         child: InteractiveViewer(
-          transformationController: _transformController,
+          transformationController: _tc,
           minScale: 1.0,
           maxScale: 5.0,
           child: Center(

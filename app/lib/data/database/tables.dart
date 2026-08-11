@@ -92,7 +92,7 @@ class ObservationPhotos extends Table {
   TextColumn get observationId => text()();
   TextColumn get photoPath => text()();
 
-  /// Parte de la planta: general, hoja, flor, tallo, fruto
+  /// Parte de la planta: general, hoja, flor, espinas, fruto
   TextColumn get plantPart => text().withDefault(const Constant('general'))();
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();

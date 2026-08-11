@@ -32,12 +32,18 @@ class CapturedPhoto {
     DateTime? capturedAt,
   }) : capturedAt = capturedAt ?? DateTime.now();
 
-  bool get hasLocation => latitude != null && longitude != null;
+  bool get hasLocation =>
+      latitude != null &&
+      longitude != null &&
+      !latitude!.isNaN &&
+      !longitude!.isNaN &&
+      !latitude!.isInfinite &&
+      !longitude!.isInfinite;
 }
 
 /// Pantalla principal del flujo de identificación multi-paso.
-/// Paso 1: Captura de fotos
-/// Paso 2: Identificar la planta (catálogo o cuestionario)
+/// Paso 1: Captura de fotos por parte
+/// Paso 2: Cuestionario secuencial → identificar o "sin identificar"
 /// Paso 3: Ubicación geográfica por foto
 /// Paso 4: Resumen y guardar
 class IdentifyFlowScreen extends StatefulWidget {
@@ -51,6 +57,8 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   int _currentStep = 0;
   final List<CapturedPhoto> _photos = [];
   Specy? _selectedSpecies;
+  bool _isUnidentified = false;
+  String _unidentifiedNote = '';
   bool _isSaving = false;
 
   static const _stepCount = 4;
@@ -72,6 +80,8 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       _currentStep = 0;
       _photos.clear();
       _selectedSpecies = null;
+      _isUnidentified = false;
+      _unidentifiedNote = '';
       _isSaving = false;
     });
   }
@@ -83,12 +93,33 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     });
   }
 
-  void _onSpeciesSelected(Specy species) {
-    setState(() => _selectedSpecies = species);
+  void _onSpeciesSelected(Specy? species) {
+    setState(() {
+      if (species != null) {
+        _selectedSpecies = species;
+        _isUnidentified = false;
+      } else {
+        _selectedSpecies = null;
+        _isUnidentified = true;
+      }
+    });
   }
 
+  void _onUnidentifiedNote(String note) {
+    setState(() {
+      _unidentifiedNote = note;
+      _isUnidentified = true;
+      _selectedSpecies = null;
+    });
+  }
+
+  /// Can advance from step 2 if species is selected OR marked as unidentified.
+  bool get _canAdvanceFromIdentify =>
+      _selectedSpecies != null || _isUnidentified;
+
   Future<void> _saveObservation() async {
-    if (_selectedSpecies == null || _photos.isEmpty) return;
+    if (_photos.isEmpty) return;
+    if (!_isUnidentified && _selectedSpecies == null) return;
 
     setState(() => _isSaving = true);
 
@@ -109,8 +140,9 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
 
       await repo.createWithPhotos(
         userId: AppConstants.testUserId,
-        speciesId: _selectedSpecies!.id,
+        speciesId: _selectedSpecies?.id ?? 'unidentified',
         photos: photoDataList,
+        notes: _isUnidentified ? _unidentifiedNote : '',
       );
 
       if (mounted) {
@@ -129,6 +161,13 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   }
 
   Future<void> _showSuccessDialog() async {
+    final title = _isUnidentified
+        ? '¡Registro guardado!'
+        : '¡Planta registrada!';
+    final subtitle = _isUnidentified
+        ? 'Se guardó como "sin identificar" con ${_photos.length} foto${_photos.length > 1 ? 's' : ''}'
+        : '${_selectedSpecies!.commonName} fue registrada con ${_photos.length} foto${_photos.length > 1 ? 's' : ''}';
+
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -141,7 +180,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
             const SizedBox(height: 8),
             Image.asset(
               'assets/images/Kospi/Kospi saludando.png',
-              height: 100,
+              height: AppConstants.kospiImageHeight,
               errorBuilder: (_, __, ___) => const Icon(
                 Icons.check_circle,
                 size: 64,
@@ -149,14 +188,13 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '¡Registro guardado!',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              '${_selectedSpecies!.commonName} fue registrada '
-              'con ${_photos.length} foto${_photos.length > 1 ? 's' : ''}',
+              subtitle,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textMedium),
             ),
@@ -179,10 +217,10 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     return SafeArea(
       child: Column(
         children: [
-          // Progress indicator
-          _buildProgressBar(),
-          // Step content
+          // Step content (takes all available space)
           Expanded(child: _buildCurrentStep()),
+          // Progress bar at the BOTTOM
+          _buildProgressBar(),
         ],
       ),
     );
@@ -190,14 +228,21 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
 
   Widget _buildProgressBar() {
     final labels = ['Fotos', 'Planta', 'Ubicación', 'Resumen'];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        border: Border(
+          top: BorderSide(color: AppColors.surfaceLilac, width: 1),
+        ),
+      ),
       child: Row(
         children: List.generate(labels.length, (index) {
           final isActive = index == _currentStep;
           final isDone = index < _currentStep;
           return Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
@@ -211,8 +256,8 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
                         ),
                       ),
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDone
@@ -225,13 +270,13 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
                         child: isDone
                             ? const Icon(
                                 Icons.check,
-                                size: 14,
+                                size: 12,
                                 color: Colors.white,
                               )
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   color: isActive
                                       ? Colors.white
@@ -251,11 +296,11 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   labels[index],
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                     color: isActive || isDone
                         ? AppColors.accentGreen
@@ -282,9 +327,10 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
         return StepIdentify(
           selectedSpecies: _selectedSpecies,
           onSpeciesSelected: _onSpeciesSelected,
-          onNext: _selectedSpecies != null ? _nextStep : null,
+          onUnidentifiedNote: _onUnidentifiedNote,
+          onNext: _canAdvanceFromIdentify ? _nextStep : null,
           onBack: _previousStep,
-          photoPaths: _photos.map((p) => p.path).toList(),
+          photos: _photos,
         );
       case 2:
         return StepLocation(
@@ -296,7 +342,9 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       case 3:
         return StepSummary(
           photos: _photos,
-          species: _selectedSpecies!,
+          species: _selectedSpecies,
+          isUnidentified: _isUnidentified,
+          unidentifiedNote: _unidentifiedNote,
           isSaving: _isSaving,
           onSave: _saveObservation,
           onBack: _previousStep,

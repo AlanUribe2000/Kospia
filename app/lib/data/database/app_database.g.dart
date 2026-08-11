@@ -3246,7 +3246,7 @@ class ObservationPhoto extends DataClass
   final String observationId;
   final String photoPath;
 
-  /// Parte de la planta: general, hoja, flor, tallo, fruto
+  /// Parte de la planta: general, hoja, flor, espinas, fruto
   final String plantPart;
   final double latitude;
   final double longitude;
