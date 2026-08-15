@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -107,6 +108,9 @@ class _StepPhotosState extends State<StepPhotos> {
   }
 
   Future<void> _pickFromGallery(String part) async {
+    // Pedir permiso de ubicación de medios (necesario para leer GPS de fotos)
+    await Permission.accessMediaLocation.request();
+
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isEmpty) return;
 
@@ -129,6 +133,7 @@ class _StepPhotosState extends State<StepPhotos> {
             plantPart: part,
             latitude: lat,
             longitude: lng,
+            hasExifGps: exifGps != null,
           ),
         );
       }
@@ -154,7 +159,6 @@ class _StepPhotosState extends State<StepPhotos> {
       final lat = _gpsToDecimal(latTag.values, latRef?.printable ?? 'N');
       final lng = _gpsToDecimal(lngTag.values, lngRef?.printable ?? 'E');
 
-      // Validar que no sea NaN, Infinity, o (0,0)
       if (lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
         return null;
       }

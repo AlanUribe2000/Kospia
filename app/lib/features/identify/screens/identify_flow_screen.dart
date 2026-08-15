@@ -21,6 +21,9 @@ class CapturedPhoto {
   double accuracy;
   DateTime capturedAt;
 
+  /// True si la ubicación vino del EXIF original de la foto.
+  bool hasExifGps;
+
   CapturedPhoto({
     required this.path,
     required this.source,
@@ -29,6 +32,7 @@ class CapturedPhoto {
     this.longitude,
     this.altitude = 0.0,
     this.accuracy = 0.0,
+    this.hasExifGps = false,
     DateTime? capturedAt,
   }) : capturedAt = capturedAt ?? DateTime.now();
 

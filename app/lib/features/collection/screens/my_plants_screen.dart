@@ -178,7 +178,10 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
             const SizedBox(height: 14),
             // Unidentified section
             if (_unidentifiedObs.isNotEmpty && _searchController.text.isEmpty)
-              _UnidentifiedBanner(count: _unidentifiedObs.length),
+              GestureDetector(
+                onTap: _openUnidentifiedList,
+                child: _UnidentifiedBanner(count: _unidentifiedObs.length),
+              ),
             // Grid
             Expanded(
               child: RefreshIndicator(
@@ -216,6 +219,14 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
       MaterialPageRoute(
         builder: (_) =>
             _PlantProgressDetail(species: species, partsCompleted: parts),
+      ),
+    );
+  }
+
+  void _openUnidentifiedList() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _UnidentifiedListScreen(observations: _unidentifiedObs),
       ),
     );
   }
@@ -964,5 +975,229 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
         ),
       ),
     );
+  }
+}
+
+/// Pantalla que muestra todos los registros sin identificar.
+class _UnidentifiedListScreen extends StatefulWidget {
+  final List<Observation> observations;
+
+  const _UnidentifiedListScreen({required this.observations});
+
+  @override
+  State<_UnidentifiedListScreen> createState() =>
+      _UnidentifiedListScreenState();
+}
+
+class _UnidentifiedListScreenState extends State<_UnidentifiedListScreen> {
+  Map<String, List<ObservationPhoto>> _photosByObs = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    final repo = context.read<ObservationRepository>();
+    final map = <String, List<ObservationPhoto>>{};
+    for (final obs in widget.observations) {
+      map[obs.id] = await repo.getPhotosForObservation(obs.id);
+    }
+    if (mounted)
+      setState(() {
+        _photosByObs = map;
+        _loading = false;
+      });
+  }
+
+  void _openPhoto(String path) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPath: path)),
+    );
+  }
+
+  String _partLabel(String part) {
+    switch (part) {
+      case 'general':
+        return 'General';
+      case 'hoja':
+        return 'Hoja';
+      case 'flor':
+        return 'Flor';
+      case 'espinas':
+        return 'Espinas';
+      case 'fruto':
+        return 'Fruto';
+      default:
+        return part;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sin identificar')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : widget.observations.isEmpty
+          ? const Center(child: Text('No hay registros sin identificar'))
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: widget.observations.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final obs = widget.observations[index];
+                final photos = _photosByObs[obs.id] ?? [];
+                return _UnidentifiedCard(
+                  observation: obs,
+                  photos: photos,
+                  onTapPhoto: _openPhoto,
+                  partLabel: _partLabel,
+                );
+              },
+            ),
+    );
+  }
+}
+
+class _UnidentifiedCard extends StatelessWidget {
+  final Observation observation;
+  final List<ObservationPhoto> photos;
+  final ValueChanged<String> onTapPhoto;
+  final String Function(String) partLabel;
+
+  const _UnidentifiedCard({
+    required this.observation,
+    required this.photos,
+    required this.onTapPhoto,
+    required this.partLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final date = observation.createdAt;
+    final dateStr =
+        '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: date + note
+            Row(
+              children: [
+                const Icon(
+                  Icons.help_outline_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Registro del $dateStr',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (observation.notes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            observation.notes,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMedium,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // Photos grouped by part
+            if (photos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              // Group photos by plantPart
+              ..._buildPhotosByPart(),
+            ],
+            if (photos.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Sin fotos',
+                  style: TextStyle(fontSize: 12, color: AppColors.textLight),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPhotosByPart() {
+    final grouped = <String, List<ObservationPhoto>>{};
+    for (final photo in photos) {
+      grouped.putIfAbsent(photo.plantPart, () => []).add(photo);
+    }
+
+    return grouped.entries.map((entry) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              partLabel(entry.key),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMedium,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: entry.value.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final photo = entry.value[index];
+                  return GestureDetector(
+                    onTap: () => onTapPhoto(photo.photoPath),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(photo.photoPath),
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 64,
+                          height: 64,
+                          color: AppColors.surfaceLilac,
+                          child: const Icon(Icons.broken_image, size: 20),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 }
