@@ -11,6 +11,7 @@ import '../../../data/repositories/species_repository.dart';
 import '../../../data/services/sequential_questionnaire.dart';
 import '../../catalog/screens/species_detail_screen.dart';
 import '../screens/identify_flow_screen.dart';
+import 'option_illustration.dart';
 
 /// Paso 2: Identificar la planta.
 /// Cuestionario secuencial filtrado por las partes fotografiadas.
@@ -148,34 +149,77 @@ class _StepIdentifyState extends State<StepIdentify> {
             ),
           ),
           const SizedBox(height: 8),
+          // Progress subtitle (Pregunta X · N especies posibles)
+          if (_mode == _IdentifyMode.questionnaire && _questionnaire != null)
+            Text(
+              'Pregunta ${_questionnaire!.answeredCount + 1} · '
+              '${_questionnaire!.candidates.length} especies posibles',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMedium,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          const SizedBox(height: 8),
           // Content based on mode
           Expanded(child: _buildContent()),
           // Navigation
           const SizedBox(height: 12),
-          Row(
-            children: [
-              OutlinedButton(
-                onPressed: _handleBack,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-                child: const Text('Atrás'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: widget.onNext,
-                  child: const Text('Siguiente'),
-                ),
-              ),
-            ],
-          ),
+          _buildNavigation(),
           const SizedBox(height: 12),
         ],
       ),
+    );
+  }
+
+  Widget _buildNavigation() {
+    if (_mode == _IdentifyMode.questionnaire) {
+      // En modo cuestionario: "Volver" a la izquierda, "Cancelar" a la derecha
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextButton.icon(
+            onPressed: _handleBack,
+            icon: const Icon(Icons.arrow_back, size: 18),
+            label: const Text('Volver'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textDark,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              // Cancelar el flujo completo - volver al paso de fotos
+              widget.onBack();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textMedium,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      );
+    }
+
+    // En modo resultados/sin identificar: botones normales
+    return Row(
+      children: [
+        OutlinedButton(
+          onPressed: _handleBack,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          child: const Text('Atrás'),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: widget.onNext,
+            child: const Text('Siguiente'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -203,49 +247,34 @@ class _StepIdentifyState extends State<StepIdentify> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Progress indicator
-        Row(
-          children: [
-            Text(
-              'Pregunta ${q.answeredCount + 1} de ${q.totalQuestions}',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        // Question card (matching option card background)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLilac.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceLilac, width: 1),
+          ),
+          child: Text(
+            _formatQuestionText(question.text),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
             ),
-            const Spacer(),
-            Text(
-              '${q.candidates.length} candidatos',
-              style: const TextStyle(fontSize: 12, color: AppColors.textLight),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: q.answeredCount / q.totalQuestions,
-            minHeight: 4,
-            backgroundColor: AppColors.surfaceLilac,
-            valueColor: const AlwaysStoppedAnimation(AppColors.accentGreen),
           ),
         ),
         const SizedBox(height: 16),
-        // Question text
-        Text(
-          question.text,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        // Photo thumbnails for reference
+        // Photo thumbnails for reference (optional, smaller)
         if (widget.photos.isNotEmpty) ...[
           SizedBox(
-            height: 48,
+            height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: widget.photos.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 5),
+              separatorBuilder: (_, __) => const SizedBox(width: 4),
               itemBuilder: (context, index) {
                 return GestureDetector(
                   onTap: () => _openPhoto(widget.photos[index].path),
@@ -253,8 +282,8 @@ class _StepIdentifyState extends State<StepIdentify> {
                     borderRadius: BorderRadius.circular(6),
                     child: Image.file(
                       File(widget.photos[index].path),
-                      width: 48,
-                      height: 48,
+                      width: 40,
+                      height: 40,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -264,32 +293,71 @@ class _StepIdentifyState extends State<StepIdentify> {
           ),
           const SizedBox(height: 12),
         ],
-        // Options
-        Expanded(
-          child: ListView.separated(
-            itemCount: question.options.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
-            itemBuilder: (context, index) {
-              final option = question.options[index];
-              final label = SequentialQuestionnaire.friendlyOption(
-                question.fieldName,
-                option,
-              );
-              return OutlinedButton(
-                onPressed: () => _answerQuestion(option),
-                style: OutlinedButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                child: Text(label),
-              );
-            },
-          ),
-        ),
+        // Options grid (3 columns, visual cards)
+        Expanded(child: _buildOptionsGrid(question)),
       ],
+    );
+  }
+
+  /// Formatea el texto de la pregunta para que se vea más natural en el card.
+  String _formatQuestionText(String text) {
+    // Convertir a formato tipo "¿Cómo es la forma de sus hojas?"
+    return text;
+  }
+
+  /// Grid de opciones con ilustraciones (3 columnas como en mockup).
+  Widget _buildOptionsGrid(QuestionConfig question) {
+    final hasVisual = OptionIllustration.hasVisualIllustration(
+      question.fieldName,
+    );
+
+    if (hasVisual) {
+      return GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.85,
+        ),
+        itemCount: question.options.length,
+        itemBuilder: (context, index) {
+          final option = question.options[index];
+          final label = SequentialQuestionnaire.friendlyOption(
+            question.fieldName,
+            option,
+          );
+          return _VisualOptionCard(
+            label: label,
+            fieldName: question.fieldName,
+            optionValue: option,
+            onTap: () => _answerQuestion(option),
+          );
+        },
+      );
+    }
+
+    // Fallback para preguntas sin visual dedicado: list con íconos
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: question.options.length,
+      itemBuilder: (context, index) {
+        final option = question.options[index];
+        final label = SequentialQuestionnaire.friendlyOption(
+          question.fieldName,
+          option,
+        );
+        return _VisualOptionCard(
+          label: label,
+          fieldName: question.fieldName,
+          optionValue: option,
+          onTap: () => _answerQuestion(option),
+        );
+      },
     );
   }
 
@@ -491,6 +559,103 @@ class _StepIdentifyState extends State<StepIdentify> {
         ],
       ),
     );
+  }
+}
+
+/// Tarjeta visual de opción para el grid del cuestionario.
+/// Muestra una ilustración arriba y un label abajo, con fondo rosa/lila.
+/// Para opciones con medidas, muestra el rango como subtítulo.
+class _VisualOptionCard extends StatelessWidget {
+  final String label;
+  final String fieldName;
+  final String optionValue;
+  final VoidCallback onTap;
+
+  const _VisualOptionCard({
+    required this.label,
+    required this.fieldName,
+    required this.optionValue,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = _splitLabel(label);
+    final mainLabel = parts.$1;
+    final subtitle = parts.$2;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLilac.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceLilac, width: 1),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Illustration area
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: OptionIllustration(
+                  fieldName: fieldName,
+                  optionValue: optionValue,
+                  size: 52,
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Main label
+              Text(
+                mainLabel,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textDark,
+                  height: 1.2,
+                ),
+              ),
+              // Subtitle with measurement range
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textMedium,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Separa el label en nombre principal y subtítulo con medidas.
+  /// Retorna (mainLabel, subtitle) donde subtitle puede ser null.
+  (String, String?) _splitLabel(String label) {
+    final parenIdx = label.indexOf('(');
+    if (parenIdx > 0) {
+      final main = label.substring(0, parenIdx).trim();
+      final measure = label.substring(parenIdx + 1, label.length - 1).trim();
+      return (main, measure);
+    }
+    // Fix: reemplazar underscores por espacios
+    final cleaned = label.replaceAll('_', ' ');
+    return (cleaned, null);
   }
 }
 
