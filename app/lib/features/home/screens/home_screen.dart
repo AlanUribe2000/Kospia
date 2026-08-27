@@ -6,6 +6,7 @@ import '../../../data/repositories/species_repository.dart';
 import '../../catalog/screens/catalog_screen.dart';
 import '../../collection/screens/my_plants_screen.dart';
 import '../../identify/screens/identify_flow_screen.dart';
+import '../../ruler/screens/ruler_screen.dart';
 import '../widgets/dashboard_tab.dart';
 
 /// Pantalla principal con NavigationRail vertical verde a la izquierda.
@@ -137,6 +138,17 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'CATALOGO',
               isSelected: _currentIndex == 3,
               onTap: () => _navigateTo(3),
+            ),
+            const SizedBox(height: 16),
+            _NavItem(
+              icon: Icons.straighten_rounded,
+              label: 'REGLA',
+              isSelected: false,
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const RulerScreen()));
+              },
             ),
             const Spacer(),
           ],

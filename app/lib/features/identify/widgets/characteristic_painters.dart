@@ -481,43 +481,37 @@ class ArbustoPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final trunkPaint = Paint()
-      ..color = const Color(0xFF6B4226)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
+    final darkPaint = Paint()
+      ..color = const Color(0xFF1F6B1F)
+      ..style = PaintingStyle.fill;
 
-    // Tronco
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.5, h * 0.95)
-        ..lineTo(w * 0.5, h * 0.55),
-      trunkPaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.5, h * 0.65)
-        ..lineTo(w * 0.35, h * 0.55),
-      trunkPaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.5, h * 0.65)
-        ..lineTo(w * 0.65, h * 0.55),
-      trunkPaint,
-    );
-
-    // Copa irregular (arbustiva)
-    final crownPath = Path()
-      ..moveTo(w * 0.15, h * 0.55)
-      ..cubicTo(w * 0.1, h * 0.35, w * 0.25, h * 0.15, w * 0.4, h * 0.12)
-      ..cubicTo(w * 0.5, h * 0.08, w * 0.6, h * 0.1, w * 0.7, h * 0.15)
-      ..cubicTo(w * 0.85, h * 0.2, w * 0.9, h * 0.4, w * 0.85, h * 0.55)
-      ..cubicTo(w * 0.8, h * 0.62, w * 0.65, h * 0.6, w * 0.5, h * 0.58)
-      ..cubicTo(w * 0.35, h * 0.6, w * 0.2, h * 0.62, w * 0.15, h * 0.55)
+    // Masa central del arbusto (forma redondeada baja, sin tronco)
+    final mainPath = Path()
+      ..moveTo(w * 0.1, h * 0.85)
+      ..cubicTo(w * 0.05, h * 0.6, w * 0.15, h * 0.35, w * 0.3, h * 0.25)
+      ..cubicTo(w * 0.4, h * 0.18, w * 0.6, h * 0.18, w * 0.7, h * 0.25)
+      ..cubicTo(w * 0.85, h * 0.35, w * 0.95, h * 0.6, w * 0.9, h * 0.85)
       ..close();
 
-    canvas.drawPath(crownPath, fillPaint);
+    canvas.drawPath(mainPath, fillPaint);
+
+    // Lóbulo superior izquierdo (volumen)
+    final lobLeft = Path()
+      ..moveTo(w * 0.15, h * 0.7)
+      ..cubicTo(w * 0.1, h * 0.45, w * 0.2, h * 0.28, w * 0.35, h * 0.22)
+      ..cubicTo(w * 0.45, h * 0.3, w * 0.35, h * 0.5, w * 0.3, h * 0.7)
+      ..close();
+
+    canvas.drawPath(lobLeft, darkPaint);
+
+    // Lóbulo superior derecho (volumen)
+    final lobRight = Path()
+      ..moveTo(w * 0.85, h * 0.7)
+      ..cubicTo(w * 0.9, h * 0.45, w * 0.8, h * 0.28, w * 0.65, h * 0.22)
+      ..cubicTo(w * 0.55, h * 0.3, w * 0.65, h * 0.5, w * 0.7, h * 0.7)
+      ..close();
+
+    canvas.drawPath(lobRight, darkPaint);
   }
 
   @override

@@ -482,14 +482,33 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
   }
 
   void _openFullPhoto(String path) {
+    // Gather all user photos for slide support
+    final allPhotoPaths = _photosByPart.values
+        .expand((photos) => photos.map((p) => p.photoPath))
+        .toList();
+    final index = allPhotoPaths.indexOf(path);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPath: path)),
+      MaterialPageRoute(
+        builder: (_) => _FullPhotoViewer(
+          photoPaths: allPhotoPaths,
+          initialIndex: index >= 0 ? index : 0,
+        ),
+      ),
     );
   }
 
   void _openCatalogImage(String assetPath) {
+    final catalogImages = SpeciesImages.getImages(
+      widget.species.scientificName,
+    );
+    final index = catalogImages.indexOf(assetPath);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _FullAssetViewer(assetPath: assetPath)),
+      MaterialPageRoute(
+        builder: (_) => _FullAssetViewer(
+          assetPaths: catalogImages,
+          initialIndex: index >= 0 ? index : 0,
+        ),
+      ),
     );
   }
 
@@ -777,9 +796,11 @@ class _PartSlot extends StatelessWidget {
 }
 
 /// Visor fullscreen para fotos del usuario (File).
+/// Visor fullscreen para fotos del usuario (File) con slide.
 class _FullPhotoViewer extends StatefulWidget {
-  final String photoPath;
-  const _FullPhotoViewer({required this.photoPath});
+  final List<String> photoPaths;
+  final int initialIndex;
+  const _FullPhotoViewer({required this.photoPaths, this.initialIndex = 0});
 
   @override
   State<_FullPhotoViewer> createState() => _FullPhotoViewerState();
@@ -789,11 +810,16 @@ class _FullPhotoViewerState extends State<_FullPhotoViewer>
     with SingleTickerProviderStateMixin {
   final TransformationController _tc = TransformationController();
   late AnimationController _animController;
+  late PageController _pageController;
+  late int _currentPage;
+  bool _isZoomed = false;
   Animation<Matrix4>? _anim;
 
   @override
   void initState() {
     super.initState();
+    _currentPage = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
     _animController =
         AnimationController(
           vsync: this,
@@ -801,13 +827,23 @@ class _FullPhotoViewerState extends State<_FullPhotoViewer>
         )..addListener(() {
           if (_anim != null) _tc.value = _anim!.value;
         });
+    _tc.addListener(_onTransformChanged);
   }
 
   @override
   void dispose() {
+    _tc.removeListener(_onTransformChanged);
     _animController.dispose();
     _tc.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.05;
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
   }
 
   void _onDoubleTap(TapDownDetails d) {
@@ -852,35 +888,55 @@ class _FullPhotoViewerState extends State<_FullPhotoViewer>
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        title: widget.photoPaths.length > 1
+            ? Text(
+                '${_currentPage + 1} / ${widget.photoPaths.length}',
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
       ),
-      body: GestureDetector(
-        onDoubleTapDown: _onDoubleTap,
-        onDoubleTap: () {},
-        child: InteractiveViewer(
-          transformationController: _tc,
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: Center(
-            child: Image.file(
-              File(widget.photoPath),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image_rounded,
-                color: Colors.white54,
-                size: 64,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.photoPaths.length,
+        physics: _isZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        onPageChanged: (i) => setState(() {
+          _currentPage = i;
+          _tc.value = Matrix4.identity();
+        }),
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onDoubleTapDown: _onDoubleTap,
+            onDoubleTap: () {},
+            child: InteractiveViewer(
+              transformationController: index == _currentPage ? _tc : null,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Center(
+                child: Image.file(
+                  File(widget.photoPaths[index]),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_rounded,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-/// Visor fullscreen para fotos del catálogo (Asset).
+/// Visor fullscreen para fotos del catálogo (Asset) con slide.
 class _FullAssetViewer extends StatefulWidget {
-  final String assetPath;
-  const _FullAssetViewer({required this.assetPath});
+  final List<String> assetPaths;
+  final int initialIndex;
+  const _FullAssetViewer({required this.assetPaths, this.initialIndex = 0});
 
   @override
   State<_FullAssetViewer> createState() => _FullAssetViewerState();
@@ -890,11 +946,16 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
     with SingleTickerProviderStateMixin {
   final TransformationController _tc = TransformationController();
   late AnimationController _animController;
+  late PageController _pageController;
+  late int _currentPage;
+  bool _isZoomed = false;
   Animation<Matrix4>? _anim;
 
   @override
   void initState() {
     super.initState();
+    _currentPage = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
     _animController =
         AnimationController(
           vsync: this,
@@ -902,13 +963,23 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
         )..addListener(() {
           if (_anim != null) _tc.value = _anim!.value;
         });
+    _tc.addListener(_onTransformChanged);
   }
 
   @override
   void dispose() {
+    _tc.removeListener(_onTransformChanged);
     _animController.dispose();
     _tc.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.05;
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
   }
 
   void _onDoubleTap(TapDownDetails d) {
@@ -953,26 +1024,45 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        title: widget.assetPaths.length > 1
+            ? Text(
+                '${_currentPage + 1} / ${widget.assetPaths.length}',
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
       ),
-      body: GestureDetector(
-        onDoubleTapDown: _onDoubleTap,
-        onDoubleTap: () {},
-        child: InteractiveViewer(
-          transformationController: _tc,
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: Center(
-            child: Image.asset(
-              widget.assetPath,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image_rounded,
-                color: Colors.white54,
-                size: 64,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.assetPaths.length,
+        physics: _isZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        onPageChanged: (i) => setState(() {
+          _currentPage = i;
+          _tc.value = Matrix4.identity();
+        }),
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onDoubleTapDown: _onDoubleTap,
+            onDoubleTap: () {},
+            child: InteractiveViewer(
+              transformationController: index == _currentPage ? _tc : null,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Center(
+                child: Image.asset(
+                  widget.assetPaths[index],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_rounded,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1014,7 +1104,7 @@ class _UnidentifiedListScreenState extends State<_UnidentifiedListScreen> {
 
   void _openPhoto(String path) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPath: path)),
+      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPaths: [path])),
     );
   }
 

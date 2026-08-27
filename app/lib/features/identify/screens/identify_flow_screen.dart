@@ -64,6 +64,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   bool _isUnidentified = false;
   String _unidentifiedNote = '';
   bool _isSaving = false;
+  int _flowGeneration = 0;
 
   static const _stepCount = 4;
 
@@ -87,7 +88,36 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       _isUnidentified = false;
       _unidentifiedNote = '';
       _isSaving = false;
+      _flowGeneration++;
     });
+  }
+
+  void _confirmCancel() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar identificación'),
+        content: const Text(
+          '¿Estás seguro? Se borrarán las fotos y las selecciones realizadas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Continuar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _reset();
+            },
+            child: const Text(
+              'Cancelar todo',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onPhotosChanged(List<CapturedPhoto> photos) {
@@ -117,7 +147,6 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     });
   }
 
-  /// Can advance from step 2 if species is selected OR marked as unidentified.
   bool get _canAdvanceFromIdentify =>
       _selectedSpecies != null || _isUnidentified;
 
@@ -221,9 +250,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     return SafeArea(
       child: Column(
         children: [
-          // Step content (takes all available space)
           Expanded(child: _buildCurrentStep()),
-          // Progress bar at the BOTTOM
           _buildProgressBar(),
         ],
       ),
@@ -320,31 +347,32 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   }
 
   Widget _buildCurrentStep() {
-    switch (_currentStep) {
-      case 0:
-        return StepPhotos(
+    return IndexedStack(
+      key: ValueKey(_flowGeneration),
+      index: _currentStep,
+      children: [
+        StepPhotos(
           photos: _photos,
           onPhotosChanged: _onPhotosChanged,
           onNext: _photos.isNotEmpty ? _nextStep : null,
-        );
-      case 1:
-        return StepIdentify(
+        ),
+        StepIdentify(
           selectedSpecies: _selectedSpecies,
           onSpeciesSelected: _onSpeciesSelected,
           onUnidentifiedNote: _onUnidentifiedNote,
           onNext: _canAdvanceFromIdentify ? _nextStep : null,
           onBack: _previousStep,
+          onCancel: _confirmCancel,
           photos: _photos,
-        );
-      case 2:
-        return StepLocation(
+        ),
+        StepLocation(
           photos: _photos,
           onPhotosChanged: _onPhotosChanged,
           onNext: _photos.every((p) => p.hasLocation) ? _nextStep : null,
           onBack: _previousStep,
-        );
-      case 3:
-        return StepSummary(
+          onCancel: _confirmCancel,
+        ),
+        StepSummary(
           photos: _photos,
           species: _selectedSpecies,
           isUnidentified: _isUnidentified,
@@ -352,9 +380,8 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
           isSaving: _isSaving,
           onSave: _saveObservation,
           onBack: _previousStep,
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+        ),
+      ],
+    );
   }
 }

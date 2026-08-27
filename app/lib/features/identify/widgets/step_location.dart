@@ -20,6 +20,7 @@ class StepLocation extends StatefulWidget {
   final ValueChanged<List<CapturedPhoto>> onPhotosChanged;
   final VoidCallback? onNext;
   final VoidCallback onBack;
+  final VoidCallback? onCancel;
 
   const StepLocation({
     super.key,
@@ -27,6 +28,7 @@ class StepLocation extends StatefulWidget {
     required this.onPhotosChanged,
     required this.onNext,
     required this.onBack,
+    this.onCancel,
   });
 
   @override
@@ -230,6 +232,17 @@ class _StepLocationState extends State<StepLocation> {
               ),
             ],
           ),
+          if (widget.onCancel != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: GestureDetector(
+                onTap: widget.onCancel,
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMedium),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -339,6 +352,29 @@ class _LocationCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   'Lat: ${latitude.toStringAsFixed(4)}, Lon: ${longitude.toStringAsFixed(4)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMedium,
+                  ),
+                ),
+              ),
+            // Date/time from photo metadata
+            if (photos.length == 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Fecha: ${_formatDateTime(photos.first.capturedAt)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMedium,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Fecha: ${_formatDateTime(photos.first.capturedAt)}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textMedium,
@@ -455,6 +491,15 @@ class _LocationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year;
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
   }
 
   void _openPicker(BuildContext context) {

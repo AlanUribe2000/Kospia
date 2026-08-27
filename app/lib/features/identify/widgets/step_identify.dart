@@ -22,6 +22,7 @@ class StepIdentify extends StatefulWidget {
   final ValueChanged<String> onUnidentifiedNote;
   final VoidCallback? onNext;
   final VoidCallback onBack;
+  final VoidCallback? onCancel;
   final List<CapturedPhoto> photos;
 
   const StepIdentify({
@@ -31,6 +32,7 @@ class StepIdentify extends StatefulWidget {
     required this.onUnidentifiedNote,
     required this.onNext,
     required this.onBack,
+    this.onCancel,
     required this.photos,
   });
 
@@ -174,7 +176,6 @@ class _StepIdentifyState extends State<StepIdentify> {
 
   Widget _buildNavigation() {
     if (_mode == _IdentifyMode.questionnaire) {
-      // En modo cuestionario: "Volver" a la izquierda, "Cancelar" a la derecha
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -188,10 +189,7 @@ class _StepIdentifyState extends State<StepIdentify> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              // Cancelar el flujo completo - volver al paso de fotos
-              widget.onBack();
-            },
+            onPressed: widget.onCancel,
             style: TextButton.styleFrom(
               foregroundColor: AppColors.textMedium,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -202,23 +200,42 @@ class _StepIdentifyState extends State<StepIdentify> {
       );
     }
 
-    // En modo resultados/sin identificar: botones normales
-    return Row(
+    // En modo resultados/sin identificar
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        OutlinedButton(
-          onPressed: _handleBack,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          ),
-          child: const Text('Atrás'),
+        Row(
+          children: [
+            OutlinedButton(
+              onPressed: _handleBack,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text('Atrás'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: widget.onNext,
+                child: const Text('Siguiente'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: widget.onNext,
-            child: const Text('Siguiente'),
+        if (widget.onCancel != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: GestureDetector(
+              onTap: widget.onCancel,
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(fontSize: 13, color: AppColors.textMedium),
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -311,6 +328,9 @@ class _StepIdentifyState extends State<StepIdentify> {
       question.fieldName,
     );
 
+    // Total de opciones = las de la pregunta + "No sé / No contesta"
+    final totalOptions = question.options.length + 1;
+
     if (hasVisual) {
       return GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -319,8 +339,14 @@ class _StepIdentifyState extends State<StepIdentify> {
           mainAxisSpacing: 10,
           childAspectRatio: 0.85,
         ),
-        itemCount: question.options.length,
+        itemCount: totalOptions,
         itemBuilder: (context, index) {
+          // Última opción: "No sé / No contesta"
+          if (index == question.options.length) {
+            return _NoSabeOptionCard(
+              onTap: () => _answerQuestion(SequentialQuestionnaire.noSabe),
+            );
+          }
           final option = question.options[index];
           final label = SequentialQuestionnaire.friendlyOption(
             question.fieldName,
@@ -344,8 +370,14 @@ class _StepIdentifyState extends State<StepIdentify> {
         mainAxisSpacing: 10,
         childAspectRatio: 0.85,
       ),
-      itemCount: question.options.length,
+      itemCount: totalOptions,
       itemBuilder: (context, index) {
+        // Última opción: "No sé / No contesta"
+        if (index == question.options.length) {
+          return _NoSabeOptionCard(
+            onTap: () => _answerQuestion(SequentialQuestionnaire.noSabe),
+          );
+        }
         final option = question.options[index];
         final label = SequentialQuestionnaire.friendlyOption(
           question.fieldName,
@@ -362,9 +394,16 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 
   void _openPhoto(String path) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => _PhotoViewer(photoPath: path)));
+    final allPaths = widget.photos.map((p) => p.path).toList();
+    final index = allPaths.indexOf(path);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _PhotoViewer(
+          photoPaths: allPaths,
+          initialIndex: index >= 0 ? index : 0,
+        ),
+      ),
+    );
   }
 
   Widget _buildResults() {
@@ -562,6 +601,54 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 }
 
+/// Tarjeta para la opción "No sé / No contesta".
+/// Estilo diferenciado para distinguirla de las opciones normales.
+class _NoSabeOptionCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _NoSabeOptionCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLilac.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceLilac, width: 1),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.help_outline_rounded,
+                size: 36,
+                color: AppColors.textLight,
+              ),
+              SizedBox(height: 6),
+              Text(
+                'No sé',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMedium,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Tarjeta visual de opción para el grid del cuestionario.
 /// Muestra una ilustración arriba y un label abajo, con fondo rosa/lila.
 /// Para opciones con medidas, muestra el rango como subtítulo.
@@ -699,8 +786,9 @@ class _SelectedBanner extends StatelessWidget {
 
 /// Visor de foto fullscreen.
 class _PhotoViewer extends StatefulWidget {
-  final String photoPath;
-  const _PhotoViewer({required this.photoPath});
+  final List<String> photoPaths;
+  final int initialIndex;
+  const _PhotoViewer({required this.photoPaths, this.initialIndex = 0});
 
   @override
   State<_PhotoViewer> createState() => _PhotoViewerState();
@@ -710,11 +798,16 @@ class _PhotoViewerState extends State<_PhotoViewer>
     with SingleTickerProviderStateMixin {
   final TransformationController _tc = TransformationController();
   late AnimationController _animController;
+  late PageController _pageController;
+  late int _currentPage;
+  bool _isZoomed = false;
   Animation<Matrix4>? _anim;
 
   @override
   void initState() {
     super.initState();
+    _currentPage = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
     _animController =
         AnimationController(
           vsync: this,
@@ -722,13 +815,23 @@ class _PhotoViewerState extends State<_PhotoViewer>
         )..addListener(() {
           if (_anim != null) _tc.value = _anim!.value;
         });
+    _tc.addListener(_onTransformChanged);
   }
 
   @override
   void dispose() {
+    _tc.removeListener(_onTransformChanged);
     _animController.dispose();
     _tc.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.05;
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
   }
 
   void _onDoubleTap(TapDownDetails d) {
@@ -773,26 +876,45 @@ class _PhotoViewerState extends State<_PhotoViewer>
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        title: widget.photoPaths.length > 1
+            ? Text(
+                '${_currentPage + 1} / ${widget.photoPaths.length}',
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
       ),
-      body: GestureDetector(
-        onDoubleTapDown: _onDoubleTap,
-        onDoubleTap: () {},
-        child: InteractiveViewer(
-          transformationController: _tc,
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: Center(
-            child: Image.file(
-              File(widget.photoPath),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image_rounded,
-                color: Colors.white54,
-                size: 64,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.photoPaths.length,
+        physics: _isZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        onPageChanged: (i) => setState(() {
+          _currentPage = i;
+          _tc.value = Matrix4.identity();
+        }),
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onDoubleTapDown: _onDoubleTap,
+            onDoubleTap: () {},
+            child: InteractiveViewer(
+              transformationController: index == _currentPage ? _tc : null,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Center(
+                child: Image.file(
+                  File(widget.photoPaths[index]),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_rounded,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

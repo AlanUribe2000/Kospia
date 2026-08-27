@@ -118,14 +118,17 @@ class _StepPhotosState extends State<StepPhotos> {
 
     final newPhotos = <CapturedPhoto>[];
     for (final image in images) {
-      // Leer EXIF GPS del archivo original (antes de comprimir)
-      final exifGps = await _extractExifGps(image.path);
+      // Leer EXIF GPS y fecha del archivo original (antes de comprimir)
+      final exifData = await _extractExifMetadata(image.path);
 
       final saved = await _saveImage(image);
       if (saved != null) {
-        // Si EXIF no tiene GPS, usar GPS de la sesión como fallback
-        final lat = exifGps?.$1 ?? _sessionPosition?.latitude;
-        final lng = exifGps?.$2 ?? _sessionPosition?.longitude;
+        // GPS: EXIF si hay, sino GPS de la sesión como fallback
+        final lat = exifData?.lat ?? _sessionPosition?.latitude;
+        final lng = exifData?.lng ?? _sessionPosition?.longitude;
+        final exifDate = exifData?.date;
+        final hasGps = exifData?.lat != null;
+
         newPhotos.add(
           CapturedPhoto(
             path: saved.path,
@@ -133,7 +136,8 @@ class _StepPhotosState extends State<StepPhotos> {
             plantPart: part,
             latitude: lat,
             longitude: lng,
-            hasExifGps: exifGps != null,
+            hasExifGps: hasGps,
+            capturedAt: exifDate,
           ),
         );
       }
@@ -142,28 +146,62 @@ class _StepPhotosState extends State<StepPhotos> {
     widget.onPhotosChanged([...widget.photos, ...newPhotos]);
   }
 
-  /// Extrae coordenadas GPS de la metadata EXIF de una imagen.
-  Future<(double, double)?> _extractExifGps(String path) async {
+  /// Extrae coordenadas GPS y fecha/hora de la metadata EXIF de una imagen.
+  Future<({double? lat, double? lng, DateTime? date})?> _extractExifMetadata(
+    String path,
+  ) async {
     try {
       final bytes = await File(path).readAsBytes();
       final data = await readExifFromBytes(bytes);
       if (data.isEmpty) return null;
 
+      // GPS
+      double? lat;
+      double? lng;
       final latTag = data['GPS GPSLatitude'];
       final latRef = data['GPS GPSLatitudeRef'];
       final lngTag = data['GPS GPSLongitude'];
       final lngRef = data['GPS GPSLongitudeRef'];
 
-      if (latTag == null || lngTag == null) return null;
-
-      final lat = _gpsToDecimal(latTag.values, latRef?.printable ?? 'N');
-      final lng = _gpsToDecimal(lngTag.values, lngRef?.printable ?? 'E');
-
-      if (lat.isNaN || lat.isInfinite || lng.isNaN || lng.isInfinite) {
-        return null;
+      if (latTag != null && lngTag != null) {
+        final latVal = _gpsToDecimal(latTag.values, latRef?.printable ?? 'N');
+        final lngVal = _gpsToDecimal(lngTag.values, lngRef?.printable ?? 'E');
+        if (!latVal.isNaN &&
+            !latVal.isInfinite &&
+            !lngVal.isNaN &&
+            !lngVal.isInfinite &&
+            !(latVal == 0.0 && lngVal == 0.0)) {
+          lat = latVal;
+          lng = lngVal;
+        }
       }
-      if (lat == 0.0 && lng == 0.0) return null;
-      return (lat, lng);
+
+      // Fecha/hora
+      DateTime? exifDate;
+      final dateTag =
+          data['EXIF DateTimeOriginal'] ??
+          data['EXIF DateTimeDigitized'] ??
+          data['Image DateTime'];
+      if (dateTag != null) {
+        exifDate = _parseExifDate(dateTag.printable);
+      }
+
+      return (lat: lat, lng: lng, date: exifDate);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Parsea una fecha EXIF en formato "YYYY:MM:DD HH:MM:SS" a DateTime.
+  DateTime? _parseExifDate(String dateStr) {
+    try {
+      // Formato EXIF: "2024:11:15 14:30:00"
+      // Reemplazar los primeros dos ':' por '-' para ISO 8601
+      final parts = dateStr.split(' ');
+      if (parts.isEmpty) return null;
+      final datePart = parts[0].replaceAll(':', '-');
+      final timePart = parts.length > 1 ? parts[1] : '00:00:00';
+      return DateTime.tryParse('$datePart $timePart');
     } catch (_) {
       return null;
     }

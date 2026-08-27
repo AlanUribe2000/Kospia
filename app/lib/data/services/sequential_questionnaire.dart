@@ -25,6 +25,9 @@ class QuestionConfig {
 /// Hace TODAS las preguntas relevantes según las partes fotografiadas.
 /// Filtra candidatos progresivamente.
 class SequentialQuestionnaire {
+  /// Valor especial para "No sé / No contesta". No filtra candidatos.
+  static const String noSabe = 'no_sabe';
+
   final Set<String> _photoParts;
 
   List<Specy> _candidates;
@@ -63,6 +66,7 @@ class SequentialQuestionnaire {
   }
 
   /// Responde la pregunta actual y filtra candidatos.
+  /// Si la respuesta es 'no_sabe', avanza sin filtrar.
   void answer(String value) {
     if (isFinished) return;
 
@@ -72,10 +76,12 @@ class SequentialQuestionnaire {
     // Guardar estado previo para poder volver atrás
     _candidateHistory.add(List.from(_candidates));
 
-    // Filtrar candidatos
-    _candidates = _candidates.where((sp) {
-      return _matchesField(sp, question.fieldName, value);
-    }).toList();
+    // Si el usuario no sabe, no filtrar
+    if (value != noSabe) {
+      _candidates = _candidates.where((sp) {
+        return _matchesField(sp, question.fieldName, value);
+      }).toList();
+    }
 
     _currentIndex++;
   }
@@ -93,18 +99,23 @@ class SequentialQuestionnaire {
   }
 
   /// Construye la lista de preguntas relevantes según las partes fotografiadas.
-  /// Si el usuario subió fotos de espinas, no pregunta "¿Tiene espinas?" (es obvio que sí).
+  /// Si subió fotos de espinas, no pregunta "¿Tiene espinas?" (es obvio que sí).
   /// Si subió fotos de fruto, no pregunta "¿Se ven frutos?" (es obvio que sí).
   List<QuestionConfig> _buildRelevantQuestions() {
     return allQuestions.where((q) {
-      if (q.requiredPart == 'general') return true;
+      if (q.requiredPart == 'general') {
+        // Si tiene fotos de espinas, no preguntar "¿Tiene espinas?"
+        if (q.id == 'q-espinas' && _photoParts.contains('espinas')) {
+          return false;
+        }
+        return true;
+      }
       if (!_photoParts.contains(q.requiredPart)) return false;
 
-      // Si tiene fotos de espinas, no preguntar "¿Tiene espinas?"
-      if (q.id == 'q-espinas' && _photoParts.contains('espinas')) return false;
       // Si tiene fotos de fruto, no preguntar "¿Se ven frutos?"
-      if (q.id == 'q-fruto-visible' && _photoParts.contains('fruto'))
+      if (q.id == 'q-fruto-visible' && _photoParts.contains('fruto')) {
         return false;
+      }
 
       return true;
     }).toList();
@@ -202,6 +213,13 @@ class SequentialQuestionnaire {
       requiredPart: 'general',
       options: ['muy baja', 'baja', 'media', 'alta'],
     ),
+    QuestionConfig(
+      id: 'q-espinas',
+      text: '¿La planta tiene espinas?',
+      fieldName: 'hasSpines',
+      requiredPart: 'general',
+      options: ['true', 'false'],
+    ),
     // === HOJA ===
     QuestionConfig(
       id: 'q-long-hoja',
@@ -239,33 +257,6 @@ class SequentialQuestionnaire {
       fieldName: 'leafTexture',
       requiredPart: 'hoja',
       options: ['coriácea', 'flexible', 'firme', 'blanda/carnosa', 'pegajosa'],
-    ),
-    QuestionConfig(
-      id: 'q-hojas-espinosas',
-      text: '¿Las hojas son espinosas?',
-      fieldName: 'hasSpines',
-      requiredPart: 'hoja',
-      options: ['true', 'false'],
-    ),
-    // === ESPINAS ===
-    QuestionConfig(
-      id: 'q-espinas',
-      text: '¿Tiene espinas?',
-      fieldName: 'hasSpines',
-      requiredPart: 'espinas',
-      options: ['true', 'false'],
-    ),
-    QuestionConfig(
-      id: 'q-tipo-espinas',
-      text: '¿Qué tipo de espinas tiene?',
-      fieldName: 'spineType',
-      requiredPart: 'espinas',
-      options: [
-        'foliares/trífidas',
-        'caulinares',
-        'ramas_espinosas',
-        'foliares/cortas',
-      ],
     ),
     // === FLOR ===
     QuestionConfig(
@@ -353,6 +344,7 @@ class SequentialQuestionnaire {
 
   /// Labels amigables para las opciones booleanas.
   static String friendlyOption(String fieldName, String value) {
+    if (value == noSabe) return 'No sé / No contesta';
     if (fieldName == 'hasSpines' || fieldName == 'hasFruit') {
       if (value == 'true') return 'Sí';
       if (value == 'false') return 'No';
