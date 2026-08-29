@@ -217,32 +217,42 @@ class _StepLocationState extends State<StepLocation> {
                 onPressed: widget.onBack,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                    horizontal: 12,
                     vertical: 12,
                   ),
                 ),
                 child: const Text('Atrás'),
               ),
-              const SizedBox(width: 12),
+              if (widget.onCancel != null) ...[
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  onPressed: widget.onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error, width: 1.5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+              const SizedBox(width: 6),
               Expanded(
                 child: ElevatedButton(
                   onPressed: allHaveLocation ? widget.onNext : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
                   child: const Text('Siguiente'),
                 ),
               ),
             ],
           ),
-          if (widget.onCancel != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: GestureDetector(
-                onTap: widget.onCancel,
-                child: const Text(
-                  'Cancelar',
-                  style: TextStyle(fontSize: 13, color: AppColors.textMedium),
-                ),
-              ),
-            ),
         ],
       ),
     );

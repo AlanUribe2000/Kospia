@@ -25,18 +25,11 @@ class _RulerScreenState extends State<RulerScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _loadRealDpi();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     super.dispose();
   }
 
@@ -143,18 +136,13 @@ class _RulerScreenState extends State<RulerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       appBar: AppBar(
-        backgroundColor: AppColors.accentGreen,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Regla',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text('Regla'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune_rounded, color: Colors.white),
+            icon: const Icon(Icons.tune_rounded),
             tooltip: 'Calibrar',
             onPressed: _showCalibrationDialog,
           ),

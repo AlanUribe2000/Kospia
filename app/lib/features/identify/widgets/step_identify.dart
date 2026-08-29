@@ -25,6 +25,13 @@ class StepIdentify extends StatefulWidget {
   final VoidCallback? onCancel;
   final List<CapturedPhoto> photos;
 
+  /// Cuestionario existente (persistido en el parent).
+  /// Si no es null, se reutiliza en vez de crear uno nuevo.
+  final SequentialQuestionnaire? questionnaire;
+
+  /// Callback para notificar al parent cuando se crea un cuestionario nuevo.
+  final ValueChanged<SequentialQuestionnaire>? onQuestionnaireCreated;
+
   const StepIdentify({
     super.key,
     required this.selectedSpecies,
@@ -34,6 +41,8 @@ class StepIdentify extends StatefulWidget {
     required this.onBack,
     this.onCancel,
     required this.photos,
+    this.questionnaire,
+    this.onQuestionnaireCreated,
   });
 
   @override
@@ -61,18 +70,34 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 
   Future<void> _initQuestionnaire() async {
+    // Si el parent ya tiene un cuestionario (volviendo de un paso posterior),
+    // reutilizarlo con todo su estado (respuestas, candidatos filtrados).
+    if (widget.questionnaire != null) {
+      setState(() {
+        _questionnaire = widget.questionnaire;
+        _loading = false;
+        // Determinar modo según estado del cuestionario
+        if (_questionnaire!.isFinished) {
+          _mode = _IdentifyMode.results;
+        }
+      });
+      return;
+    }
+
+    // Primera vez: crear cuestionario nuevo
     final repo = context.read<SpeciesRepository>();
     final allSpecies = await repo.getAll();
-
-    // Determine which parts have photos
     final photoParts = widget.photos.map((p) => p.plantPart).toSet();
 
     if (mounted) {
+      final q = SequentialQuestionnaire(
+        allSpecies: allSpecies,
+        photoParts: photoParts,
+      );
+      // Notificar al parent para que lo persista
+      widget.onQuestionnaireCreated?.call(q);
       setState(() {
-        _questionnaire = SequentialQuestionnaire(
-          allSpecies: allSpecies,
-          photoParts: photoParts,
-        );
+        _questionnaire = q;
         _loading = false;
       });
     }
@@ -176,6 +201,7 @@ class _StepIdentifyState extends State<StepIdentify> {
 
   Widget _buildNavigation() {
     if (_mode == _IdentifyMode.questionnaire) {
+      // Durante preguntas: Atrás a la izq, Cancelar a la der
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -188,54 +214,54 @@ class _StepIdentifyState extends State<StepIdentify> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
-          TextButton(
-            onPressed: widget.onCancel,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textMedium,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          if (widget.onCancel != null)
+            TextButton(
+              onPressed: widget.onCancel,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textMedium,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              child: const Text('Cancelar'),
             ),
-            child: const Text('Cancelar'),
-          ),
         ],
       );
     }
 
-    // En modo resultados/sin identificar
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    // Resultados / sin identificar: Atrás | Cancelar | Siguiente
+    return Row(
       children: [
-        Row(
-          children: [
-            OutlinedButton(
-              onPressed: _handleBack,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-              ),
-              child: const Text('Atrás'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: widget.onNext,
-                child: const Text('Siguiente'),
-              ),
-            ),
-          ],
-        ),
-        if (widget.onCancel != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: GestureDetector(
-              onTap: widget.onCancel,
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(fontSize: 13, color: AppColors.textMedium),
-              ),
-            ),
+        OutlinedButton(
+          onPressed: _handleBack,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
+          child: const Text('Atrás'),
+        ),
+        if (widget.onCancel != null) ...[
+          const SizedBox(width: 6),
+          OutlinedButton(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error, width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            ),
+            child: const Text('Cancelar'),
+          ),
+        ],
+        const SizedBox(width: 6),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: widget.onNext,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            child: const Text('Siguiente'),
+          ),
+        ),
       ],
     );
   }
@@ -547,55 +573,53 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 
   Widget _buildUnidentified() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          const Icon(
-            Icons.help_outline_rounded,
-            size: 48,
-            color: AppColors.textLight,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Sin identificar',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Escribí el nombre de la planta si lo conocés, '
-            'o dejá un comentario para el experto.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppColors.textMedium),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _noteController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Nombre o comentario (opcional)',
-              filled: true,
-              fillColor: AppColors.surfaceLilac,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Icon(
+              Icons.help_outline_rounded,
+              size: 48,
+              color: AppColors.textLight,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Sin identificar',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Escribí el nombre de la planta si lo conocés, '
+              'o dejá un comentario para el experto.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AppColors.textMedium),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _noteController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Nombre o comentario (opcional)',
+                filled: true,
+                fillColor: AppColors.surfaceLilac,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _confirmUnidentified,
-              child: const Text('Confirmar sin identificar'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _confirmUnidentified,
+                child: const Text('Confirmar sin identificar'),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() => _mode = _IdentifyMode.results),
-            child: const Text('Volver a los resultados'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

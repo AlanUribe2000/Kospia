@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/observation_repository.dart';
+import '../../../data/services/sequential_questionnaire.dart';
 import '../widgets/step_location.dart';
 import '../widgets/step_photos.dart';
 import '../widgets/step_identify.dart';
@@ -66,6 +67,9 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   bool _isSaving = false;
   int _flowGeneration = 0;
 
+  /// Cuestionario persistido en el parent para que sobreviva transiciones de step.
+  SequentialQuestionnaire? _questionnaire;
+
   static const _stepCount = 4;
 
   void _nextStep() {
@@ -89,6 +93,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       _unidentifiedNote = '';
       _isSaving = false;
       _flowGeneration++;
+      _questionnaire = null;
     });
   }
 
@@ -124,6 +129,9 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
     setState(() {
       _photos.clear();
       _photos.addAll(photos);
+      // Las fotos cambiaron → invalidar el cuestionario para que se
+      // recree con las partes fotografiadas actualizadas.
+      _questionnaire = null;
     });
   }
 
@@ -347,16 +355,20 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
   }
 
   Widget _buildCurrentStep() {
-    return IndexedStack(
-      key: ValueKey(_flowGeneration),
-      index: _currentStep,
-      children: [
-        StepPhotos(
+    // Usamos switch para que cada step se construya solo cuando es activo.
+    // StepIdentify usa _flowGeneration en su key para forzar rebuild al cancelar.
+    // Al volver de step 3 a step 2, StepIdentify se recrea pero recibe
+    // _selectedSpecies del parent, así que sabe que ya hay resultado.
+    switch (_currentStep) {
+      case 0:
+        return StepPhotos(
           photos: _photos,
           onPhotosChanged: _onPhotosChanged,
           onNext: _photos.isNotEmpty ? _nextStep : null,
-        ),
-        StepIdentify(
+        );
+      case 1:
+        return StepIdentify(
+          key: ValueKey('identify_$_flowGeneration'),
           selectedSpecies: _selectedSpecies,
           onSpeciesSelected: _onSpeciesSelected,
           onUnidentifiedNote: _onUnidentifiedNote,
@@ -364,15 +376,19 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
           onBack: _previousStep,
           onCancel: _confirmCancel,
           photos: _photos,
-        ),
-        StepLocation(
+          questionnaire: _questionnaire,
+          onQuestionnaireCreated: (q) => _questionnaire = q,
+        );
+      case 2:
+        return StepLocation(
           photos: _photos,
           onPhotosChanged: _onPhotosChanged,
           onNext: _photos.every((p) => p.hasLocation) ? _nextStep : null,
           onBack: _previousStep,
           onCancel: _confirmCancel,
-        ),
-        StepSummary(
+        );
+      case 3:
+        return StepSummary(
           photos: _photos,
           species: _selectedSpecies,
           isUnidentified: _isUnidentified,
@@ -380,8 +396,9 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
           isSaving: _isSaving,
           onSave: _saveObservation,
           onBack: _previousStep,
-        ),
-      ],
-    );
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }

@@ -57,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const IdentifyFlowScreen(),
                 const MyPlantsScreen(),
                 const CatalogScreen(),
+                const RulerScreen(),
               ],
             ),
           ),
@@ -143,12 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _NavItem(
               icon: Icons.straighten_rounded,
               label: 'REGLA',
-              isSelected: false,
-              onTap: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const RulerScreen()));
-              },
+              isSelected: _currentIndex == 4,
+              onTap: () => _navigateTo(4),
             ),
             const Spacer(),
           ],
