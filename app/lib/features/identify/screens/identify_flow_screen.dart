@@ -370,6 +370,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
         return StepIdentify(
           key: ValueKey('identify_$_flowGeneration'),
           selectedSpecies: _selectedSpecies,
+          isUnidentified: _isUnidentified,
           onSpeciesSelected: _onSpeciesSelected,
           onUnidentifiedNote: _onUnidentifiedNote,
           onNext: _canAdvanceFromIdentify ? _nextStep : null,

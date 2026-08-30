@@ -10,10 +10,19 @@ import '../../../data/repositories/observation_repository.dart';
 import '../../../data/repositories/species_repository.dart';
 
 /// Retorna las partes requeridas para completar una especie.
-/// No pide espinas si la planta no tiene, ni fruto si no es visible.
+/// Espinas son opcionales (no bloquean completado). Fruto solo si es visible.
 List<String> requiredPartsForSpecies(Specy species) {
   final parts = <String>['general', 'hoja', 'flor'];
+  if (species.hasFruit) parts.add('fruto');
+  return parts;
+}
+
+/// Retorna todas las partes visibles para una especie (requeridas + opcionales).
+/// Incluye espinas si la planta las tiene, aunque no sean obligatorias.
+List<String> allVisiblePartsForSpecies(Specy species) {
+  final parts = <String>['general', 'hoja'];
   if (species.hasSpines) parts.add('espinas');
+  parts.add('flor');
   if (species.hasFruit) parts.add('fruto');
   return parts;
 }
@@ -45,6 +54,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   Map<String, Set<String>> _progressMap = {};
   List<Observation> _unidentifiedObs = [];
   bool _loading = true;
+  bool _sortByProgress = false;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -104,7 +114,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
-        _filtered = _allSpecies;
+        _filtered = List.from(_allSpecies);
       } else {
         _filtered = _allSpecies
             .where(
@@ -114,6 +124,21 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                   sp.family.toLowerCase().contains(query),
             )
             .toList();
+      }
+      if (_sortByProgress) {
+        _filtered.sort((a, b) {
+          final partsA = _progressMap[a.id] ?? {};
+          final partsB = _progressMap[b.id] ?? {};
+          final progressA = progressForSpecies(a, partsA);
+          final progressB = progressForSpecies(b, partsB);
+          // Descendente por progreso
+          final cmp = progressB.compareTo(progressA);
+          if (cmp != 0) return cmp;
+          // A igualdad, alfabético por nombre
+          return a.commonName.toLowerCase().compareTo(
+            b.commonName.toLowerCase(),
+          );
+        });
       }
     });
   }
@@ -143,9 +168,61 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
               style: Theme.of(context).textTheme.displayLarge,
             ),
             const SizedBox(height: 4),
-            Text(
-              '$_completedCount de ${_allSpecies.length} completadas',
-              style: Theme.of(context).textTheme.bodyMedium,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$_completedCount de ${_allSpecies.length} completadas',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _sortByProgress = !_sortByProgress);
+                    _applyFilter();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _sortByProgress
+                          ? AppColors.accentGreen.withValues(alpha: 0.1)
+                          : AppColors.surfaceLilac,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _sortByProgress
+                            ? AppColors.accentGreenLight
+                            : AppColors.surfaceLilac,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.sort_rounded,
+                          size: 16,
+                          color: _sortByProgress
+                              ? AppColors.accentGreen
+                              : AppColors.textLight,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _sortByProgress ? 'Por progreso' : 'Alfabético',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _sortByProgress
+                                ? AppColors.accentGreen
+                                : AppColors.textLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             // Search
@@ -519,6 +596,7 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
       widget.species.scientificName,
     );
     final requiredParts = requiredPartsForSpecies(widget.species);
+    final allVisible = allVisiblePartsForSpecies(widget.species);
     final progress = progressForSpecies(widget.species, widget.partsCompleted);
     final isComplete = isSpeciesComplete(widget.species, widget.partsCompleted);
 
@@ -530,9 +608,9 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
       ('fruto', 'Fruto', Icons.spa_rounded),
     ];
 
-    // Only show parts that are required for this species
+    // Show all visible parts (required + optional like espinas)
     final visibleParts = partsMeta
-        .where((p) => requiredParts.contains(p.$1))
+        .where((p) => allVisible.contains(p.$1))
         .toList();
 
     return Scaffold(
@@ -642,10 +720,12 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
             ...(visibleParts.map((part) {
               final isDone = widget.partsCompleted.contains(part.$1);
               final userPhotos = _photosByPart[part.$1] ?? [];
+              final isOptional = !requiredParts.contains(part.$1);
               return _PartSlot(
-                partLabel: part.$2,
+                partLabel: isOptional ? '${part.$2} (opcional)' : part.$2,
                 partIcon: part.$3,
                 isDone: isDone,
+                isOptional: isOptional,
                 userPhotos: userPhotos,
                 onTapPhoto: _openFullPhoto,
               );
@@ -692,6 +772,7 @@ class _PartSlot extends StatelessWidget {
   final String partLabel;
   final IconData partIcon;
   final bool isDone;
+  final bool isOptional;
   final List<ObservationPhoto> userPhotos;
   final ValueChanged<String> onTapPhoto;
 
@@ -699,6 +780,7 @@ class _PartSlot extends StatelessWidget {
     required this.partLabel,
     required this.partIcon,
     required this.isDone,
+    this.isOptional = false,
     required this.userPhotos,
     required this.onTapPhoto,
   });
@@ -750,6 +832,8 @@ class _PartSlot extends StatelessWidget {
                 Icon(
                   isDone
                       ? Icons.check_circle_rounded
+                      : isOptional
+                      ? Icons.remove_circle_outline_rounded
                       : Icons.radio_button_unchecked,
                   color: isDone ? AppColors.accentGreen : AppColors.textLight,
                   size: 20,

@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_colors.dart';
 
@@ -17,6 +18,7 @@ class RulerScreen extends StatefulWidget {
 
 class _RulerScreenState extends State<RulerScreen> {
   static const _channel = MethodChannel('com.kospia.app/display');
+  static const _calibrationKey = 'ruler_calibration_factor';
 
   double? _realYdpi;
   bool _dpiLoaded = false;
@@ -25,12 +27,26 @@ class _RulerScreenState extends State<RulerScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCalibration();
     _loadRealDpi();
   }
 
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> _loadCalibration() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getDouble(_calibrationKey);
+    if (saved != null && mounted) {
+      setState(() => _calibrationFactor = saved);
+    }
+  }
+
+  Future<void> _saveCalibration(double factor) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_calibrationKey, factor);
   }
 
   Future<void> _loadRealDpi() async {
@@ -103,7 +119,9 @@ class _RulerScreenState extends State<RulerScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => setDialogState(() => tempFactor = 1.0),
+                  onPressed: () {
+                    setDialogState(() => tempFactor = 1.0);
+                  },
                   child: const Text('Resetear'),
                 ),
                 TextButton(
@@ -113,6 +131,7 @@ class _RulerScreenState extends State<RulerScreen> {
                 ElevatedButton(
                   onPressed: () {
                     setState(() => _calibrationFactor = tempFactor);
+                    _saveCalibration(tempFactor);
                     Navigator.of(ctx).pop();
                   },
                   child: const Text('Aplicar'),

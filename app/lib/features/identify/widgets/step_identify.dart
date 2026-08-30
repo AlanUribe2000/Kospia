@@ -18,6 +18,7 @@ import 'option_illustration.dart';
 /// Al final muestra resultados o permite marcar como "sin identificar".
 class StepIdentify extends StatefulWidget {
   final Specy? selectedSpecies;
+  final bool isUnidentified;
   final ValueChanged<Specy?> onSpeciesSelected;
   final ValueChanged<String> onUnidentifiedNote;
   final VoidCallback? onNext;
@@ -35,6 +36,7 @@ class StepIdentify extends StatefulWidget {
   const StepIdentify({
     super.key,
     required this.selectedSpecies,
+    this.isUnidentified = false,
     required this.onSpeciesSelected,
     required this.onUnidentifiedNote,
     required this.onNext,
@@ -124,6 +126,8 @@ class _StepIdentifyState extends State<StepIdentify> {
   void _confirmUnidentified() {
     widget.onSpeciesSelected(null);
     widget.onUnidentifiedNote(_noteController.text.trim());
+    // Volver a resultados para mostrar el banner de confirmación
+    setState(() => _mode = _IdentifyMode.results);
   }
 
   /// Maneja el botón "Atrás":
@@ -474,7 +478,9 @@ class _StepIdentifyState extends State<StepIdentify> {
         ),
         const SizedBox(height: 4),
         if (widget.selectedSpecies != null)
-          _SelectedBanner(species: widget.selectedSpecies!),
+          _SelectedBanner(species: widget.selectedSpecies!)
+        else if (widget.isUnidentified)
+          const _UnidentifiedBannerHeader(),
         const SizedBox(height: 8),
         Expanded(
           child: ListView.separated(
@@ -767,6 +773,44 @@ class _VisualOptionCard extends StatelessWidget {
     // Fix: reemplazar underscores por espacios
     final cleaned = label.replaceAll('_', ' ');
     return (cleaned, null);
+  }
+}
+
+/// Banner que muestra que se seleccionó "sin identificar".
+class _UnidentifiedBannerHeader extends StatelessWidget {
+  const _UnidentifiedBannerHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.accentGreen.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.accentGreenLight),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.check_circle_rounded,
+            color: AppColors.accentGreen,
+            size: 18,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Seleccionada: Sin identificar',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentGreen,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
