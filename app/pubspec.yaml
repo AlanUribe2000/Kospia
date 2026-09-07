@@ -26,6 +26,7 @@ dependencies:
   latlong2: ^0.9.1
   exif: ^3.3.0
   shared_preferences: ^2.3.4
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
@@ -38,13 +39,20 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png"
-  adaptive_icon_background: "#F0E4F1"
-  adaptive_icon_foreground: "assets/images/logo.png"
+  # iOS no admite canal alfa en el icono; se aplana sobre el violeta de marca.
+  remove_alpha_ios: true
+  background_color_ios: "#DEC6F0"
+  # Icono general (iOS y legacy Android): flor sobre fondo lila de marca.
+  image_path: "assets/images/logo_icon.png"
+  # Icono adaptativo Android: flor sola (transparente) centrada con aire sobre
+  # el violeta de marca, para que el recorte circular/squircle no la corte.
+  adaptive_icon_background: "#DEC6F0"
+  adaptive_icon_foreground: "assets/images/logo_symbol_adaptive_fg.png"
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/videos/
     - assets/images/
     - assets/images/Kospi/
     - assets/images/Catalogs/Acaena pinnatifida/

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#F0E4F1</color>
+    <!-- Violeta exacto del video/logo de intro (#DEC6F0). Debe respetarse a
+         rajatabla: es el tono detras de la flor en toda la marca. -->
+    <color name="kospiaBackground">#DEC6F0</color>
+    <!-- Fondo del icono adaptativo: mismo violeta de marca -->
+    <color name="ic_launcher_background">#DEC6F0</color>
 </resources>

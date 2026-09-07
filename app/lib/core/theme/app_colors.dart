@@ -6,6 +6,11 @@ class AppColors {
   // Principales
   static const Color primaryLilac = Color(0xFFD4A5D6);
   static const Color backgroundLilac = Color(0xFFF0E4F1);
+
+  /// Violeta exacto del video/logo de intro (#DEC6F0). Es el tono que debe
+  /// aparecer detras de la flor: fondo del logo en la nav rail, splash nativo,
+  /// icono de la app y appbar.
+  static const Color brandViolet = Color(0xFFDEC6F0);
   static const Color surfaceLilac = Color(0xFFE8D5EA);
   static const Color surfaceLight = Color(0xFFFAF5FB);
 

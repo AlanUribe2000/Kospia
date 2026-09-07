@@ -80,24 +80,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            // Logo Kospia
+            // Logo Kospia: la flor sobre un cuadrado redondeado con el violeta
+            // exacto del video (brandViolet #DEC6F0), el mismo tono que enmarca
+            // al logo en la intro. El radio combina con las cards.
             Container(
               width: 48,
               height: 48,
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.brandViolet,
+                // Radio 16: igual que las cards del theme, para coherencia.
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.eco_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+              child: Image.asset(
+                'assets/images/logo_symbol.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.eco_rounded,
+                  color: AppColors.accentGreen,
+                  size: 28,
                 ),
               ),
             ),

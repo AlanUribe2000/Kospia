@@ -6,13 +6,24 @@ import 'core/theme/app_theme.dart';
 import 'data/database/app_database.dart';
 import 'data/repositories/species_repository.dart';
 import 'data/repositories/observation_repository.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Ocultar barras del sistema. Solo aparecen al deslizar desde el borde.
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // Modo edge-to-edge: la app dibuja detras de las barras del sistema, sin
+  // franjas negras. La status bar queda transparente con iconos oscuros para
+  // integrarse con el fondo lila de marca (fondo claro -> iconos oscuros).
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // Android
+      statusBarBrightness: Brightness.light, // iOS
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
 
   final database = AppDatabase();
 
@@ -35,17 +46,11 @@ class KospiaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Eliminar padding del sistema para que SafeArea no reserve espacio negro
-    return MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(padding: EdgeInsets.zero, viewPadding: EdgeInsets.zero),
-      child: MaterialApp(
-        title: 'Kospia',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const HomeScreen(),
-      ),
+    return MaterialApp(
+      title: 'Kospia',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      home: const SplashScreen(),
     );
   }
 }
