@@ -278,12 +278,13 @@ class _SpeciesResultCard extends StatelessWidget {
                   firstImage,
                   width: 48,
                   height: 48,
+                  cacheWidth: 150,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.accentGreenLight.withOpacity(0.2),
+                      color: AppColors.accentGreenLight.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -296,7 +297,7 @@ class _SpeciesResultCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppColors.accentGreenLight.withOpacity(0.2),
+                    color: AppColors.accentGreenLight.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(

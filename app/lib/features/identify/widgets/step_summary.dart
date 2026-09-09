@@ -88,6 +88,7 @@ class StepSummary extends StatelessWidget {
                               speciesImg,
                               width: 44,
                               height: 44,
+                              cacheWidth: 132,
                               fit: BoxFit.cover,
                             )
                           : Container(

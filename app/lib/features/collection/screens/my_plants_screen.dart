@@ -432,6 +432,7 @@ class _PlantCard extends StatelessWidget {
           img,
           width: 64,
           height: 64,
+          cacheWidth: 192,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _placeholderIcon(),
         ),
@@ -631,6 +632,7 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
                           img,
                           width: 120,
                           height: 120,
+                          cacheWidth: 360,
                           fit: BoxFit.cover,
                         )
                       : Container(
@@ -754,6 +756,7 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
                         catalogImages[index],
                         width: 100,
                         height: 100,
+                        cacheWidth: 300,
                         fit: BoxFit.cover,
                       ),
                     ),

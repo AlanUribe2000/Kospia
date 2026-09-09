@@ -172,6 +172,7 @@ class _SpeciesCard extends StatelessWidget {
                         firstImage,
                         width: 56,
                         height: 56,
+                        cacheWidth: 168,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _PlaceholderIcon(),
                       )

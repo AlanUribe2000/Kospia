@@ -524,6 +524,7 @@ class _StepIdentifyState extends State<StepIdentify> {
                             img,
                             width: 40,
                             height: 40,
+                            cacheWidth: 120,
                             fit: BoxFit.cover,
                           )
                         : Container(

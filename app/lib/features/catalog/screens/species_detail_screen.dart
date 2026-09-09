@@ -361,6 +361,7 @@ class _ImageGalleryState extends State<_ImageGallery> {
                     widget.images[index],
                     width: double.infinity,
                     height: 220,
+                    cacheHeight: 660,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: AppColors.accentGreenLight.withValues(alpha: 0.2),
