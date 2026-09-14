@@ -1,49 +1,109 @@
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:powersync/powersync.dart';
 import 'package:uuid/uuid.dart';
 
-import '../database/app_database.dart';
 import '../../core/constants/app_constants.dart';
+import '../database/app_database.dart';
+import '../powersync/attachment_upload_service.dart';
 
-/// Repositorio de observaciones. Maneja el CRUD de registros de campo.
-/// Extiende ChangeNotifier para notificar a listeners cuando hay cambios.
 class ObservationRepository extends ChangeNotifier {
-  final AppDatabase _db;
+  final PowerSyncDatabase _powerSync;
+  final AttachmentUploadService _attachmentUploadService;
   static const _uuid = Uuid();
 
-  ObservationRepository(this._db);
+  ObservationRepository(this._powerSync, this._attachmentUploadService);
 
-  Future<List<Observation>> getAll() => _db.getAllObservations();
+  Future<List<Observation>> getAll() async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observations ORDER BY created_at DESC',
+    );
+    return rows.map(_observationFromPowerSync).toList();
+  }
 
-  Future<List<Observation>> getByUser(String userId) =>
-      _db.getObservationsByUser(userId);
+  Future<List<Observation>> getByUser(String userId) async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observations WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+    );
+    return rows.map(_observationFromPowerSync).toList();
+  }
 
-  Future<List<Observation>> getBySpecies(String speciesId) =>
-      _db.getObservationsBySpecies(speciesId);
+  Future<List<Observation>> getBySpecies(String speciesId) async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observations WHERE species_id = ? ORDER BY created_at DESC',
+      [speciesId],
+    );
+    return rows.map(_observationFromPowerSync).toList();
+  }
 
-  Future<List<Observation>> getPending() => _db.getPendingObservations();
+  Future<List<Observation>> getPending() async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observations WHERE sync_status = ? ORDER BY created_at ASC',
+      [AppConstants.syncPending],
+    );
+    return rows.map(_observationFromPowerSync).toList();
+  }
 
   Future<List<ObservationPhoto>> getPhotosForObservation(
     String observationId,
-  ) => _db.getPhotosForObservation(observationId);
+  ) async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observation_photos WHERE observation_id = ? '
+      'ORDER BY captured_at ASC',
+      [observationId],
+    );
+    return rows.map(_observationPhotoFromPowerSync).toList();
+  }
 
-  Future<List<ObservationPhoto>> getAllPhotosForSpecies(String speciesId) =>
-      _db.getAllPhotosForSpecies(speciesId);
+  Future<List<ObservationPhoto>> getAllPhotosForSpecies(
+    String speciesId,
+  ) async {
+    final rows = await _powerSync.getAll(
+      'SELECT op.* FROM observation_photos op '
+      'INNER JOIN observations o ON o.id = op.observation_id '
+      'WHERE o.species_id = ? ORDER BY op.captured_at DESC',
+      [speciesId],
+    );
+    return rows.map(_observationPhotoFromPowerSync).toList();
+  }
 
-  /// Returns distinct plant parts photographed for a given species.
-  Future<Set<String>> getPartsForSpecies(String speciesId) =>
-      _db.getPartsForSpecies(speciesId);
+  Future<Set<String>> getPartsForSpecies(String speciesId) async {
+    final rows = await _powerSync.getAll(
+      'SELECT DISTINCT op.plant_part FROM observation_photos op '
+      'INNER JOIN observations o ON o.id = op.observation_id '
+      'WHERE o.species_id = ?',
+      [speciesId],
+    );
+    return rows
+        .map((row) => row['plant_part']?.toString() ?? '')
+        .where((part) => part.isNotEmpty)
+        .toSet();
+  }
 
-  /// Calcula el progreso de una especie (0.0 a 1.0).
-  /// 5 partes posibles: general, hoja, flor, espinas, fruto.
+  Future<Map<String, Set<String>>> getPartsGroupedBySpecies() async {
+    final rows = await _powerSync.getAll('''
+      SELECT o.species_id, op.plant_part
+      FROM observation_photos op
+      INNER JOIN observations o ON o.id = op.observation_id
+      WHERE o.species_id != 'unidentified'
+      GROUP BY o.species_id, op.plant_part
+    ''');
+
+    final partsBySpecies = <String, Set<String>>{};
+    for (final row in rows) {
+      final speciesId = row['species_id']?.toString() ?? '';
+      final plantPart = row['plant_part']?.toString() ?? '';
+      if (speciesId.isEmpty || plantPart.isEmpty) continue;
+      partsBySpecies.putIfAbsent(speciesId, () => <String>{}).add(plantPart);
+    }
+    return partsBySpecies;
+  }
+
   Future<double> getProgressForSpecies(String speciesId) async {
     final parts = await getPartsForSpecies(speciesId);
     return parts.length / 5.0;
   }
 
-  /// Creates a new observation with multiple photos.
-  /// Each photo has its own plant part, location, and source.
-  /// Notifies listeners after creation.
   Future<String> createWithPhotos({
     required String userId,
     required String speciesId,
@@ -51,58 +111,127 @@ class ObservationRepository extends ChangeNotifier {
     String notes = '',
   }) async {
     final observationId = _uuid.v4();
+    final now = DateTime.now().toUtc().toIso8601String();
 
-    await _db.insertObservation(
-      ObservationsCompanion(
-        id: Value(observationId),
-        userId: Value(userId),
-        speciesId: Value(speciesId),
-        notes: Value(notes),
-        syncStatus: const Value(AppConstants.syncPending),
-      ),
+    await _powerSync.execute(
+      '''
+      INSERT INTO observations
+        (id, user_id, species_id, notes, sync_status, created_at, updated_at, synced_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''',
+      [
+        observationId,
+        userId,
+        speciesId,
+        notes,
+        AppConstants.syncPending,
+        now,
+        now,
+        null,
+      ],
     );
 
-    final photoEntries = photos.map((photo) {
-      return ObservationPhotosCompanion(
-        id: Value(_uuid.v4()),
-        observationId: Value(observationId),
-        photoPath: Value(photo.path),
-        plantPart: Value(photo.plantPart),
-        latitude: Value(photo.latitude),
-        longitude: Value(photo.longitude),
-        altitude: Value(photo.altitude),
-        accuracy: Value(photo.accuracy),
-        source: Value(photo.source),
-        syncStatus: const Value(AppConstants.syncPending),
-        capturedAt: Value(photo.capturedAt ?? DateTime.now()),
-      );
-    }).toList();
+    for (final photo in photos) {
+      final photoId = _uuid.v4();
+      final extension = _fileExtension(photo.path);
 
-    await _db.insertObservationPhotos(photoEntries);
+      await _powerSync.execute(
+        '''
+        INSERT INTO observation_photos
+          (id, observation_id, photo_path, plant_part, latitude, longitude,
+           altitude, accuracy, source, sync_status, captured_at, file_extension)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''',
+        [
+          photoId,
+          observationId,
+          photo.path,
+          photo.plantPart,
+          photo.latitude,
+          photo.longitude,
+          photo.altitude,
+          photo.accuracy,
+          photo.source,
+          AppConstants.syncPending,
+          (photo.capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
+          extension,
+        ],
+      );
+
+      await _powerSync.execute(
+        '''
+        INSERT INTO attachments_queue
+          (id, photo_id, local_path, extension, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      ''',
+        [_uuid.v4(), photoId, photo.path, extension, 'pending', now],
+      );
+    }
 
     notifyListeners();
+    _attachmentUploadService.uploadPending().catchError((error) {
+      debugPrint('Attachments: quedan pendientes para reintento: $error');
+    });
     return observationId;
   }
 
-  /// Marks an observation as synced.
   Future<void> markSynced(String id) async {
-    await _db.updateObservation(
-      ObservationsCompanion(
-        id: Value(id),
-        syncStatus: const Value(AppConstants.syncSynced),
-        syncedAt: Value(DateTime.now()),
-      ),
+    final now = DateTime.now().toUtc().toIso8601String();
+    await _powerSync.execute(
+      '''
+      UPDATE observations
+      SET sync_status = ?, synced_at = ?, updated_at = ?
+      WHERE id = ?
+    ''',
+      [AppConstants.syncSynced, now, now, id],
     );
     notifyListeners();
   }
 
-  /// Notifies listeners to force a refresh (e.g. after DB reset).
-  void refresh() {
-    notifyListeners();
+  void refresh() => notifyListeners();
+
+  Observation _observationFromPowerSync(Map<String, dynamic> row) =>
+      Observation(
+        id: row['id']?.toString() ?? '',
+        userId: row['user_id']?.toString() ?? '',
+        speciesId: row['species_id']?.toString() ?? '',
+        notes: row['notes']?.toString() ?? '',
+        syncStatus: row['sync_status']?.toString() ?? AppConstants.syncPending,
+        createdAt: _parseDate(row['created_at']),
+        updatedAt: _parseDate(row['updated_at']),
+        syncedAt: _parseNullableDate(row['synced_at']),
+      );
+
+  ObservationPhoto _observationPhotoFromPowerSync(Map<String, dynamic> row) =>
+      ObservationPhoto(
+        id: row['id']?.toString() ?? '',
+        observationId: row['observation_id']?.toString() ?? '',
+        photoPath: row['photo_path']?.toString() ?? '',
+        plantPart: row['plant_part']?.toString() ?? 'general',
+        latitude: (row['latitude'] as num?)?.toDouble() ?? 0.0,
+        longitude: (row['longitude'] as num?)?.toDouble() ?? 0.0,
+        altitude: (row['altitude'] as num?)?.toDouble() ?? 0.0,
+        accuracy: (row['accuracy'] as num?)?.toDouble() ?? 0.0,
+        source: row['source']?.toString() ?? 'camera',
+        syncStatus: row['sync_status']?.toString() ?? AppConstants.syncPending,
+        capturedAt: _parseDate(row['captured_at']),
+      );
+
+  DateTime _parseDate(dynamic value) =>
+      DateTime.tryParse(value?.toString() ?? '') ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+
+  DateTime? _parseNullableDate(dynamic value) =>
+      value == null ? null : DateTime.tryParse(value.toString());
+
+  String _fileExtension(String path) {
+    final fileName = path.split(RegExp(r'[\\/]')).last;
+    final dot = fileName.lastIndexOf('.');
+    if (dot < 0 || dot == fileName.length - 1) return 'jpg';
+    return fileName.substring(dot + 1).toLowerCase();
   }
 }
 
-/// Datos temporales de una foto antes de persistir.
 class PhotoData {
   final String path;
   final String plantPart;
@@ -110,7 +239,7 @@ class PhotoData {
   final double longitude;
   final double altitude;
   final double accuracy;
-  final String source; // 'camera' or 'gallery'
+  final String source;
   final DateTime? capturedAt;
 
   const PhotoData({
@@ -133,16 +262,14 @@ class PhotoData {
     double? accuracy,
     String? source,
     DateTime? capturedAt,
-  }) {
-    return PhotoData(
-      path: path ?? this.path,
-      plantPart: plantPart ?? this.plantPart,
-      latitude: latitude ?? this.latitude,
-      longitude: longitude ?? this.longitude,
-      altitude: altitude ?? this.altitude,
-      accuracy: accuracy ?? this.accuracy,
-      source: source ?? this.source,
-      capturedAt: capturedAt ?? this.capturedAt,
-    );
-  }
+  }) => PhotoData(
+    path: path ?? this.path,
+    plantPart: plantPart ?? this.plantPart,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    altitude: altitude ?? this.altitude,
+    accuracy: accuracy ?? this.accuracy,
+    source: source ?? this.source,
+    capturedAt: capturedAt ?? this.capturedAt,
+  );
 }

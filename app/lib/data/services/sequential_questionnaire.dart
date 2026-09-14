@@ -39,6 +39,7 @@ class SequentialQuestionnaire {
   SequentialQuestionnaire({
     required List<Specy> allSpecies,
     required Set<String> photoParts,
+    List<QuestionConfig>? questions,
   }) : _photoParts = photoParts,
        _candidates = List.from(allSpecies) {
     // Pre-filtrar: si subió fotos de espinas, la planta tiene espinas
@@ -49,7 +50,7 @@ class SequentialQuestionnaire {
     if (_photoParts.contains('fruto')) {
       _candidates = _candidates.where((sp) => sp.hasFruit).toList();
     }
-    _relevantQuestions = _buildRelevantQuestions();
+    _relevantQuestions = _buildRelevantQuestions(questions ?? allQuestions);
   }
 
   List<Specy> get candidates => _candidates;
@@ -101,8 +102,8 @@ class SequentialQuestionnaire {
   /// Construye la lista de preguntas relevantes según las partes fotografiadas.
   /// Si subió fotos de espinas, no pregunta "¿Tiene espinas?" (es obvio que sí).
   /// Si subió fotos de fruto, no pregunta "¿Se ven frutos?" (es obvio que sí).
-  List<QuestionConfig> _buildRelevantQuestions() {
-    return allQuestions.where((q) {
+  List<QuestionConfig> _buildRelevantQuestions(List<QuestionConfig> questions) {
+    return questions.where((q) {
       if (q.requiredPart == 'general') {
         // Si tiene fotos de espinas, no preguntar "¿Tiene espinas?"
         if (q.id == 'q-espinas' && _photoParts.contains('espinas')) {

@@ -34,11 +34,11 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Re-crear todas las tablas al actualizar schema
-        for (final table in allTables) {
-          await m.deleteTable(table.actualTableName);
+        if (from < 6) {
+          await m.addColumn(questions, questions.fieldName);
+          await m.addColumn(questions, questions.requiredPart);
+          await m.addColumn(questionOptions, questionOptions.valueKey);
         }
-        await m.createAll();
       },
     );
   }

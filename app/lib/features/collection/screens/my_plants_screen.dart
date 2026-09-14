@@ -85,19 +85,16 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     );
 
     final observations = await obsRepo.getAll();
+    final partsBySpecies = await obsRepo.getPartsGroupedBySpecies();
     final progressMap = <String, Set<String>>{};
     final unidentified = <Observation>[];
 
     for (final obs in observations) {
       if (obs.speciesId == 'unidentified') {
         unidentified.add(obs);
-      } else {
-        final parts = await obsRepo.getPartsForSpecies(obs.speciesId);
-        if (parts.isNotEmpty) {
-          progressMap[obs.speciesId] = parts;
-        }
       }
     }
+    progressMap.addAll(partsBySpecies);
 
     if (mounted) {
       setState(() {

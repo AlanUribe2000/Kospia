@@ -89,12 +89,14 @@ class _StepIdentifyState extends State<StepIdentify> {
     // Primera vez: crear cuestionario nuevo
     final repo = context.read<SpeciesRepository>();
     final allSpecies = await repo.getAll();
+    final questions = await repo.getQuestionnaireConfigs();
     final photoParts = widget.photos.map((p) => p.plantPart).toSet();
 
     if (mounted) {
       final q = SequentialQuestionnaire(
         allSpecies: allSpecies,
         photoParts: photoParts,
+        questions: questions.isEmpty ? null : questions,
       );
       // Notificar al parent para que lo persista
       widget.onQuestionnaireCreated?.call(q);
