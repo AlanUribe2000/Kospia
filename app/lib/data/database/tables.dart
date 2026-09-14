@@ -39,9 +39,20 @@ class Species extends Table {
 class Questions extends Table {
   TextColumn get id => text()();
   TextColumn get questionText => text()();
+
+  TextColumn get fieldName =>
+      text().withDefault(const Constant(''))();
+
+  TextColumn get requiredPart =>
+      text().withDefault(const Constant('general'))();
+
   IntColumn get orderIndex => integer()();
-  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
-  TextColumn get syncStatus => text().withDefault(const Constant('synced'))();
+
+  BoolColumn get isActive =>
+      boolean().withDefault(const Constant(true))();
+
+  TextColumn get syncStatus =>
+      text().withDefault(const Constant('synced'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -52,7 +63,12 @@ class QuestionOptions extends Table {
   TextColumn get id => text()();
   TextColumn get questionId => text()();
   TextColumn get optionText => text()();
-  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+
+  TextColumn get valueKey =>
+      text().withDefault(const Constant(''))();
+
+  IntColumn get orderIndex =>
+      integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};

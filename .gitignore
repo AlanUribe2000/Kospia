@@ -1,0 +1,15 @@
+# Versión anterior utilizada solo como referencia
+test/
+
+# Archivos locales de VS Code
+*.code-workspace
+
+# Variables de entorno / secretos
+api/**/.env
+
+# Fotografías y archivos subidos por la API
+api/**/uploads/
+
+# Python
+api/**/__pycache__/
+*.pyc

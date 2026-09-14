@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
+
+config:
+  edition: 3
+
+streams:
+  global:
+    auto_subscribe: true
+    queries:
+      - |
+        SELECT
+          id,
+          especie_propuesta_id,
+          descripcion,
+          latitud,
+          longitud,
+          fecha_registro,
+          estado_validacion,
+          especie_validada_id,
+          comentario_profesional,
+          created_at,
+          updated_at,
+          deleted_at,
+          version
+        FROM observaciones
+
+      - |
+        SELECT
+          id,
+          title,
+          completed
+        FROM tasks
+
+      - |
+        SELECT
+          id,
+          observacion_id,
+          tipo_foto,
+          file_extension,
+          mime_type,
+          created_at,
+          updated_at,
+          deleted_at,
+          version
+        FROM fotografias_observacion
+
+      - |
+        SELECT
+          id,
+          codigo_origen,
+          nombre_comun,
+          nombre_cientifico,
+          color_flor,
+          tamano_flor,
+          cantidad_petalos,
+          tipo_planta,
+          espinas,
+          fruto_visible,
+          color_fruto,
+          forma_hoja,
+          borde_hoja,
+          altura_aproximada,
+          habitat,
+          descripcion,
+          aroma,
+          color_centro,
+          agrupacion_flor,
+          hojas_perennes,
+          habitat_humedo,
+          flor_colgante,
+          flores_por_tallo,
+          espinas_visibles,
+          epoca_floracion,
+          zona_patagonia,
+          created_at,
+          updated_at
+        FROM flores
+      - |
+        SELECT * FROM species
+      - |
+        SELECT * FROM questions
+      - |
+        SELECT * FROM question_options
+      - |
+        SELECT * FROM species_traits
+      - |
+        SELECT * FROM observations
+      - |
+        SELECT * FROM observation_photos

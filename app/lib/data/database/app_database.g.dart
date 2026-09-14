@@ -1468,6 +1468,30 @@ class $QuestionsTable extends Questions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _fieldNameMeta = const VerificationMeta(
+    'fieldName',
+  );
+  @override
+  late final GeneratedColumn<String> fieldName = GeneratedColumn<String>(
+    'field_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _requiredPartMeta = const VerificationMeta(
+    'requiredPart',
+  );
+  @override
+  late final GeneratedColumn<String> requiredPart = GeneratedColumn<String>(
+    'required_part',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('general'),
+  );
   static const VerificationMeta _orderIndexMeta = const VerificationMeta(
     'orderIndex',
   );
@@ -1510,6 +1534,8 @@ class $QuestionsTable extends Questions
   List<GeneratedColumn> get $columns => [
     id,
     questionText,
+    fieldName,
+    requiredPart,
     orderIndex,
     isActive,
     syncStatus,
@@ -1541,6 +1567,21 @@ class $QuestionsTable extends Questions
       );
     } else if (isInserting) {
       context.missing(_questionTextMeta);
+    }
+    if (data.containsKey('field_name')) {
+      context.handle(
+        _fieldNameMeta,
+        fieldName.isAcceptableOrUnknown(data['field_name']!, _fieldNameMeta),
+      );
+    }
+    if (data.containsKey('required_part')) {
+      context.handle(
+        _requiredPartMeta,
+        requiredPart.isAcceptableOrUnknown(
+          data['required_part']!,
+          _requiredPartMeta,
+        ),
+      );
     }
     if (data.containsKey('order_index')) {
       context.handle(
@@ -1579,6 +1620,14 @@ class $QuestionsTable extends Questions
         DriftSqlType.string,
         data['${effectivePrefix}question_text'],
       )!,
+      fieldName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}field_name'],
+      )!,
+      requiredPart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}required_part'],
+      )!,
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
@@ -1603,12 +1652,16 @@ class $QuestionsTable extends Questions
 class Question extends DataClass implements Insertable<Question> {
   final String id;
   final String questionText;
+  final String fieldName;
+  final String requiredPart;
   final int orderIndex;
   final bool isActive;
   final String syncStatus;
   const Question({
     required this.id,
     required this.questionText,
+    required this.fieldName,
+    required this.requiredPart,
     required this.orderIndex,
     required this.isActive,
     required this.syncStatus,
@@ -1618,6 +1671,8 @@ class Question extends DataClass implements Insertable<Question> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['question_text'] = Variable<String>(questionText);
+    map['field_name'] = Variable<String>(fieldName);
+    map['required_part'] = Variable<String>(requiredPart);
     map['order_index'] = Variable<int>(orderIndex);
     map['is_active'] = Variable<bool>(isActive);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -1628,6 +1683,8 @@ class Question extends DataClass implements Insertable<Question> {
     return QuestionsCompanion(
       id: Value(id),
       questionText: Value(questionText),
+      fieldName: Value(fieldName),
+      requiredPart: Value(requiredPart),
       orderIndex: Value(orderIndex),
       isActive: Value(isActive),
       syncStatus: Value(syncStatus),
@@ -1642,6 +1699,8 @@ class Question extends DataClass implements Insertable<Question> {
     return Question(
       id: serializer.fromJson<String>(json['id']),
       questionText: serializer.fromJson<String>(json['questionText']),
+      fieldName: serializer.fromJson<String>(json['fieldName']),
+      requiredPart: serializer.fromJson<String>(json['requiredPart']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -1653,6 +1712,8 @@ class Question extends DataClass implements Insertable<Question> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'questionText': serializer.toJson<String>(questionText),
+      'fieldName': serializer.toJson<String>(fieldName),
+      'requiredPart': serializer.toJson<String>(requiredPart),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'isActive': serializer.toJson<bool>(isActive),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -1662,12 +1723,16 @@ class Question extends DataClass implements Insertable<Question> {
   Question copyWith({
     String? id,
     String? questionText,
+    String? fieldName,
+    String? requiredPart,
     int? orderIndex,
     bool? isActive,
     String? syncStatus,
   }) => Question(
     id: id ?? this.id,
     questionText: questionText ?? this.questionText,
+    fieldName: fieldName ?? this.fieldName,
+    requiredPart: requiredPart ?? this.requiredPart,
     orderIndex: orderIndex ?? this.orderIndex,
     isActive: isActive ?? this.isActive,
     syncStatus: syncStatus ?? this.syncStatus,
@@ -1678,6 +1743,10 @@ class Question extends DataClass implements Insertable<Question> {
       questionText: data.questionText.present
           ? data.questionText.value
           : this.questionText,
+      fieldName: data.fieldName.present ? data.fieldName.value : this.fieldName,
+      requiredPart: data.requiredPart.present
+          ? data.requiredPart.value
+          : this.requiredPart,
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
@@ -1693,6 +1762,8 @@ class Question extends DataClass implements Insertable<Question> {
     return (StringBuffer('Question(')
           ..write('id: $id, ')
           ..write('questionText: $questionText, ')
+          ..write('fieldName: $fieldName, ')
+          ..write('requiredPart: $requiredPart, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('isActive: $isActive, ')
           ..write('syncStatus: $syncStatus')
@@ -1701,14 +1772,23 @@ class Question extends DataClass implements Insertable<Question> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, questionText, orderIndex, isActive, syncStatus);
+  int get hashCode => Object.hash(
+    id,
+    questionText,
+    fieldName,
+    requiredPart,
+    orderIndex,
+    isActive,
+    syncStatus,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Question &&
           other.id == this.id &&
           other.questionText == this.questionText &&
+          other.fieldName == this.fieldName &&
+          other.requiredPart == this.requiredPart &&
           other.orderIndex == this.orderIndex &&
           other.isActive == this.isActive &&
           other.syncStatus == this.syncStatus);
@@ -1717,6 +1797,8 @@ class Question extends DataClass implements Insertable<Question> {
 class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String> id;
   final Value<String> questionText;
+  final Value<String> fieldName;
+  final Value<String> requiredPart;
   final Value<int> orderIndex;
   final Value<bool> isActive;
   final Value<String> syncStatus;
@@ -1724,6 +1806,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   const QuestionsCompanion({
     this.id = const Value.absent(),
     this.questionText = const Value.absent(),
+    this.fieldName = const Value.absent(),
+    this.requiredPart = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.isActive = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -1732,6 +1816,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   QuestionsCompanion.insert({
     required String id,
     required String questionText,
+    this.fieldName = const Value.absent(),
+    this.requiredPart = const Value.absent(),
     required int orderIndex,
     this.isActive = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -1742,6 +1828,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   static Insertable<Question> custom({
     Expression<String>? id,
     Expression<String>? questionText,
+    Expression<String>? fieldName,
+    Expression<String>? requiredPart,
     Expression<int>? orderIndex,
     Expression<bool>? isActive,
     Expression<String>? syncStatus,
@@ -1750,6 +1838,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (questionText != null) 'question_text': questionText,
+      if (fieldName != null) 'field_name': fieldName,
+      if (requiredPart != null) 'required_part': requiredPart,
       if (orderIndex != null) 'order_index': orderIndex,
       if (isActive != null) 'is_active': isActive,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -1760,6 +1850,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   QuestionsCompanion copyWith({
     Value<String>? id,
     Value<String>? questionText,
+    Value<String>? fieldName,
+    Value<String>? requiredPart,
     Value<int>? orderIndex,
     Value<bool>? isActive,
     Value<String>? syncStatus,
@@ -1768,6 +1860,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return QuestionsCompanion(
       id: id ?? this.id,
       questionText: questionText ?? this.questionText,
+      fieldName: fieldName ?? this.fieldName,
+      requiredPart: requiredPart ?? this.requiredPart,
       orderIndex: orderIndex ?? this.orderIndex,
       isActive: isActive ?? this.isActive,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -1783,6 +1877,12 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     }
     if (questionText.present) {
       map['question_text'] = Variable<String>(questionText.value);
+    }
+    if (fieldName.present) {
+      map['field_name'] = Variable<String>(fieldName.value);
+    }
+    if (requiredPart.present) {
+      map['required_part'] = Variable<String>(requiredPart.value);
     }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
@@ -1804,6 +1904,8 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return (StringBuffer('QuestionsCompanion(')
           ..write('id: $id, ')
           ..write('questionText: $questionText, ')
+          ..write('fieldName: $fieldName, ')
+          ..write('requiredPart: $requiredPart, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('isActive: $isActive, ')
           ..write('syncStatus: $syncStatus, ')
@@ -1850,6 +1952,18 @@ class $QuestionOptionsTable extends QuestionOptions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _valueKeyMeta = const VerificationMeta(
+    'valueKey',
+  );
+  @override
+  late final GeneratedColumn<String> valueKey = GeneratedColumn<String>(
+    'value_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _orderIndexMeta = const VerificationMeta(
     'orderIndex',
   );
@@ -1867,6 +1981,7 @@ class $QuestionOptionsTable extends QuestionOptions
     id,
     questionId,
     optionText,
+    valueKey,
     orderIndex,
   ];
   @override
@@ -1902,6 +2017,12 @@ class $QuestionOptionsTable extends QuestionOptions
     } else if (isInserting) {
       context.missing(_optionTextMeta);
     }
+    if (data.containsKey('value_key')) {
+      context.handle(
+        _valueKeyMeta,
+        valueKey.isAcceptableOrUnknown(data['value_key']!, _valueKeyMeta),
+      );
+    }
     if (data.containsKey('order_index')) {
       context.handle(
         _orderIndexMeta,
@@ -1929,6 +2050,10 @@ class $QuestionOptionsTable extends QuestionOptions
         DriftSqlType.string,
         data['${effectivePrefix}option_text'],
       )!,
+      valueKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value_key'],
+      )!,
       orderIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
@@ -1946,11 +2071,13 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
   final String id;
   final String questionId;
   final String optionText;
+  final String valueKey;
   final int orderIndex;
   const QuestionOption({
     required this.id,
     required this.questionId,
     required this.optionText,
+    required this.valueKey,
     required this.orderIndex,
   });
   @override
@@ -1959,6 +2086,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
     map['id'] = Variable<String>(id);
     map['question_id'] = Variable<String>(questionId);
     map['option_text'] = Variable<String>(optionText);
+    map['value_key'] = Variable<String>(valueKey);
     map['order_index'] = Variable<int>(orderIndex);
     return map;
   }
@@ -1968,6 +2096,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       id: Value(id),
       questionId: Value(questionId),
       optionText: Value(optionText),
+      valueKey: Value(valueKey),
       orderIndex: Value(orderIndex),
     );
   }
@@ -1981,6 +2110,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       id: serializer.fromJson<String>(json['id']),
       questionId: serializer.fromJson<String>(json['questionId']),
       optionText: serializer.fromJson<String>(json['optionText']),
+      valueKey: serializer.fromJson<String>(json['valueKey']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
     );
   }
@@ -1991,6 +2121,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       'id': serializer.toJson<String>(id),
       'questionId': serializer.toJson<String>(questionId),
       'optionText': serializer.toJson<String>(optionText),
+      'valueKey': serializer.toJson<String>(valueKey),
       'orderIndex': serializer.toJson<int>(orderIndex),
     };
   }
@@ -1999,11 +2130,13 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
     String? id,
     String? questionId,
     String? optionText,
+    String? valueKey,
     int? orderIndex,
   }) => QuestionOption(
     id: id ?? this.id,
     questionId: questionId ?? this.questionId,
     optionText: optionText ?? this.optionText,
+    valueKey: valueKey ?? this.valueKey,
     orderIndex: orderIndex ?? this.orderIndex,
   );
   QuestionOption copyWithCompanion(QuestionOptionsCompanion data) {
@@ -2015,6 +2148,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       optionText: data.optionText.present
           ? data.optionText.value
           : this.optionText,
+      valueKey: data.valueKey.present ? data.valueKey.value : this.valueKey,
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
@@ -2027,13 +2161,15 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
           ..write('id: $id, ')
           ..write('questionId: $questionId, ')
           ..write('optionText: $optionText, ')
+          ..write('valueKey: $valueKey, ')
           ..write('orderIndex: $orderIndex')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, questionId, optionText, orderIndex);
+  int get hashCode =>
+      Object.hash(id, questionId, optionText, valueKey, orderIndex);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2041,6 +2177,7 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
           other.id == this.id &&
           other.questionId == this.questionId &&
           other.optionText == this.optionText &&
+          other.valueKey == this.valueKey &&
           other.orderIndex == this.orderIndex);
 }
 
@@ -2048,12 +2185,14 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
   final Value<String> id;
   final Value<String> questionId;
   final Value<String> optionText;
+  final Value<String> valueKey;
   final Value<int> orderIndex;
   final Value<int> rowid;
   const QuestionOptionsCompanion({
     this.id = const Value.absent(),
     this.questionId = const Value.absent(),
     this.optionText = const Value.absent(),
+    this.valueKey = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2061,6 +2200,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     required String id,
     required String questionId,
     required String optionText,
+    this.valueKey = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -2070,6 +2210,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     Expression<String>? id,
     Expression<String>? questionId,
     Expression<String>? optionText,
+    Expression<String>? valueKey,
     Expression<int>? orderIndex,
     Expression<int>? rowid,
   }) {
@@ -2077,6 +2218,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
       if (id != null) 'id': id,
       if (questionId != null) 'question_id': questionId,
       if (optionText != null) 'option_text': optionText,
+      if (valueKey != null) 'value_key': valueKey,
       if (orderIndex != null) 'order_index': orderIndex,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2086,6 +2228,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     Value<String>? id,
     Value<String>? questionId,
     Value<String>? optionText,
+    Value<String>? valueKey,
     Value<int>? orderIndex,
     Value<int>? rowid,
   }) {
@@ -2093,6 +2236,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
       id: id ?? this.id,
       questionId: questionId ?? this.questionId,
       optionText: optionText ?? this.optionText,
+      valueKey: valueKey ?? this.valueKey,
       orderIndex: orderIndex ?? this.orderIndex,
       rowid: rowid ?? this.rowid,
     );
@@ -2110,6 +2254,9 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     if (optionText.present) {
       map['option_text'] = Variable<String>(optionText.value);
     }
+    if (valueKey.present) {
+      map['value_key'] = Variable<String>(valueKey.value);
+    }
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
     }
@@ -2125,6 +2272,7 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
           ..write('id: $id, ')
           ..write('questionId: $questionId, ')
           ..write('optionText: $optionText, ')
+          ..write('valueKey: $valueKey, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4738,6 +4886,8 @@ typedef $$QuestionsTableCreateCompanionBuilder =
     QuestionsCompanion Function({
       required String id,
       required String questionText,
+      Value<String> fieldName,
+      Value<String> requiredPart,
       required int orderIndex,
       Value<bool> isActive,
       Value<String> syncStatus,
@@ -4747,6 +4897,8 @@ typedef $$QuestionsTableUpdateCompanionBuilder =
     QuestionsCompanion Function({
       Value<String> id,
       Value<String> questionText,
+      Value<String> fieldName,
+      Value<String> requiredPart,
       Value<int> orderIndex,
       Value<bool> isActive,
       Value<String> syncStatus,
@@ -4769,6 +4921,16 @@ class $$QuestionsTableFilterComposer
 
   ColumnFilters<String> get questionText => $composableBuilder(
     column: $table.questionText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fieldName => $composableBuilder(
+    column: $table.fieldName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requiredPart => $composableBuilder(
+    column: $table.requiredPart,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4807,6 +4969,16 @@ class $$QuestionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fieldName => $composableBuilder(
+    column: $table.fieldName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requiredPart => $composableBuilder(
+    column: $table.requiredPart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
     builder: (column) => ColumnOrderings(column),
@@ -4837,6 +5009,14 @@ class $$QuestionsTableAnnotationComposer
 
   GeneratedColumn<String> get questionText => $composableBuilder(
     column: $table.questionText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fieldName =>
+      $composableBuilder(column: $table.fieldName, builder: (column) => column);
+
+  GeneratedColumn<String> get requiredPart => $composableBuilder(
+    column: $table.requiredPart,
     builder: (column) => column,
   );
 
@@ -4884,6 +5064,8 @@ class $$QuestionsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> questionText = const Value.absent(),
+                Value<String> fieldName = const Value.absent(),
+                Value<String> requiredPart = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
@@ -4891,6 +5073,8 @@ class $$QuestionsTableTableManager
               }) => QuestionsCompanion(
                 id: id,
                 questionText: questionText,
+                fieldName: fieldName,
+                requiredPart: requiredPart,
                 orderIndex: orderIndex,
                 isActive: isActive,
                 syncStatus: syncStatus,
@@ -4900,6 +5084,8 @@ class $$QuestionsTableTableManager
               ({
                 required String id,
                 required String questionText,
+                Value<String> fieldName = const Value.absent(),
+                Value<String> requiredPart = const Value.absent(),
                 required int orderIndex,
                 Value<bool> isActive = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
@@ -4907,6 +5093,8 @@ class $$QuestionsTableTableManager
               }) => QuestionsCompanion.insert(
                 id: id,
                 questionText: questionText,
+                fieldName: fieldName,
+                requiredPart: requiredPart,
                 orderIndex: orderIndex,
                 isActive: isActive,
                 syncStatus: syncStatus,
@@ -4939,6 +5127,7 @@ typedef $$QuestionOptionsTableCreateCompanionBuilder =
       required String id,
       required String questionId,
       required String optionText,
+      Value<String> valueKey,
       Value<int> orderIndex,
       Value<int> rowid,
     });
@@ -4947,6 +5136,7 @@ typedef $$QuestionOptionsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> questionId,
       Value<String> optionText,
+      Value<String> valueKey,
       Value<int> orderIndex,
       Value<int> rowid,
     });
@@ -4972,6 +5162,11 @@ class $$QuestionOptionsTableFilterComposer
 
   ColumnFilters<String> get optionText => $composableBuilder(
     column: $table.optionText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get valueKey => $composableBuilder(
+    column: $table.valueKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5005,6 +5200,11 @@ class $$QuestionOptionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get valueKey => $composableBuilder(
+    column: $table.valueKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
     builder: (column) => ColumnOrderings(column),
@@ -5032,6 +5232,9 @@ class $$QuestionOptionsTableAnnotationComposer
     column: $table.optionText,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get valueKey =>
+      $composableBuilder(column: $table.valueKey, builder: (column) => column);
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
@@ -5079,12 +5282,14 @@ class $$QuestionOptionsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> questionId = const Value.absent(),
                 Value<String> optionText = const Value.absent(),
+                Value<String> valueKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => QuestionOptionsCompanion(
                 id: id,
                 questionId: questionId,
                 optionText: optionText,
+                valueKey: valueKey,
                 orderIndex: orderIndex,
                 rowid: rowid,
               ),
@@ -5093,12 +5298,14 @@ class $$QuestionOptionsTableTableManager
                 required String id,
                 required String questionId,
                 required String optionText,
+                Value<String> valueKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => QuestionOptionsCompanion.insert(
                 id: id,
                 questionId: questionId,
                 optionText: optionText,
+                valueKey: valueKey,
                 orderIndex: orderIndex,
                 rowid: rowid,
               ),
