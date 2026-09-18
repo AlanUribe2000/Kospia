@@ -180,7 +180,6 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       }).toList();
 
       await repo.createWithPhotos(
-        userId: AppConstants.testUserId,
         speciesId: _selectedSpecies?.id ?? 'unidentified',
         photos: photoDataList,
         notes: _isUnidentified ? _unidentifiedNote : '',

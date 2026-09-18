@@ -29,6 +29,8 @@ dependencies:
   powersync: ^2.3.3
   http: ^1.5.0
   video_player: ^2.9.2
+  google_sign_in: ^7.2.0
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

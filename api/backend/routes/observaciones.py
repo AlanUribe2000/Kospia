@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
+from authentication import require_kospia_jwt
 from database.connection import get_connection
 
 
@@ -164,12 +165,13 @@ def create_observacion():
 
 
 @observaciones.route("/observations", methods=["POST"])
+@require_kospia_jwt
 def create_kospia_observation():
 
     data = request.get_json(silent=True) or {}
 
     observation_id = data.get("id")
-    user_id = data.get("user_id")
+    requested_user_id = data.get("user_id")
     species_id = data.get("species_id")
     notes = data.get("notes", "")
     created_at = data.get("created_at")
@@ -180,10 +182,10 @@ def create_kospia_observation():
             "error": "El campo id es obligatorio"
         }), 400
 
-    if not user_id:
+    if requested_user_id is not None and requested_user_id != g.kospia_user_id:
         return jsonify({
-            "error": "El campo user_id es obligatorio"
-        }), 400
+            "error": "El user_id no coincide con la sesión Kospia"
+        }), 403
 
     if not species_id:
         return jsonify({
@@ -217,16 +219,16 @@ def create_kospia_observation():
             )
             ON CONFLICT (id)
             DO UPDATE SET
-                user_id = EXCLUDED.user_id,
                 species_id = EXCLUDED.species_id,
                 notes = EXCLUDED.notes,
                 sync_status = 'synced',
                 updated_at = EXCLUDED.updated_at,
                 synced_at = NOW()
+            WHERE public.observations.user_id = EXCLUDED.user_id
             RETURNING id;
         """, (
             observation_id,
-            user_id,
+            g.kospia_user_id,
             species_id,
             notes,
             created_at,
@@ -234,6 +236,12 @@ def create_kospia_observation():
         ))
 
         saved = cursor.fetchone()
+
+        if saved is None:
+            conn.rollback()
+            return jsonify({
+                "error": "La observación pertenece a otro usuario"
+            }), 403
 
         conn.commit()
 

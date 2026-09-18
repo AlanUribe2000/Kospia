@@ -83,7 +83,19 @@ streams:
         SELECT * FROM question_options
       - |
         SELECT * FROM species_traits
+
+  user_data:
+    auto_subscribe: true
+    queries:
       - |
-        SELECT * FROM observations
+        SELECT *
+        FROM observations
+        WHERE user_id = auth.user_id()
       - |
-        SELECT * FROM observation_photos
+        SELECT *
+        FROM observation_photos
+        WHERE observation_id IN (
+          SELECT id
+          FROM observations
+          WHERE user_id = auth.user_id()
+        )

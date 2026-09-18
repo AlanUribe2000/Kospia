@@ -1,6 +1,9 @@
 import os
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, g, request, jsonify, send_file
+
+from authentication import require_kospia_jwt
+from database.connection import get_connection
 
 attachments = Blueprint("attachments", __name__)
 
@@ -44,10 +47,43 @@ def _get_attachment_path(
     )
 
 
+def _get_attachment_owner(attachment_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT o.user_id
+            FROM public.observation_photos p
+            JOIN public.observations o ON o.id = p.observation_id
+            WHERE p.id = %s
+            LIMIT 1;
+        """, (attachment_id,))
+        row = cursor.fetchone()
+        return str(row[0]) if row is not None else None
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _require_attachment_owner(attachment_id):
+    owner_id = _get_attachment_owner(attachment_id)
+    if owner_id is None:
+        return jsonify({
+            "error": "El attachment no existe"
+        }), 404
+    if owner_id != g.kospia_user_id:
+        return jsonify({
+            "error": "El attachment pertenece a otro usuario"
+        }), 403
+    return None
+
+
 @attachments.route(
     "/attachments/<string:attachment_id>",
     methods=["PUT"],
 )
+@require_kospia_jwt
 def upload_attachment(attachment_id):
     """
     Recibe un archivo enviado por Flutter / PowerSync.
@@ -55,6 +91,10 @@ def upload_attachment(attachment_id):
     Ejemplo:
     PUT /attachments/abc-123?extension=jpg
     """
+
+    ownership_error = _require_attachment_owner(attachment_id)
+    if ownership_error is not None:
+        return ownership_error
 
     extension = request.args.get(
         "extension",
@@ -103,10 +143,15 @@ def upload_attachment(attachment_id):
     "/attachments/<string:attachment_id>",
     methods=["GET"],
 )
+@require_kospia_jwt
 def download_attachment(attachment_id):
     """
     Devuelve un attachment almacenado en el servidor.
     """
+
+    ownership_error = _require_attachment_owner(attachment_id)
+    if ownership_error is not None:
+        return ownership_error
 
     extension = request.args.get(
         "extension",
@@ -132,10 +177,15 @@ def download_attachment(attachment_id):
     "/attachments/<string:attachment_id>",
     methods=["DELETE"],
 )
+@require_kospia_jwt
 def delete_attachment(attachment_id):
     """
     Elimina físicamente un attachment.
     """
+
+    ownership_error = _require_attachment_owner(attachment_id)
+    if ownership_error is not None:
+        return ownership_error
 
     extension = request.args.get(
         "extension",

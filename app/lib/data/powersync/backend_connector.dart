@@ -3,19 +3,32 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
 
+import '../../features/auth/services/session_service.dart';
 import 'powersync_config.dart';
 
 class KospiaBackendConnector extends PowerSyncBackendConnector {
+  KospiaBackendConnector(this._sessionService);
+
+  final SessionService _sessionService;
+
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
+    final session = await _sessionService.loadSession();
+    if (session == null) {
+      throw StateError(
+        'No hay una sesión Kospia válida para obtener credenciales de PowerSync.',
+      );
+    }
+
     final response = await http.get(
       Uri.parse('${PowerSyncConfig.backendUrl}${PowerSyncConfig.tokenPath}'),
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         'No se pudo obtener el JWT de PowerSync. '
-        'HTTP ${response.statusCode}: ${response.body}',
+        'HTTP ${response.statusCode}',
       );
     }
 
@@ -63,16 +76,25 @@ class KospiaBackendConnector extends PowerSyncBackendConnector {
   }
 
   Future<void> _postJson(String path, Map<String, dynamic> data) async {
+    final session = await _sessionService.loadSession();
+    if (session == null) {
+      throw StateError(
+        'No hay una sesión Kospia válida para sincronizar datos.',
+      );
+    }
+
     final response = await http.post(
       Uri.parse('${PowerSyncConfig.backendUrl}$path'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
       body: jsonEncode(data),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Error subiendo $path. '
-        'HTTP ${response.statusCode}: ${response.body}',
+      throw StateError(
+        'Error seguro subiendo $path. HTTP ${response.statusCode}',
       );
     }
   }

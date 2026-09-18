@@ -5,13 +5,19 @@ import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../database/app_database.dart';
 import '../powersync/attachment_upload_service.dart';
+import '../../features/auth/services/session_service.dart';
 
 class ObservationRepository extends ChangeNotifier {
   final PowerSyncDatabase _powerSync;
   final AttachmentUploadService _attachmentUploadService;
+  final SessionService _sessionService;
   static const _uuid = Uuid();
 
-  ObservationRepository(this._powerSync, this._attachmentUploadService);
+  ObservationRepository(
+    this._powerSync,
+    this._attachmentUploadService,
+    this._sessionService,
+  );
 
   Future<List<Observation>> getAll() async {
     final rows = await _powerSync.getAll(
@@ -105,11 +111,17 @@ class ObservationRepository extends ChangeNotifier {
   }
 
   Future<String> createWithPhotos({
-    required String userId,
     required String speciesId,
     required List<PhotoData> photos,
     String notes = '',
   }) async {
+    final session = await _sessionService.loadSession();
+    if (session == null) {
+      throw StateError(
+        'Se requiere una sesión Kospia válida para crear una observación.',
+      );
+    }
+
     final observationId = _uuid.v4();
     final now = DateTime.now().toUtc().toIso8601String();
 
@@ -121,7 +133,7 @@ class ObservationRepository extends ChangeNotifier {
     ''',
       [
         observationId,
-        userId,
+        session.userId,
         speciesId,
         notes,
         AppConstants.syncPending,

@@ -9,7 +9,8 @@ import 'data/powersync/attachment_upload_service.dart';
 import 'data/powersync/powersync_database.dart';
 import 'data/repositories/species_repository.dart';
 import 'data/repositories/observation_repository.dart';
-import 'features/splash/screens/splash_screen.dart';
+import 'features/auth/screens/google_login_test_screen.dart';
+import 'features/auth/services/session_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,9 +31,13 @@ void main() async {
 
   final database = AppDatabase();
   final powerSyncDatabase = await openKospiaPowerSyncDatabase();
-  final attachmentUploadService = AttachmentUploadService(powerSyncDatabase);
+  final sessionService = SessionService();
+  final attachmentUploadService = AttachmentUploadService(
+    powerSyncDatabase,
+    sessionService,
+  );
 
-  connectKospiaPowerSync(powerSyncDatabase).catchError((error) {
+  connectKospiaPowerSync(powerSyncDatabase, sessionService).catchError((error) {
     debugPrint('PowerSync: error de conexion: $error');
   });
   attachmentUploadService.uploadPending().catchError((error) {
@@ -49,9 +54,13 @@ void main() async {
           create: (_) => SpeciesRepository(database, powerSyncDatabase),
         ),
         ChangeNotifierProvider<ObservationRepository>(
-          create: (_) =>
-              ObservationRepository(powerSyncDatabase, attachmentUploadService),
+          create: (_) => ObservationRepository(
+            powerSyncDatabase,
+            attachmentUploadService,
+            sessionService,
+          ),
         ),
+        Provider<SessionService>.value(value: sessionService),
       ],
       child: const KospiaApp(),
     ),
@@ -67,7 +76,7 @@ class KospiaApp extends StatelessWidget {
       title: 'Kospia',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const SplashScreen(),
+      home: const GoogleLoginTestScreen(),
     );
   }
 }

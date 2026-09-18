@@ -27,3 +27,7 @@ class Config:
         "POWERSYNC_JWT_AUDIENCE",
         "powersync-dev"
     )
+
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
+    KOSPIA_JWT_SECRET = os.getenv("KOSPIA_JWT_SECRET")

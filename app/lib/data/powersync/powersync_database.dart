@@ -4,6 +4,7 @@ import 'package:powersync/powersync.dart';
 
 import 'backend_connector.dart';
 import 'powersync_schema.dart';
+import '../../features/auth/services/session_service.dart';
 
 Future<PowerSyncDatabase> openKospiaPowerSyncDatabase() async {
   final directory = await getApplicationSupportDirectory();
@@ -14,6 +15,9 @@ Future<PowerSyncDatabase> openKospiaPowerSyncDatabase() async {
   return database;
 }
 
-Future<void> connectKospiaPowerSync(PowerSyncDatabase database) {
-  return database.connect(connector: KospiaBackendConnector());
+Future<void> connectKospiaPowerSync(
+  PowerSyncDatabase database,
+  SessionService sessionService,
+) {
+  return database.connect(connector: KospiaBackendConnector(sessionService));
 }

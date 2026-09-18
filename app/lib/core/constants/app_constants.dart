@@ -20,7 +20,6 @@ class AppConstants {
   static const String partFruto = 'fruto';
   // Tamaño de Kospi en toda la app
   static const double kospiImageHeight = 180.0;
-  static const String testUserId = 'test-user-001';
   static const String testUserName = 'test';
   static const String syncPending = 'pending';
   static const String syncSynced = 'synced';

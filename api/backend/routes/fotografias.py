@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
+from authentication import require_kospia_jwt
 from database.connection import get_connection
 
 
@@ -143,6 +144,7 @@ def create_fotografia():
 
 
 @fotografias.route("/observation-photos", methods=["POST"])
+@require_kospia_jwt
 def create_kospia_observation_photo():
 
     data = request.get_json(silent=True) or {}
@@ -194,6 +196,47 @@ def create_kospia_observation_photo():
     cursor = conn.cursor()
 
     try:
+        cursor.execute("""
+            SELECT user_id
+            FROM public.observations
+            WHERE id = %s
+            LIMIT 1;
+        """, (observation_id,))
+        observation = cursor.fetchone()
+
+        if observation is None:
+            conn.rollback()
+            return jsonify({
+                "error": "La observación no existe"
+            }), 404
+
+        if str(observation[0]) != g.kospia_user_id:
+            conn.rollback()
+            return jsonify({
+                "error": "La observación pertenece a otro usuario"
+            }), 403
+
+        cursor.execute("""
+            SELECT p.observation_id, o.user_id
+            FROM public.observation_photos p
+            JOIN public.observations o ON o.id = p.observation_id
+            WHERE p.id = %s
+            LIMIT 1;
+        """, (photo_id,))
+        existing_photo = cursor.fetchone()
+
+        if existing_photo is not None:
+            if str(existing_photo[1]) != g.kospia_user_id:
+                conn.rollback()
+                return jsonify({
+                    "error": "La fotografía pertenece a otro usuario"
+                }), 403
+            if str(existing_photo[0]) != observation_id:
+                conn.rollback()
+                return jsonify({
+                    "error": "La fotografía ya pertenece a otra observación"
+                }), 403
+
         cursor.execute("""
     INSERT INTO public.observation_photos (
         id,
