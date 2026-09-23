@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../home/screens/home_screen.dart';
 
-/// Pantalla de arranque que reproduce el video de intro (la animacion del logo
-/// armandose) desde el frame 0. Al terminar el video, o si falla la carga,
-/// navega automaticamente a la pantalla principal.
+/// Pantalla de arranque que reproduce el video de intro y notifica cuando
+/// termina o se salta, dejando la navegación al subtree autenticado.
 ///
 /// El fondo es el lila de marca, igual que el splash nativo, para que el
 /// arranque se perciba como una sola pieza continua: lila -> video -> app.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.onFinished});
+
+  final VoidCallback? onFinished;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -19,7 +19,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   VideoPlayerController? _controller;
-  bool _navigated = false;
+  bool _finished = false;
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
       setState(() {});
     } catch (_) {
       // Si el video no se puede cargar, continuar directo a la app.
-      _goToHome();
+      _finish();
     }
   }
 
@@ -56,15 +56,13 @@ class _SplashScreenState extends State<SplashScreen> {
         position >= duration &&
         !controller.value.isPlaying;
 
-    if (finished) _goToHome();
+    if (finished) _finish();
   }
 
-  void _goToHome() {
-    if (_navigated || !mounted) return;
-    _navigated = true;
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+  void _finish() {
+    if (_finished || !mounted) return;
+    _finished = true;
+    widget.onFinished?.call();
   }
 
   @override
@@ -85,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // sobre el mismo violeta y la transicion se percibe continua.
     return GestureDetector(
       // Permite saltar la intro tocando la pantalla.
-      onTap: _goToHome,
+      onTap: _finish,
       child: Container(
         color: AppColors.brandViolet,
         alignment: Alignment.center,

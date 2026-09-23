@@ -8,8 +8,13 @@ import 'data/database/app_database.dart';
 import 'data/powersync/powersync_session_manager.dart';
 import 'data/repositories/species_repository.dart';
 import 'data/repositories/observation_repository.dart';
+import 'features/auth/controllers/auth_controller.dart';
+import 'features/auth/screens/login_screen.dart';
+import 'features/auth/services/google_auth_service.dart';
 import 'features/auth/services/session_service.dart';
-import 'features/auth/screens/google_login_test_screen.dart';
+import 'features/auth/widgets/auth_gate.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,14 +36,6 @@ void main() async {
   final database = AppDatabase();
   final sessionService = SessionService();
   final powerSyncSessionManager = PowerSyncSessionManager(sessionService);
-  final restoredSession = await sessionService.loadSession();
-  if (restoredSession != null) {
-    try {
-      await powerSyncSessionManager.activateSession(restoredSession);
-    } catch (error) {
-      debugPrint('PowerSync: no se pudo restaurar la sesión: $error');
-    }
-  }
 
   runApp(
     MultiProvider(
@@ -48,10 +45,44 @@ void main() async {
           value: powerSyncSessionManager,
         ),
         Provider<SessionService>.value(value: sessionService),
+        ChangeNotifierProvider<AuthController>(
+          create: (_) => AuthController(
+            sessionService,
+            GoogleAuthService(),
+            powerSyncSessionManager,
+          ),
+        ),
       ],
-      child: const KospiaApp(),
+      child: const _AuthBootstrap(),
     ),
   );
+}
+
+class _AuthBootstrap extends StatefulWidget {
+  const _AuthBootstrap();
+
+  @override
+  State<_AuthBootstrap> createState() => _AuthBootstrapState();
+}
+
+class _AuthBootstrapState extends State<_AuthBootstrap> {
+  bool _restoreStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _restoreStarted) return;
+
+      _restoreStarted = true;
+      context.read<AuthController>().restoreSession();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const KospiaApp();
+  }
 }
 
 class KospiaApp extends StatelessWidget {
@@ -68,7 +99,10 @@ class KospiaApp extends StatelessWidget {
       title: 'Kospia',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const GoogleLoginTestScreen(),
+      home: AuthGate(
+        unauthenticatedBuilder: (_) => const LoginScreen(),
+        authenticatedBuilder: (_) => const AuthenticatedShell(),
+      ),
     );
 
     if (powerSyncDatabase == null) {
@@ -91,5 +125,29 @@ class KospiaApp extends StatelessWidget {
       ],
       child: app,
     );
+  }
+}
+
+class AuthenticatedShell extends StatefulWidget {
+  const AuthenticatedShell({super.key});
+
+  @override
+  State<AuthenticatedShell> createState() => _AuthenticatedShellState();
+}
+
+class _AuthenticatedShellState extends State<AuthenticatedShell> {
+  bool _showSplash = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return _showSplash
+        ? SplashScreen(
+            onFinished: () {
+              if (mounted) {
+                setState(() => _showSplash = false);
+              }
+            },
+          )
+        : const HomeScreen();
   }
 }
