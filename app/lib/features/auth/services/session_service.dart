@@ -20,7 +20,7 @@ class KospiaSession {
 
 class SessionService {
   SessionService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _accessTokenKey = 'kospia.access_token';
   static const _userIdKey = 'kospia.user.id';
@@ -31,15 +31,16 @@ class SessionService {
   final FlutterSecureStorage _storage;
 
   Future<void> saveSession(KospiaSession session) async {
-    if (!_hasRequiredUserData(session) || !_hasFutureExpiration(session.accessToken)) {
+    if (!_hasRequiredUserData(session) ||
+        !_hasFutureExpiration(session.accessToken, session.userId)) {
       throw const FormatException('Sesión Kospia inválida o expirada.');
     }
 
     await _storage.write(key: _accessTokenKey, value: session.accessToken);
     await _storage.write(key: _userIdKey, value: session.userId);
-    await _storage.write(key: _emailKey, value: session.email);
-    await _storage.write(key: _displayNameKey, value: session.displayName);
-    await _storage.write(key: _photoUrlKey, value: session.photoUrl);
+    await _writeOrDelete(_emailKey, session.email);
+    await _writeOrDelete(_displayNameKey, session.displayName);
+    await _writeOrDelete(_photoUrlKey, session.photoUrl);
   }
 
   Future<KospiaSession?> loadSession() async {
@@ -52,7 +53,8 @@ class SessionService {
       photoUrl: values[_photoUrlKey] ?? '',
     );
 
-    if (!_hasRequiredUserData(session) || !_hasFutureExpiration(session.accessToken)) {
+    if (!_hasRequiredUserData(session) ||
+        !_hasFutureExpiration(session.accessToken, session.userId)) {
       if (values.isNotEmpty) {
         await clearSession();
       }
@@ -62,25 +64,53 @@ class SessionService {
     return session;
   }
 
-  Future<void> clearSession() => _storage.deleteAll();
+  Future<void> clearSession() async {
+    for (final key in [
+      _accessTokenKey,
+      _userIdKey,
+      _emailKey,
+      _displayNameKey,
+      _photoUrlKey,
+    ]) {
+      await _storage.delete(key: key);
+    }
+  }
+
+  Future<void> _writeOrDelete(String key, String value) async {
+    if (value.isEmpty) {
+      await _storage.delete(key: key);
+    } else {
+      await _storage.write(key: key, value: value);
+    }
+  }
+
+  bool _isUuid(String value) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+    ).hasMatch(value);
+  }
 
   bool _hasRequiredUserData(KospiaSession session) {
     return session.accessToken.isNotEmpty &&
         session.userId.isNotEmpty &&
-        session.email.isNotEmpty &&
-        session.displayName.isNotEmpty &&
-        session.photoUrl.isNotEmpty;
+        _isUuid(session.userId);
   }
 
-  bool _hasFutureExpiration(String token) {
+  bool _hasFutureExpiration(String token, String userId) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) {
         return false;
       }
 
-      final payload = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
       if (payload is! Map<String, dynamic>) {
+        return false;
+      }
+
+      if (payload['sub']?.toString() != userId) {
         return false;
       }
 

@@ -13,6 +13,7 @@ class AttachmentUploadService {
   final SessionService _sessionService;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isUploading = false;
+  bool _isActive = true;
 
   AttachmentUploadService(this._database, this._sessionService);
 
@@ -28,7 +29,7 @@ class AttachmentUploadService {
   }
 
   Future<void> uploadPending() async {
-    if (_isUploading) return;
+    if (!_isActive || _isUploading) return;
     _isUploading = true;
 
     try {
@@ -40,6 +41,7 @@ class AttachmentUploadService {
       ''');
 
       for (final row in rows) {
+        if (!_isActive) return;
         final queueId = row['id']?.toString() ?? '';
         final photoId = row['photo_id']?.toString() ?? '';
         final localPath = row['local_path']?.toString() ?? '';
@@ -69,6 +71,8 @@ class AttachmentUploadService {
             body: await file.readAsBytes(),
           );
 
+          if (!_isActive) return;
+
           if (response.statusCode >= 200 && response.statusCode < 300) {
             await _database.execute(
               'DELETE FROM attachments_queue WHERE id = ?',
@@ -91,6 +95,7 @@ class AttachmentUploadService {
   }
 
   void dispose() {
+    _isActive = false;
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
   }

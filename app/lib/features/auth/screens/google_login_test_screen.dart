@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
 
+import '../../../data/powersync/powersync_session_manager.dart';
 import '../../splash/screens/splash_screen.dart';
 import '../services/google_auth_service.dart';
 import '../services/session_service.dart';
@@ -14,7 +16,8 @@ class GoogleLoginTestScreen extends StatefulWidget {
 
 class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
   final GoogleAuthService _authService = GoogleAuthService();
-  final SessionService _sessionService = SessionService();
+  late final SessionService _sessionService;
+  late final PowerSyncSessionManager _powerSyncSessionManager;
   bool _isLoading = false;
   String? _errorMessage;
   KospiaSession? _session;
@@ -23,6 +26,8 @@ class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
   @override
   void initState() {
     super.initState();
+    _sessionService = context.read<SessionService>();
+    _powerSyncSessionManager = context.read<PowerSyncSessionManager>();
     _restoreSession();
   }
 
@@ -35,6 +40,9 @@ class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
       final session = await _sessionService.loadSession();
       if (!mounted) {
         return;
+      }
+      if (session != null && !_powerSyncSessionManager.hasActiveSession) {
+        await _powerSyncSessionManager.activateSession(session);
       }
       setState(() {
         _session = session;
@@ -56,6 +64,7 @@ class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
   }
 
   Future<void> _handleSignIn() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -65,28 +74,38 @@ class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
 
     try {
       await _authService.authenticate();
+      if (!mounted) return;
 
       final session = await _authService.authenticateWithKospiaBackend();
+      if (!mounted) return;
       await _sessionService.saveSession(session);
+      if (!mounted) return;
+      await _powerSyncSessionManager.activateSession(session);
+      if (!mounted) return;
       setState(() {
         _session = session;
       });
     } on GoogleSignInException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Google Sign-In: ERROR\n${e.code}';
       });
     } on HttpException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.message;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error inesperado: $e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -98,9 +117,14 @@ class _GoogleLoginTestScreenState extends State<GoogleLoginTestScreen> {
 
     try {
       try {
-        await _authService.signOut();
+        await _powerSyncSessionManager.deactivateSession();
       } finally {
         await _sessionService.clearSession();
+      }
+      try {
+        await _authService.signOut();
+      } catch (_) {
+        rethrow;
       }
       setState(() {
         _session = null;

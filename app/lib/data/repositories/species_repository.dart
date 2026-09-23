@@ -1,6 +1,7 @@
 import '../database/app_database.dart';
 import '../seed/seed_data.dart';
 import '../services/sequential_questionnaire.dart';
+import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 
 /// Repositorio de especies. Maneja acceso a datos de flora.
@@ -9,6 +10,38 @@ class SpeciesRepository {
   final PowerSyncDatabase _powerSync;
 
   SpeciesRepository(this._drift, this._powerSync);
+
+  Future<void> logIdentificationDiagnostics() async {
+    final counts = <String, int>{};
+    for (final table in [
+      'questions',
+      'question_options',
+      'species',
+      'species_traits',
+    ]) {
+      final row = await _powerSync.get('SELECT COUNT(*) AS count FROM $table');
+      counts[table] = (row['count'] as num?)?.toInt() ?? 0;
+    }
+
+    debugPrint('[IDENTIFY DEBUG] questions=${counts['questions']}');
+    debugPrint(
+      '[IDENTIFY DEBUG] question_options=${counts['question_options']}',
+    );
+    debugPrint('[IDENTIFY DEBUG] species=${counts['species']}');
+    debugPrint('[IDENTIFY DEBUG] species_traits=${counts['species_traits']}');
+
+    final options = await _powerSync.getAll(
+      'SELECT id, question_id, value_key FROM question_options '
+      'ORDER BY question_id, order_index',
+    );
+    for (final option in options) {
+      debugPrint(
+        '[IDENTIFY DEBUG] option.id=${option['id']} '
+        'option.question_id=${option['question_id']} '
+        'option.value_key=${option['value_key']}',
+      );
+    }
+  }
 
   Future<List<Specy>> getAll() async {
     final rows = await _powerSync.getAll('''
@@ -52,6 +85,7 @@ class SpeciesRepository {
       WHERE is_active = 1
       ORDER BY order_index ASC
     ''');
+    debugPrint('[IDENTIFY DEBUG] questions=${rows.length}');
     if (rows.isEmpty) return _drift.getAllQuestions();
     return rows
         .map(
@@ -77,6 +111,16 @@ class SpeciesRepository {
     ''',
       [questionId],
     );
+    debugPrint(
+      '[IDENTIFY DEBUG] options for question=$questionId count=${rows.length}',
+    );
+    for (final row in rows) {
+      debugPrint(
+        '[IDENTIFY DEBUG] option.id=${row['id']} '
+        'option.question_id=${row['question_id']} '
+        'option.value_key=${row['value_key']}',
+      );
+    }
     if (rows.isEmpty) return _drift.getOptionsForQuestion(questionId);
     return rows
         .map(

@@ -88,9 +88,13 @@ class _StepIdentifyState extends State<StepIdentify> {
 
     // Primera vez: crear cuestionario nuevo
     final repo = context.read<SpeciesRepository>();
+    await repo.logIdentificationDiagnostics();
     final allSpecies = await repo.getAll();
     final questions = await repo.getQuestionnaireConfigs();
     final photoParts = widget.photos.map((p) => p.plantPart).toSet();
+
+    debugPrint('[IDENTIFY DEBUG] species=${allSpecies.length}');
+    debugPrint('[IDENTIFY DEBUG] questions=${questions.length}');
 
     if (mounted) {
       final q = SequentialQuestionnaire(
@@ -108,13 +112,20 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 
   void _answerQuestion(String value) {
+    final questionnaire = _questionnaire!;
+    final candidatesBefore = questionnaire.candidates.length;
     setState(() {
-      _questionnaire!.answer(value);
+      questionnaire.answer(value);
       // If finished, switch to results mode
       if (_questionnaire!.isFinished) {
         _mode = _IdentifyMode.results;
       }
     });
+    debugPrint('[IDENTIFY DEBUG] selected=$value');
+    debugPrint('[IDENTIFY DEBUG] candidates before=$candidatesBefore');
+    debugPrint(
+      '[IDENTIFY DEBUG] candidates after=${questionnaire.candidates.length}',
+    );
   }
 
   void _selectSpecies(Specy species) {
@@ -293,6 +304,16 @@ class _StepIdentifyState extends State<StepIdentify> {
         if (mounted) setState(() => _mode = _IdentifyMode.results);
       });
       return const Center(child: CircularProgressIndicator());
+    }
+
+    debugPrint('[IDENTIFY DEBUG] question=${question.id}');
+    debugPrint(
+      '[IDENTIFY DEBUG] options for question=${question.options.length}',
+    );
+    for (final option in question.options) {
+      debugPrint(
+        '[IDENTIFY DEBUG] option id=$option question=${question.id} value=$option',
+      );
     }
 
     return Column(

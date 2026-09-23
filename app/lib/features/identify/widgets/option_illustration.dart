@@ -24,6 +24,9 @@ class OptionIllustration extends StatelessWidget {
     }
 
     // Fallback: ícono con color contextual
+    debugPrint(
+      '[IDENTIFY DEBUG] fallback icon option=$optionValue value=$optionValue',
+    );
     final iconData = _getFallbackIcon();
     final iconColor = _getFallbackColor();
     return Icon(iconData, size: size * 0.55, color: iconColor);

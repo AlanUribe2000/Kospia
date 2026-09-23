@@ -5,12 +5,11 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/database/app_database.dart';
-import 'data/powersync/attachment_upload_service.dart';
-import 'data/powersync/powersync_database.dart';
+import 'data/powersync/powersync_session_manager.dart';
 import 'data/repositories/species_repository.dart';
 import 'data/repositories/observation_repository.dart';
-import 'features/auth/screens/google_login_test_screen.dart';
 import 'features/auth/services/session_service.dart';
+import 'features/auth/screens/google_login_test_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,35 +29,23 @@ void main() async {
   );
 
   final database = AppDatabase();
-  final powerSyncDatabase = await openKospiaPowerSyncDatabase();
   final sessionService = SessionService();
-  final attachmentUploadService = AttachmentUploadService(
-    powerSyncDatabase,
-    sessionService,
-  );
-
-  connectKospiaPowerSync(powerSyncDatabase, sessionService).catchError((error) {
-    debugPrint('PowerSync: error de conexion: $error');
-  });
-  attachmentUploadService.uploadPending().catchError((error) {
-    debugPrint('Attachments: error procesando pendientes: $error');
-  });
-  attachmentUploadService.startConnectivityListener();
+  final powerSyncSessionManager = PowerSyncSessionManager(sessionService);
+  final restoredSession = await sessionService.loadSession();
+  if (restoredSession != null) {
+    try {
+      await powerSyncSessionManager.activateSession(restoredSession);
+    } catch (error) {
+      debugPrint('PowerSync: no se pudo restaurar la sesión: $error');
+    }
+  }
 
   runApp(
     MultiProvider(
       providers: [
         Provider<AppDatabase>.value(value: database),
-        Provider<PowerSyncDatabase>.value(value: powerSyncDatabase),
-        Provider<SpeciesRepository>(
-          create: (_) => SpeciesRepository(database, powerSyncDatabase),
-        ),
-        ChangeNotifierProvider<ObservationRepository>(
-          create: (_) => ObservationRepository(
-            powerSyncDatabase,
-            attachmentUploadService,
-            sessionService,
-          ),
+        ChangeNotifierProvider<PowerSyncSessionManager>.value(
+          value: powerSyncSessionManager,
         ),
         Provider<SessionService>.value(value: sessionService),
       ],
@@ -72,11 +59,37 @@ class KospiaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final manager = context.watch<PowerSyncSessionManager>();
+    final powerSyncDatabase = manager.database;
+    final driftDatabase = context.read<AppDatabase>();
+    final sessionService = context.read<SessionService>();
+
+    final app = MaterialApp(
       title: 'Kospia',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const GoogleLoginTestScreen(),
+    );
+
+    if (powerSyncDatabase == null) {
+      return app;
+    }
+
+    return MultiProvider(
+      providers: [
+        Provider<PowerSyncDatabase>.value(value: powerSyncDatabase),
+        Provider<SpeciesRepository>(
+          create: (_) => SpeciesRepository(driftDatabase, powerSyncDatabase),
+        ),
+        ChangeNotifierProvider<ObservationRepository>(
+          create: (_) => ObservationRepository(
+            powerSyncDatabase,
+            manager.attachmentUploadService!,
+            sessionService,
+          ),
+        ),
+      ],
+      child: app,
     );
   }
 }
