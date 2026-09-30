@@ -13,3 +13,7 @@ api/**/uploads/
 # Python
 api/**/__pycache__/
 *.pyc
+
+# Los .venv
+api/.venv/
+api/backend/.venv/

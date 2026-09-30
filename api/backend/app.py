@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+from flask_smorest import Api
 
 from routes.tasks import tasks
 from routes.observaciones import observaciones
@@ -10,14 +11,17 @@ from routes.auth import auth
 from config import Config
 
 app = Flask(__name__)
+app.config.from_object(Config)
+
+api = Api(app)
 
 CORS(app)
 
-app.register_blueprint(tasks)
-app.register_blueprint(observaciones)
-app.register_blueprint(attachments)
-app.register_blueprint(fotografias)
-app.register_blueprint(auth)
+api.register_blueprint(tasks)
+api.register_blueprint(observaciones)
+api.register_blueprint(attachments)
+api.register_blueprint(fotografias)
+api.register_blueprint(auth)
 
 if __name__ == "__main__":
     app.run(

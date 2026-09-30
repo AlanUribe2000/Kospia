@@ -1,6 +1,7 @@
 import os
 
-from flask import Blueprint, g, request, jsonify, send_file
+from flask import g, request, jsonify, send_file
+from flask_smorest import Blueprint
 
 from authentication import require_kospia_jwt
 from database.connection import get_connection
@@ -83,6 +84,54 @@ def _require_attachment_owner(attachment_id):
     "/attachments/<string:attachment_id>",
     methods=["PUT"],
 )
+@attachments.doc(
+    summary="Subir un archivo adjunto",
+    description=(
+        "Carga los bytes del archivo para el `attachment_id` indicado en la "
+        "ruta. Requiere un token Kospia y que el registro de fotografía esté "
+        "vinculado a una observación del usuario autenticado. Envíe el contenido "
+        "binario directamente en el cuerpo, no como JSON ni como formulario.\n\n"
+        "El parámetro de consulta `extension` es opcional, por defecto `jpg`, "
+        "y solo admite `jpg`, `jpeg`, `png` o `webp`. El archivo queda guardado "
+        "en el almacenamiento del servidor.\n\n"
+        "**Respuesta:** `200` con mensaje, id y extensión. Responde con `400` "
+        "si la extensión no está permitida, `404` si no existe el registro del "
+        "adjunto, `403` si pertenece a otro usuario y `500` si falla la escritura."
+    ),
+    parameters=[
+        {
+            "name": "attachment_id",
+            "in": "path",
+            "required": True,
+            "description": "Identificador de la fotografía/adjunto asociado a la observación.",
+            "schema": {"type": "string"},
+        },
+        {
+            "name": "extension",
+            "in": "query",
+            "required": False,
+            "description": "Extensión del archivo. Acepta jpg, jpeg, png o webp; por defecto es jpg.",
+            "schema": {
+                "type": "string",
+                "enum": ["jpg", "jpeg", "png", "webp"],
+                "default": "jpg",
+            },
+        },
+    ],
+    requestBody={
+        "required": True,
+        "content": {
+            "application/octet-stream": {
+                "schema": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Bytes del archivo de imagen.",
+                },
+            },
+        },
+    },
+    security=[{"KospiaBearerAuth": []}],
+)
 @require_kospia_jwt
 def upload_attachment(attachment_id):
     """
@@ -143,6 +192,36 @@ def upload_attachment(attachment_id):
     "/attachments/<string:attachment_id>",
     methods=["GET"],
 )
+@attachments.doc(
+    summary="Descargar un archivo adjunto",
+    description=(
+        "Devuelve el archivo binario asociado al `attachment_id` de la ruta. "
+        "Requiere un token Kospia y que el adjunto pertenezca a una observación "
+        "del usuario autenticado. El parámetro de consulta `extension` es "
+        "opcional y por defecto es `jpg`; debe coincidir con la extensión con "
+        "la que se guardó el archivo.\n\n"
+        "**Respuesta:** contenido del archivo con su tipo MIME detectado por "
+        "Flask. Responde con `404` si no existe el registro del adjunto o el "
+        "archivo físico, y con `403` si pertenece a otro usuario."
+    ),
+    parameters=[
+        {
+            "name": "attachment_id",
+            "in": "path",
+            "required": True,
+            "description": "Identificador de la fotografía/adjunto que se descargará.",
+            "schema": {"type": "string"},
+        },
+        {
+            "name": "extension",
+            "in": "query",
+            "required": False,
+            "description": "Extensión usada al guardar el archivo; por defecto es jpg.",
+            "schema": {"type": "string", "default": "jpg"},
+        },
+    ],
+    security=[{"KospiaBearerAuth": []}],
+)
 @require_kospia_jwt
 def download_attachment(attachment_id):
     """
@@ -176,6 +255,38 @@ def download_attachment(attachment_id):
 @attachments.route(
     "/attachments/<string:attachment_id>",
     methods=["DELETE"],
+)
+@attachments.doc(
+    summary="Eliminar un archivo adjunto",
+    description=(
+        "Elimina del almacenamiento del servidor el archivo asociado al "
+        "`attachment_id` indicado. Requiere un token Kospia y que el registro "
+        "pertenezca a una observación del usuario autenticado. El parámetro de "
+        "consulta `extension` es opcional y por defecto es `jpg`; debe coincidir "
+        "con la extensión del archivo.\n\n"
+        "**Respuesta:** `200` con un mensaje de confirmación. Si el registro del "
+        "adjunto no existe, responde con `404`; si pertenece a otro usuario, "
+        "responde con `403`. Si el registro existe pero el archivo físico ya fue "
+        "eliminado, responde igualmente con `200`. Los errores al borrar "
+        "responden con `500`."
+    ),
+    parameters=[
+        {
+            "name": "attachment_id",
+            "in": "path",
+            "required": True,
+            "description": "Identificador de la fotografía/adjunto cuyo archivo se eliminará.",
+            "schema": {"type": "string"},
+        },
+        {
+            "name": "extension",
+            "in": "query",
+            "required": False,
+            "description": "Extensión del archivo que se eliminará; por defecto es jpg.",
+            "schema": {"type": "string", "default": "jpg"},
+        },
+    ],
+    security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
 def delete_attachment(attachment_id):

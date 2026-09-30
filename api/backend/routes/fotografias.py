@@ -1,4 +1,5 @@
-from flask import Blueprint, g, jsonify, request
+from flask import g, jsonify, request
+from flask_smorest import Blueprint
 
 from authentication import require_kospia_jwt
 from database.connection import get_connection
@@ -8,6 +9,18 @@ fotografias = Blueprint("fotografias", __name__)
 
 
 @fotografias.route("/fotografias-observacion", methods=["GET"])
+@fotografias.doc(
+    summary="Listar fotografías de observaciones",
+    description=(
+        "Lista los metadatos de fotografías del esquema legado cuyo "
+        "`deleted_at` es nulo, ordenados por fecha de creación descendente. "
+        "No requiere parámetros, cuerpo ni autenticación.\n\n"
+        "**Respuesta:** lista con `id`, `observacion_id`, `tipo_foto`, "
+        "`file_extension`, `mime_type`, fechas de creación/actualización, "
+        "`deleted_at` y `version`. Las fechas se devuelven como texto ISO 8601; "
+        "ante un error de consulta, responde con `500` y un mensaje de error."
+    ),
+)
 def get_fotografias():
 
     conn = get_connection()
@@ -66,6 +79,36 @@ def get_fotografias():
 
 
 @fotografias.route("/fotografias-observacion", methods=["POST"])
+@fotografias.doc(
+    summary="Registrar una fotografía de observación",
+    description=(
+        "Registra los metadatos de una fotografía en el esquema legado; no "
+        "sube el archivo de imagen. El JSON requiere `id`, `observacion_id` y "
+        "`tipo_foto`; `file_extension` y `mime_type` son opcionales.\n\n"
+        "**Respuesta:** mensaje e identificador. Una nueva fila responde con "
+        "`201`; si el `id` ya estaba registrado, evita duplicarla y responde "
+        "con `200`. Si falta un campo obligatorio, responde con `400`; ante un "
+        "error de persistencia, responde con `500`."
+    ),
+    requestBody={
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Identificador del registro fotográfico."},
+                        "observacion_id": {"type": "string", "description": "Identificador de la observación asociada."},
+                        "tipo_foto": {"type": "string", "description": "Tipo o categoría de fotografía."},
+                        "file_extension": {"type": "string", "description": "Extensión del archivo, si está disponible."},
+                        "mime_type": {"type": "string", "description": "Tipo MIME del archivo, si está disponible."},
+                    },
+                    "required": ["id", "observacion_id", "tipo_foto"],
+                },
+            },
+        },
+    },
+)
 def create_fotografia():
 
     data = request.get_json(silent=True) or {}
@@ -144,6 +187,49 @@ def create_fotografia():
 
 
 @fotografias.route("/observation-photos", methods=["POST"])
+@fotografias.doc(
+    summary="Sincronizar una fotografía Kospia",
+    description=(
+        "Crea o sincroniza los metadatos de una fotografía; no carga los bytes "
+        "del archivo. Requiere token Kospia y un JSON con `id`, `observation_id`, "
+        "`photo_path`, `latitude` y `longitude`. Son opcionales `plant_part` "
+        "(por defecto `general`), `altitude` y `accuracy` (por defecto `0.0`), "
+        "`source` (por defecto `camera`), `captured_at` y `file_extension` "
+        "(por defecto `jpg`).\n\n"
+        "La observación debe existir y pertenecer al usuario autenticado. Si ya "
+        "hay una fotografía con ese `id`, solo puede actualizarse si pertenece "
+        "al mismo usuario y a la misma observación.\n\n"
+        "**Respuesta:** `200` con mensaje e identificador. Responde con `400` "
+        "si faltan campos obligatorios, `404` si la observación no existe, "
+        "`403` si la observación/fotografía pertenece a otro usuario o está "
+        "asociada a otra observación, y `500` ante un error de persistencia."
+    ),
+    requestBody={
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Identificador único de la fotografía."},
+                        "observation_id": {"type": "string", "description": "Identificador de la observación asociada."},
+                        "photo_path": {"type": "string", "description": "Ruta o referencia del archivo fotográfico."},
+                        "plant_part": {"type": "string", "default": "general", "description": "Parte de la planta fotografiada."},
+                        "latitude": {"type": "number", "description": "Latitud de captura."},
+                        "longitude": {"type": "number", "description": "Longitud de captura."},
+                        "altitude": {"type": "number", "default": 0.0, "description": "Altitud de captura."},
+                        "accuracy": {"type": "number", "default": 0.0, "description": "Precisión estimada de la ubicación."},
+                        "source": {"type": "string", "default": "camera", "description": "Origen de la fotografía."},
+                        "captured_at": {"type": "string", "format": "date-time", "description": "Fecha y hora de captura."},
+                        "file_extension": {"type": "string", "default": "jpg", "description": "Extensión del archivo."},
+                    },
+                    "required": ["id", "observation_id", "photo_path", "latitude", "longitude"],
+                },
+            },
+        },
+    },
+    security=[{"KospiaBearerAuth": []}],
+)
 @require_kospia_jwt
 def create_kospia_observation_photo():
 

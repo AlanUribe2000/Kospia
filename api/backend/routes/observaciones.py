@@ -1,4 +1,5 @@
-from flask import Blueprint, g, jsonify, request
+from flask import g, jsonify, request
+from flask_smorest import Blueprint
 
 from authentication import require_kospia_jwt
 from database.connection import get_connection
@@ -8,6 +9,21 @@ observaciones = Blueprint("observaciones", __name__)
 
 
 @observaciones.route("/observaciones", methods=["GET"])
+@observaciones.doc(
+    summary="Listar observaciones",
+    description=(
+        "Lista las observaciones del esquema legado que no tienen `deleted_at`. "
+        "Se ordenan por `fecha_registro`, de la más reciente a la más antigua, "
+        "y se incluyen los nombres común y científico de la especie propuesta "
+        "cuando hay una coincidencia en el catálogo. No requiere autenticación, "
+        "parámetros ni cuerpo.\n\n"
+        "**Respuesta:** lista de observaciones con identificador, especie "
+        "propuesta y validada, descripción, coordenadas, fechas, estado de "
+        "validación, comentario profesional y versión. Las fechas se devuelven "
+        "como texto ISO 8601; ante un error de consulta, responde con `500` y "
+        "un mensaje de error."
+    ),
+)
 def get_observaciones():
 
     conn = get_connection()
@@ -83,6 +99,39 @@ def get_observaciones():
 
 
 @observaciones.route("/observaciones", methods=["POST"])
+@observaciones.doc(
+    summary="Crear una observación",
+    description=(
+        "Registra una observación en el esquema legado mediante un objeto JSON. "
+        "`id` es obligatorio. También se pueden enviar `especie_propuesta_id`, "
+        "`descripcion`, `latitud`, `longitud` y `fecha_registro`; si no se "
+        "indica la fecha, el servidor usa la fecha y hora actuales. El estado "
+        "inicial queda como `pendiente`.\n\n"
+        "**Respuesta:** mensaje e identificador de la observación. Una nueva "
+        "fila responde con `201`; si el `id` ya estaba guardado, no se duplica "
+        "y responde con `200`. Si falta `id`, responde con `400`; ante un error "
+        "de persistencia, responde con `500`."
+    ),
+    requestBody={
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Identificador único de la observación."},
+                        "especie_propuesta_id": {"type": "string", "nullable": True, "description": "Identificador de la especie propuesta."},
+                        "descripcion": {"type": "string", "nullable": True, "description": "Descripción de la observación."},
+                        "latitud": {"type": "number", "nullable": True, "description": "Latitud de la observación."},
+                        "longitud": {"type": "number", "nullable": True, "description": "Longitud de la observación."},
+                        "fecha_registro": {"type": "string", "format": "date-time", "nullable": True, "description": "Fecha de registro; si se omite o es nula, se usa la hora actual."},
+                    },
+                    "required": ["id"],
+                },
+            },
+        },
+    },
+)
 def create_observacion():
 
     data = request.get_json(silent=True) or {}
@@ -165,6 +214,42 @@ def create_observacion():
 
 
 @observaciones.route("/observations", methods=["POST"])
+@observaciones.doc(
+    summary="Sincronizar una observación Kospia",
+    description=(
+        "Crea o sincroniza una observación en el esquema de Kospia. Requiere "
+        "autenticación con token Kospia y un JSON con `id` y `species_id`. "
+        "Acepta `notes` (por defecto, texto vacío), `created_at` y `updated_at` "
+        "(por defecto, la hora actual). `user_id` es opcional; si se envía, "
+        "debe coincidir con el usuario autenticado.\n\n"
+        "Si el `id` ya existe y pertenece al mismo usuario, actualiza especie, "
+        "notas y fecha de actualización, y marca el registro como sincronizado. "
+        "No permite modificar una observación de otro usuario.\n\n"
+        "**Respuesta:** `200` con mensaje e identificador. Responde con `400` "
+        "si falta `id` o `species_id`, `403` si el usuario no coincide o el "
+        "registro pertenece a otra cuenta, y `500` ante un error de persistencia."
+    ),
+    requestBody={
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string", "description": "Identificador único de la observación."},
+                        "user_id": {"type": "string", "description": "Si se envía, debe coincidir con el usuario del token."},
+                        "species_id": {"type": "string", "description": "Identificador de la especie observada."},
+                        "notes": {"type": "string", "default": "", "description": "Notas de la observación."},
+                        "created_at": {"type": "string", "format": "date-time", "description": "Fecha de creación; por defecto, la hora actual."},
+                        "updated_at": {"type": "string", "format": "date-time", "description": "Fecha de actualización; por defecto, la hora actual."},
+                    },
+                    "required": ["id", "species_id"],
+                },
+            },
+        },
+    },
+    security=[{"KospiaBearerAuth": []}],
+)
 @require_kospia_jwt
 def create_kospia_observation():
 
