@@ -7,6 +7,15 @@ from database.connection import get_connection
 
 attachments = Blueprint("attachments", __name__)
 
+ALLOWED_EXTENSIONS = {
+    "jpg",
+    "jpeg",
+    "png",
+    "webp",
+}
+
+PROFESSIONAL_ROLES = {"professional", "admin"}
+
 
 # Carpeta donde se almacenarán físicamente las fotografías.
 BASE_DIR = os.path.dirname(
@@ -79,6 +88,45 @@ def _require_attachment_owner(attachment_id):
     return None
 
 
+def _get_attachment_owner_and_extension(attachment_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT o.user_id, p.file_extension
+            FROM public.observation_photos p
+            JOIN public.observations o ON o.id = p.observation_id
+            WHERE p.id = %s
+            LIMIT 1;
+        """, (attachment_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return None, None
+        return str(row[0]), row[1]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _get_user_role(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT role
+            FROM public.users
+            WHERE id = %s
+            LIMIT 1;
+        """, (user_id,))
+        row = cursor.fetchone()
+        return row[0] if row is not None else None
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @attachments.route(
     "/attachments/<string:attachment_id>",
     methods=["PUT"],
@@ -101,16 +149,9 @@ def upload_attachment(attachment_id):
         "jpg",
     )
 
-    allowed_extensions = {
-        "jpg",
-        "jpeg",
-        "png",
-        "webp",
-    }
-
     extension = extension.lower().lstrip(".")
 
-    if extension not in allowed_extensions:
+    if extension not in ALLOWED_EXTENSIONS:
         return jsonify({
             "error": "Extensión de archivo no permitida"
         }), 400
@@ -147,18 +188,34 @@ def upload_attachment(attachment_id):
 def download_attachment(attachment_id):
     """
     Devuelve un attachment almacenado en el servidor.
+
+    Permite acceso al propietario o a usuarios con role professional/admin.
+    La extensión se resuelve desde observation_photos.file_extension,
+    ignorando el query param ?extension= (se mantiene por compatibilidad).
     """
 
-    ownership_error = _require_attachment_owner(attachment_id)
-    if ownership_error is not None:
-        return ownership_error
-
-    extension = request.args.get(
-        "extension",
-        "jpg",
+    owner_id, file_extension = _get_attachment_owner_and_extension(
+        attachment_id
     )
 
-    extension = extension.lower().lstrip(".")
+    if owner_id is None:
+        return jsonify({
+            "error": "El attachment no existe"
+        }), 404
+
+    if owner_id != g.kospia_user_id:
+        role = _get_user_role(g.kospia_user_id)
+        if role not in PROFESSIONAL_ROLES:
+            return jsonify({
+                "error": "El attachment pertenece a otro usuario"
+            }), 403
+
+    extension = (file_extension or "").lower().lstrip(".")
+
+    if extension not in ALLOWED_EXTENSIONS:
+        return jsonify({
+            "error": "Extensión de archivo no permitida"
+        }), 400
 
     file_path = _get_attachment_path(
         attachment_id,

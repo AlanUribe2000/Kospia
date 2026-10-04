@@ -1,5 +1,7 @@
 from functools import wraps
 
+from database.connection import get_connection
+
 import jwt
 from flask import g, jsonify, request
 
@@ -52,3 +54,55 @@ def require_kospia_jwt(route):
         return route(*args, **kwargs)
 
     return wrapped
+
+
+def require_role(*allowed_roles):
+    def decorator(route):
+        @wraps(route)
+        def wrapped(*args, **kwargs):
+            user_id = getattr(g, "kospia_user_id", None)
+
+            if not user_id:
+                return jsonify({
+                    "error": "Usuario Kospia no autenticado"
+                }), 401
+
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute(
+                    """
+                    SELECT role
+                    FROM public.users
+                    WHERE id = %s
+                    LIMIT 1;
+                    """,
+                    (user_id,),
+                )
+
+                row = cursor.fetchone()
+
+                if row is None:
+                    return jsonify({
+                        "error": "Usuario Kospia no encontrado"
+                    }), 401
+
+                role = row[0]
+
+                if role not in allowed_roles:
+                    return jsonify({
+                        "error": "No tenés permisos para acceder a este recurso"
+                    }), 403
+
+                g.kospia_user_role = role
+
+                return route(*args, **kwargs)
+
+            finally:
+                cursor.close()
+                conn.close()
+
+        return wrapped
+
+    return decorator

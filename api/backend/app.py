@@ -6,6 +6,7 @@ from routes.observaciones import observaciones
 from routes.attachments import attachments
 from routes.fotografias import fotografias
 from routes.auth import auth
+from routes.professional import professional
 
 from config import Config
 
@@ -18,6 +19,7 @@ app.register_blueprint(observaciones)
 app.register_blueprint(attachments)
 app.register_blueprint(fotografias)
 app.register_blueprint(auth)
+app.register_blueprint(professional)
 
 if __name__ == "__main__":
     app.run(

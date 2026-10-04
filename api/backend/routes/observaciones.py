@@ -219,7 +219,11 @@ def create_kospia_observation():
             )
             ON CONFLICT (id)
             DO UPDATE SET
-                species_id = EXCLUDED.species_id,
+                species_id = CASE
+                    WHEN public.observations.validation_status = 'pending'
+                        THEN EXCLUDED.species_id
+                    ELSE public.observations.species_id
+                END,
                 notes = EXCLUDED.notes,
                 sync_status = 'synced',
                 updated_at = EXCLUDED.updated_at,
