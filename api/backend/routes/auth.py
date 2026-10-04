@@ -4,9 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import psycopg2
-from flask import Blueprint, g, jsonify, request
+from flask import g, jsonify, request
 from google.auth.transport import requests
 from google.oauth2 import id_token
+from flask_smorest import Blueprint
 
 from authentication import require_kospia_jwt
 from config import Config
@@ -27,6 +28,19 @@ def decode_base64url(value):
 @auth.route(
     "/auth/powersync-token",
     methods=["GET"],
+)
+@auth.doc(
+    summary="Obtener token de PowerSync",
+    description=(
+        "Emite credenciales de corta duración para que la aplicación se "
+        "conecte a PowerSync. Requiere el token de acceso Kospia del usuario; "
+        "no recibe cuerpo ni parámetros. El JWT incluye el id del usuario como "
+        "`sub`, la audiencia configurada y una expiración de 15 minutos.\n\n"
+        "**Respuesta:** objeto con `token` y `expires_at` en formato ISO 8601. "
+        "Responde con `401` si falta o no es válido el token Kospia, y con `500` "
+        "si `POWERSYNC_JWT_SECRET` no está configurado."
+    ),
+    security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
 def powersync_token():
@@ -68,6 +82,34 @@ def powersync_token():
 
 
 @auth.route("/auth/google", methods=["POST"])
+@auth.doc(
+    summary="Iniciar sesión con Google",
+    description=(
+        "Inicia sesión verificando una credencial emitida por Google. Envíe "
+        "un objeto JSON con `id_token`; se valida contra el `GOOGLE_CLIENT_ID` "
+        "configurado. Si el usuario todavía no existe, se crea; si ya existe, "
+        "se actualizan sus datos de perfil.\n\n"
+        "**Respuesta:** objeto con `access_token` Kospia (vigencia de siete "
+        "días) y `user`, que contiene `id`, `email`, `display_name` y `photo_url`. "
+        "Responde con `400` si falta `id_token`, `401` si el token de Google es "
+        "inválido o no puede verificarse, y `500` si falta configuración "
+        "necesaria o ocurre un error al guardar el usuario."
+    ),
+    requestBody={
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "id_token": {"type": "string", "description": "Credencial ID token obtenida desde Google Sign-In."},
+                    },
+                    "required": ["id_token"],
+                },
+            },
+        },
+    },
+)
 def google_login():
     data = request.get_json(silent=True) or {}
     google_id_token = data.get("id_token")
