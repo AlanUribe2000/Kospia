@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, updateObservationValidation } from '../api/client.ts'
 import type {
-  ProposedSpecies,
+  SpeciesSummary,
   ValidationPayload,
   ValidationResult,
 } from '../types/observations.ts'
@@ -11,7 +11,7 @@ import ValidationConfirmModal from './ValidationConfirmModal.tsx'
 interface Props {
   token: string
   observationId: string
-  species: ProposedSpecies
+  species: SpeciesSummary | null
   onDecided: (result: ValidationResult) => void
   onSessionInvalid: (message: string) => void
   onBack: () => void
@@ -92,12 +92,15 @@ function DecisionSection({
     <section className="panel decision">
       <h3>Decisión profesional</h3>
       <p className="muted">
-        Revisá los datos y las fotografías antes de tomar una decisión.
+        {species
+          ? 'Revisá los datos y las fotografías antes de tomar una decisión.'
+          : 'Esta observación no tiene una especie propuesta válida. Para validarla primero deberá identificarse o corregirse la especie (función aún no disponible). Por ahora solo puede rechazarse.'}
       </p>
       <div className="actions">
         <button
           type="button"
           className="btn-validate"
+          disabled={species === null}
           onClick={() => setDialog('validate')}
         >
           Validar observación
@@ -111,7 +114,7 @@ function DecisionSection({
         </button>
       </div>
 
-      {dialog === 'validate' && (
+      {dialog === 'validate' && species && (
         <ValidationConfirmModal
           species={species}
           busy={busy}

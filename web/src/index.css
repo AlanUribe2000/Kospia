@@ -276,6 +276,11 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+.muted-text {
+  color: var(--muted);
+  font-style: italic;
+}
+
 .secondary-text {
   display: block;
   font-size: 0.85rem;

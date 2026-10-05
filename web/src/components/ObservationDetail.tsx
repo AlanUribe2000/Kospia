@@ -152,6 +152,12 @@ function DetailContent({
       validated_at: result.validated_at,
       validated_by: result.validated_by,
       rejection_reason: result.rejection_reason,
+      // Solo se puede resolver localmente si coincide con la propuesta ya cargada.
+      confirmed_species:
+        result.validated_species_id !== null &&
+        prev.proposed_species?.id === result.validated_species_id
+          ? prev.proposed_species
+          : null,
     }))
   }, [])
 
@@ -221,11 +227,37 @@ function DetailContent({
           <h3>Especie propuesta</h3>
           <dl>
             <dt>Nombre común</dt>
-            <dd>{o.proposed_species.common_name || 'Especie no disponible'}</dd>
+            <dd>
+              {o.proposed_species ? (
+                o.proposed_species.common_name || 'Especie no disponible'
+              ) : (
+                <span className="muted-text">Sin especie propuesta</span>
+              )}
+            </dd>
             <dt>Nombre científico</dt>
-            <dd>{o.proposed_species.scientific_name || '—'}</dd>
+            <dd>{o.proposed_species?.scientific_name || '—'}</dd>
           </dl>
         </section>
+
+        {o.validation_status !== 'rejected' && (
+          <section className="panel">
+            <h3>Especie confirmada</h3>
+            {o.confirmed_species ? (
+              <dl>
+                <dt>Nombre común</dt>
+                <dd>{o.confirmed_species.common_name || 'Especie no disponible'}</dd>
+                <dt>Nombre científico</dt>
+                <dd>{o.confirmed_species.scientific_name || '—'}</dd>
+              </dl>
+            ) : (
+              <p className="muted-text">
+                {o.validation_status === 'validated'
+                  ? 'Especie confirmada no registrada'
+                  : 'Aún sin confirmar'}
+              </p>
+            )}
+          </section>
+        )}
       </div>
 
       <section className="panel">

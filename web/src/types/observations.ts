@@ -7,8 +7,9 @@ export interface ObservationUser {
   email: string | null
 }
 
-export interface ProposedSpecies {
-  id: string | null
+// Especie resuelta contra public.species; la API devuelve null si no resuelve.
+export interface SpeciesSummary {
+  id: string
   common_name: string | null
   scientific_name: string | null
 }
@@ -18,7 +19,8 @@ export interface ObservationSummary {
   validation_status: ValidationStatus
   created_at: string | null
   user: ObservationUser
-  proposed_species: ProposedSpecies
+  proposed_species: SpeciesSummary | null
+  confirmed_species: SpeciesSummary | null
   photo_count: number
 }
 
@@ -54,7 +56,8 @@ export interface ObservationDetail {
   validated_by: string | null
   rejection_reason: string | null
   user: ObservationUser
-  proposed_species: ProposedSpecies
+  proposed_species: SpeciesSummary | null
+  confirmed_species: SpeciesSummary | null
   photos: ObservationPhoto[]
 }
 
@@ -76,6 +79,7 @@ export interface ValidationResult {
   validated_at: string | null
   validated_by: string | null
   rejection_reason: string | null
+  validated_species_id: string | null
 }
 
 export interface ValidationResponse {

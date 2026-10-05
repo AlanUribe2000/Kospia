@@ -1,8 +1,8 @@
 import ModalShell from './ModalShell.tsx'
-import type { ProposedSpecies } from '../types/observations.ts'
+import type { SpeciesSummary } from '../types/observations.ts'
 
 interface Props {
-  species: ProposedSpecies
+  species: SpeciesSummary
   busy: boolean
   error: string | null
   notFound: boolean

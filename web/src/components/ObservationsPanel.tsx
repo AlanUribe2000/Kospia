@@ -5,6 +5,7 @@ import type {
   ValidationStatus,
 } from '../types/observations.ts'
 import { STATUS_LABEL, formatDate } from '../utils/format.ts'
+import SpeciesName from './SpeciesName.tsx'
 
 interface Props {
   token: string
@@ -143,15 +144,10 @@ function ObservationsPanel({
                     <td data-label="Fecha">{formatDate(o.created_at)}</td>
                     <td data-label="Usuario">{userLabel(o)}</td>
                     <td data-label="Especie propuesta">
-                      <span>
-                        {o.proposed_species.common_name ||
-                          'Especie no disponible'}
-                      </span>
-                      {o.proposed_species.scientific_name && (
-                        <em className="secondary-text">
-                          {o.proposed_species.scientific_name}
-                        </em>
-                      )}
+                      <SpeciesName
+                        species={o.proposed_species}
+                        emptyLabel="Sin especie propuesta"
+                      />
                     </td>
                     <td data-label="Fotos">{o.photo_count}</td>
                     <td data-label="Estado">
