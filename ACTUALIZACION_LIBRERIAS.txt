@@ -1,0 +1,136 @@
+===========================================================
+ ACTUALIZACION DE LIBRERIAS - Kospia
+ Fecha: 07/10/2026
+===========================================================
+
+Se actualizaron las dependencias de los TRES proyectos a la
+version MAS ACTUAL (incluidas versiones mayores):
+
+  - api/backend  (Python / pip)
+  - app          (Flutter / pub)  --> tambien se subio el SDK
+  - web          (React + Vite / npm)
+
+Al bajar estos cambios (git pull), tu entorno local NO se
+actualiza solo. Tenes que correr los comandos de abajo para
+que tu maquina quede con las mismas versiones. Prestar
+atencion al punto 2: hay que ACTUALIZAR FLUTTER.
+
+
+-----------------------------------------------------------
+ 1) BACKEND  (carpeta: api/backend)
+-----------------------------------------------------------
+El archivo requirements.txt fue regenerado con las nuevas
+versiones. Para aplicarlo en tu venv:
+
+  cd api/backend
+  .venv\Scripts\activate
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt
+
+Nota: si tu venv da errores raros, lo mas limpio es borrarlo
+y recrearlo:
+
+  cd api/backend
+  Remove-Item -Recurse -Force .venv      (PowerShell)
+  python -m venv .venv
+  .venv\Scripts\activate
+  pip install -r requirements.txt
+
+Para verificar que todo quedo bien:
+
+  python -c "import app; print('OK')"
+
+Debe imprimir OK sin errores.
+
+
+-----------------------------------------------------------
+ 2) APP FLUTTER  (carpeta: app)   *** IMPORTANTE ***
+-----------------------------------------------------------
+Se subio el SDK de Flutter a la version 3.47.6 (estable) y
+se actualizaron paquetes a versiones mayores:
+  - google_fonts  8.x -> 9.0.0   (requiere Flutter 3.47+)
+  - cupertino_icons 1.x -> 2.0.0
+
+PASO A: actualiza tu Flutter al canal stable mas reciente
+        (debe quedar en 3.47.6 o superior):
+
+  flutter upgrade
+
+  Verifica con:
+  flutter --version      (tiene que decir 3.47.6 o mayor)
+
+PASO B: sincroniza paquetes y regenera el codigo:
+
+  cd app
+  flutter pub get
+  dart run build_runner build          (regenera drift / .g.dart)
+
+PASO C (opcional, para validar): compila en modo debug:
+
+  flutter build apk --debug
+
+IMPORTANTE (Windows): al compilar puede pedir "Developer
+Mode" para los symlinks de plugins. Si aparece ese aviso,
+activalo con:
+
+  start ms-settings:developers
+
+y activa "Modo de desarrollador".
+
+Nota: el codigo NO necesito cambios para compilar con las
+nuevas versiones (flutter analyze: 0 errores, 0 warnings).
+
+
+-----------------------------------------------------------
+ 3) WEB  (carpeta: web)
+-----------------------------------------------------------
+Se actualizaron versiones mayores:
+  - typescript   6.x -> 7.0   (compilador nativo, mismo lenguaje)
+  - @types/node  24.x -> 26.x
+
+Para sincronizar:
+
+  cd web
+  npm install
+
+(Opcional, para instalacion 100% limpia segun el lock:)
+
+  npm ci
+
+Para validar:
+
+  npm run build        (tsc + vite build, debe terminar sin errores)
+
+
+-----------------------------------------------------------
+ RESUMEN RAPIDO (copiar y pegar)
+-----------------------------------------------------------
+  flutter upgrade
+
+  cd api/backend
+  .venv\Scripts\activate
+  pip install -r requirements.txt
+  cd ..\..
+
+  cd app
+  flutter pub get
+  dart run build_runner build
+  cd ..
+
+  cd web
+  npm install
+  cd ..
+
+
+-----------------------------------------------------------
+ NOTAS
+-----------------------------------------------------------
+- Python: se actualizaron a la ultima version compatible
+  (pip resolvio los conflictos; sin dependencias rotas).
+- La API arranca igual que siempre:
+    cd api/backend
+    .venv\Scripts\activate
+    py app.py
+- Si algo falla despues de actualizar, avisá antes de seguir
+  trabajando asi lo revisamos.
+===========================================================
