@@ -142,24 +142,42 @@ function DetailContent({
 }) {
   // Se actualiza solo con lo que confirma el servidor tras el PATCH.
   const [o, setObservation] = useState(initialObservation)
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
   const userName = o.user.display_name || o.user.email || 'Usuario no disponible'
   const showEmail = o.user.display_name && o.user.email
 
-  const handleDecided = useCallback((result: ValidationResult) => {
-    setObservation((prev) => ({
-      ...prev,
-      validation_status: result.validation_status,
-      validated_at: result.validated_at,
-      validated_by: result.validated_by,
-      rejection_reason: result.rejection_reason,
-      // Solo se puede resolver localmente si coincide con la propuesta ya cargada.
-      confirmed_species:
-        result.validated_species_id !== null &&
-        prev.proposed_species?.id === result.validated_species_id
-          ? prev.proposed_species
-          : null,
-    }))
-  }, [])
+  const handleDecided = useCallback(
+    async (result: ValidationResult, signal: AbortSignal) => {
+      setRefreshNotice(null)
+      try {
+        const response = await getProfessionalObservation(token, o.id, signal)
+        if (signal.aborted) return
+        setObservation(response.observation)
+      } catch (error) {
+        if (signal.aborted) return
+        if (
+          error instanceof ApiError &&
+          (error.kind === 'unauthorized' || error.kind === 'forbidden')
+        ) {
+          onSessionInvalid(error.message)
+          return
+        }
+
+        setObservation((previous) => ({
+          ...previous,
+          validation_status: result.validation_status,
+          validated_at: result.validated_at,
+          validated_by: result.validated_by,
+          rejection_reason: result.rejection_reason,
+          confirmed_species: null,
+        }))
+        setRefreshNotice(
+          'La decisión se guardó, pero no se pudo recargar la especie confirmada. Volvé a abrir el detalle para actualizarla.',
+        )
+      }
+    },
+    [onSessionInvalid, o.id, token],
+  )
 
   // URLs ya cargadas por cada AuthenticatedPhoto; el visor solo las reutiliza.
   const [loadedUrls, setLoadedUrls] = useState<Record<string, string>>({})
@@ -251,9 +269,9 @@ function DetailContent({
               </dl>
             ) : (
               <p className="muted-text">
-                {o.validation_status === 'validated'
+                  {refreshNotice ?? (o.validation_status === 'validated'
                   ? 'Especie confirmada no registrada'
-                  : 'Aún sin confirmar'}
+                    : 'Aún sin confirmar')}
               </p>
             )}
           </section>

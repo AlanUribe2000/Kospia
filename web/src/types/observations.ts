@@ -24,6 +24,13 @@ export interface ObservationSummary {
   photo_count: number
 }
 
+export interface ProfessionalSpecies {
+  id: string
+  common_name: string
+  scientific_name: string
+  family: string | null
+}
+
 export interface ProfessionalObservationsResponse {
   observations: ObservationSummary[]
 }
@@ -68,9 +75,11 @@ export interface ProfessionalObservationResponse {
 export type ValidationDecision = 'validated' | 'rejected'
 
 // Solo estos campos viajan en el PATCH; el servidor decide quién y cuándo.
-export type ValidationPayload =
-  | { validation_status: 'validated' }
-  | { validation_status: 'rejected'; rejection_reason: string }
+export type ValidationPayload = {
+  validation_status: 'validated' | 'rejected'
+  rejection_reason?: string
+  validated_species_id?: string
+}
 
 // Respuesta real de PATCH /professional/observations/<id>/validation.
 export interface ValidationResult {

@@ -5,6 +5,7 @@ import type {
 import type {
   ProfessionalObservationResponse,
   ProfessionalObservationsResponse,
+  ProfessionalSpecies,
   ValidationPayload,
   ValidationResponse,
   ValidationStatus,
@@ -34,6 +35,37 @@ export class ApiError extends Error {
   }
 }
 
+function networkError(): ApiError {
+  return new ApiError(
+    'network',
+    'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
+  )
+}
+
+function sessionError(status: 401 | 403): ApiError {
+  if (status === 401) {
+    return new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
+  }
+
+  return new ApiError(
+    'forbidden',
+    'Esta cuenta ya no tiene acceso al panel profesional.',
+    403,
+  )
+}
+
+function isProfessionalSpecies(value: unknown): value is ProfessionalSpecies {
+  if (typeof value !== 'object' || value === null) return false
+
+  const item = value as Record<string, unknown>
+  return (
+    typeof item.id === 'string' &&
+    typeof item.common_name === 'string' &&
+    typeof item.scientific_name === 'string' &&
+    (typeof item.family === 'string' || item.family === null)
+  )
+}
+
 export async function loginWithGoogle(
   idToken: string,
 ): Promise<GoogleLoginResponse> {
@@ -46,10 +78,7 @@ export async function loginWithGoogle(
       body: JSON.stringify({ id_token: idToken }),
     })
   } catch {
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    throw networkError()
   }
 
   if (response.status === 401) {
@@ -84,25 +113,12 @@ export async function getProfessionalObservations(
       { headers: { Authorization: `Bearer ${token}` }, signal },
     )
   } catch (error) {
-    if (signal?.aborted) {
-      throw error
-    }
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    if (signal?.aborted) throw error
+    throw networkError()
   }
 
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
-  }
-
-  if (response.status === 403) {
-    throw new ApiError(
-      'forbidden',
-      'Esta cuenta ya no tiene acceso al panel profesional.',
-      403,
-    )
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
   }
 
   if (!response.ok) {
@@ -114,6 +130,71 @@ export async function getProfessionalObservations(
   }
 
   return (await response.json()) as ProfessionalObservationsResponse
+}
+
+export async function getProfessionalSpecies(
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<ProfessionalSpecies[]> {
+  let response: Response
+
+  try {
+    response = await fetch(`${API_BASE_URL}/professional/species`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    })
+  } catch (error) {
+    if (signal?.aborted) throw error
+    throw networkError()
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
+  }
+
+  if (!response.ok) {
+    throw new ApiError(
+      'server',
+      `El servidor respondió con un error (HTTP ${response.status}).`,
+      response.status,
+    )
+  }
+
+  let data: unknown
+  try {
+    data = await response.json()
+    console.log('[SPECIES] data:', data)
+console.log('[SPECIES] Array.isArray:', Array.isArray(data))
+console.log('[SPECIES] length:', Array.isArray(data) ? data.length : 'NO ARRAY')
+  } catch {
+    throw new ApiError('server', 'El servidor devolvió una respuesta inválida.')
+  }
+
+if (
+  typeof data !== 'object' ||
+  data === null ||
+  !('species' in data) ||
+  !Array.isArray(data.species)
+) {
+  throw new ApiError(
+    'server',
+    'El servidor devolvió especies en un formato inesperado.',
+  )
+}
+
+const species: ProfessionalSpecies[] = []
+const entries: unknown[] = data.species
+  for (const item of entries) {
+    if (!isProfessionalSpecies(item)) {
+      throw new ApiError(
+        'server',
+        'El servidor devolvió una especie con un formato inesperado.',
+      )
+    }
+    species.push(item)
+  }
+
+  return species
 }
 
 export async function getProfessionalObservation(
@@ -129,33 +210,16 @@ export async function getProfessionalObservation(
       { headers: { Authorization: `Bearer ${token}` }, signal },
     )
   } catch (error) {
-    if (signal?.aborted) {
-      throw error
-    }
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    if (signal?.aborted) throw error
+    throw networkError()
   }
 
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
-  }
-
-  if (response.status === 403) {
-    throw new ApiError(
-      'forbidden',
-      'Esta cuenta ya no tiene acceso al panel profesional.',
-      403,
-    )
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
   }
 
   if (response.status === 404) {
-    throw new ApiError(
-      'notFound',
-      'La observación ya no está disponible.',
-      404,
-    )
+    throw new ApiError('notFound', 'La observación ya no está disponible.', 404)
   }
 
   if (!response.ok) {
@@ -182,34 +246,16 @@ export async function getAttachmentBlob(
       { headers: { Authorization: `Bearer ${token}` }, signal },
     )
   } catch (error) {
-    if (signal?.aborted) {
-      throw error
-    }
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    if (signal?.aborted) throw error
+    throw networkError()
   }
 
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
   }
 
-  if (response.status === 403) {
-    throw new ApiError(
-      'forbidden',
-      'Esta cuenta ya no tiene acceso al panel profesional.',
-      403,
-    )
-  }
-
-  // 404: sin metadata o sin archivo físico. 400: extensión no válida en la base.
   if (response.status === 404 || response.status === 400) {
-    throw new ApiError(
-      'notFound',
-      'Fotografía no disponible',
-      response.status,
-    )
+    throw new ApiError('notFound', 'Fotografía no disponible', response.status)
   }
 
   if (!response.ok) {
@@ -223,9 +269,7 @@ export async function getAttachmentBlob(
   try {
     return await response.blob()
   } catch (error) {
-    if (signal?.aborted) {
-      throw error
-    }
+    if (signal?.aborted) throw error
     throw new ApiError('network', 'No se pudo descargar la fotografía.')
   }
 }
@@ -252,33 +296,16 @@ export async function updateObservationValidation(
       },
     )
   } catch (error) {
-    if (signal?.aborted) {
-      throw error
-    }
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    if (signal?.aborted) throw error
+    throw networkError()
   }
 
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
-  }
-
-  if (response.status === 403) {
-    throw new ApiError(
-      'forbidden',
-      'Esta cuenta ya no tiene acceso al panel profesional.',
-      403,
-    )
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
   }
 
   if (response.status === 404) {
-    throw new ApiError(
-      'notFound',
-      'La observación ya no está disponible.',
-      404,
-    )
+    throw new ApiError('notFound', 'La observación ya no está disponible.', 404)
   }
 
   if (response.status === 409) {
@@ -323,22 +350,11 @@ export async function getProfessionalMe(
       headers: { Authorization: `Bearer ${token}` },
     })
   } catch {
-    throw new ApiError(
-      'network',
-      'No se pudo conectar con el servidor. Verificá que el backend esté activo.',
-    )
+    throw networkError()
   }
 
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'La sesión expiró o no es válida.', 401)
-  }
-
-  if (response.status === 403) {
-    throw new ApiError(
-      'forbidden',
-      'Esta cuenta no tiene acceso al panel profesional.',
-      403,
-    )
+  if (response.status === 401 || response.status === 403) {
+    throw sessionError(response.status)
   }
 
   if (!response.ok) {
