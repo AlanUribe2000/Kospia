@@ -19,6 +19,7 @@ part 'app_database.g.dart';
     Observations,
     ObservationPhotos,
     Users,
+    Notifications,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -38,6 +39,28 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(questions, questions.fieldName);
           await m.addColumn(questions, questions.requiredPart);
           await m.addColumn(questionOptions, questionOptions.valueKey);
+        }
+        if (from < 7) {
+          await m.addColumn(observations, observations.validationStatus);
+          await m.addColumn(observations, observations.validatedSpeciesId);
+          await m.addColumn(observations, observations.rejectionReason);
+          await m.createTable(notifications);
+        }
+        if (from < 8) {
+          await m.addColumn(
+            observationPhotos,
+            observationPhotos.validationStatus,
+          );
+          await m.addColumn(
+            observationPhotos,
+            observationPhotos.validationComment,
+          );
+          await m.addColumn(
+            observationPhotos,
+            observationPhotos.validatedSpeciesId,
+          );
+          await m.addColumn(observationPhotos, observationPhotos.validatedAt);
+          await m.addColumn(observationPhotos, observationPhotos.validatedBy);
         }
       },
     );
@@ -66,6 +89,30 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Observation>> getPendingObservations() => (select(
     observations,
   )..where((t) => t.syncStatus.equals(AppConstants.syncPending))).get();
+
+  Future<List<Observation>> getObservationsByValidationStatus(
+    String userId,
+    String status,
+  ) =>
+      (select(observations)
+            ..where(
+              (t) =>
+                  t.userId.equals(userId) & t.validationStatus.equals(status),
+            )
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+          .get();
+
+  Future<int> countByValidationStatus(String userId, String status) async {
+    final count = observations.id.count();
+    final query = selectOnly(observations)
+      ..addColumns([count])
+      ..where(
+        observations.userId.equals(userId) &
+            observations.validationStatus.equals(status),
+      );
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
 
   Future<int> insertObservation(ObservationsCompanion entry) =>
       into(observations).insert(entry);
@@ -188,6 +235,20 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> insertUser(UsersCompanion entry) =>
       into(users).insert(entry, mode: InsertMode.insertOrReplace);
+
+  // --- Notifications queries (solo lectura local; nunca se escriben) ---
+  Future<List<Notification>> getNotifications() => (select(
+    notifications,
+  )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+
+  Future<int> getUnreadCount() async {
+    final count = notifications.id.count();
+    final query = selectOnly(notifications)
+      ..addColumns([count])
+      ..where(notifications.readAt.isNull());
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
 
   // --- Reset database ---
   /// Borra todas las tablas y re-inserta datos semilla.

@@ -4,7 +4,7 @@ class AppConstants {
   static const String appName = 'Kospia';
   static const String appSubtitle = 'Flora Patagonica';
   static const String databaseName = 'kospia_local.db';
-  static const int databaseVersion = 6;
+  static const int databaseVersion = 8;
   // Partes de la planta para fotos
   static const List<String> plantParts = [
     'general',
@@ -24,4 +24,12 @@ class AppConstants {
   static const String syncPending = 'pending';
   static const String syncSynced = 'synced';
   static const String syncConflict = 'conflict';
+  // Estados de validación de una identificación
+  static const String validationPending = 'pending';
+  static const String validationValidated = 'validated';
+  static const String validationRejected = 'rejected';
+  // Tipos de notificación de validación
+  static const String notificationValidated = 'validated';
+  static const String notificationRejected = 'rejected';
+  static const String notificationSpeciesChanged = 'species_changed';
 }

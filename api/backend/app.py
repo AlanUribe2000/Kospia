@@ -8,6 +8,7 @@ from routes.attachments import attachments
 from routes.fotografias import fotografias
 from routes.auth import auth
 from routes.professional import professional
+from routes.notifications import notifications
 
 from config import Config
 
@@ -26,6 +27,7 @@ api.register_blueprint(auth)
 
 # professional es un Blueprint común de Flask, no de flask-smorest.
 app.register_blueprint(professional)
+app.register_blueprint(notifications)
 
 if __name__ == "__main__":
     app.run(

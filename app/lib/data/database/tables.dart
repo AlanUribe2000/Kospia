@@ -40,19 +40,16 @@ class Questions extends Table {
   TextColumn get id => text()();
   TextColumn get questionText => text()();
 
-  TextColumn get fieldName =>
-      text().withDefault(const Constant(''))();
+  TextColumn get fieldName => text().withDefault(const Constant(''))();
 
   TextColumn get requiredPart =>
       text().withDefault(const Constant('general'))();
 
   IntColumn get orderIndex => integer()();
 
-  BoolColumn get isActive =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
-  TextColumn get syncStatus =>
-      text().withDefault(const Constant('synced'))();
+  TextColumn get syncStatus => text().withDefault(const Constant('synced'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -64,11 +61,9 @@ class QuestionOptions extends Table {
   TextColumn get questionId => text()();
   TextColumn get optionText => text()();
 
-  TextColumn get valueKey =>
-      text().withDefault(const Constant(''))();
+  TextColumn get valueKey => text().withDefault(const Constant(''))();
 
-  IntColumn get orderIndex =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -93,9 +88,40 @@ class Observations extends Table {
   TextColumn get speciesId => text()();
   TextColumn get notes => text().withDefault(const Constant(''))();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  /// Estado de validación: pending, validated, rejected.
+  TextColumn get validationStatus =>
+      text().withDefault(const Constant('pending'))();
+
+  /// Especie confirmada por el profesional (caso species_changed).
+  TextColumn get validatedSpeciesId => text().nullable()();
+
+  /// Motivo del rechazo, cuando validationStatus == rejected.
+  TextColumn get rejectionReason => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get syncedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Notificaciones de validación recibidas desde el servidor (solo-bajada).
+/// La UI nunca las escribe en SQLite local; el estado de lectura se cambia
+/// vía PATCH REST y vuelve a bajar por PowerSync.
+class Notifications extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get observationId => text()();
+  TextColumn get type => text()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+  TextColumn get oldSpeciesId => text().nullable()();
+  TextColumn get oldSpeciesName => text().nullable()();
+  TextColumn get newSpeciesId => text().nullable()();
+  TextColumn get newSpeciesName => text().nullable()();
+  DateTimeColumn get readAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -119,6 +145,19 @@ class ObservationPhotos extends Table {
   TextColumn get source => text().withDefault(const Constant('camera'))();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
   DateTimeColumn get capturedAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Estado de validación por-foto: pending, validated, rejected.
+  /// Lo decide el servidor; la app nunca lo escribe (solo-bajada por PowerSync).
+  TextColumn get validationStatus =>
+      text().withDefault(const Constant('pending'))();
+
+  /// Comentario del profesional (motivo de rechazo o nota de validación).
+  TextColumn get validationComment => text().nullable()();
+
+  /// Especie corregida de esta foto (caso reasignación / species_changed).
+  TextColumn get validatedSpeciesId => text().nullable()();
+  DateTimeColumn get validatedAt => dateTime().nullable()();
+  TextColumn get validatedBy => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

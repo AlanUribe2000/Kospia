@@ -221,6 +221,30 @@ dd {
   color: var(--green-900);
 }
 
+.observations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.observations-header h2 {
+  margin: 0;
+}
+
+.observations-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.observations-refresh .muted {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .filters {
   display: flex;
   gap: 0.5rem;
@@ -674,4 +698,95 @@ button.species-picker-item:focus-visible {
     text-transform: uppercase;
     color: var(--muted);
   }
+}
+
+/* Mapa Leaflet por fotografía (OpenStreetMap). */
+.photo-map {
+  position: relative;
+  height: 220px;
+  width: 100%;
+  margin: 0.75rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d3e4d7;
+}
+
+/* Botón para expandir el mapa a un popup grande (arriba a la derecha). */
+.photo-map-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--green-900);
+  background: #fff;
+  border: 1px solid #c3d6c8;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.photo-map-expand:hover {
+  background: #f0f4f0;
+}
+
+/* Mapa ampliado dentro del modal. */
+.photo-map-large {
+  height: min(70vh, 560px);
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d3e4d7;
+}
+
+.photo-map-coords {
+  margin: 0.6rem 0 0.25rem;
+  font-size: 0.85rem;
+}
+
+/* El modal que contiene el mapa ampliado se ensancha para aprovechar el espacio. */
+.modal:has(.photo-map-large) {
+  max-width: 900px;
+}
+
+/* Resumen de la observación y estado por-foto. */
+.photo-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.photo-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.photo-comment {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #f0f4f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--green-900);
+}
+
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.photo-actions button {
+  flex: 1 1 auto;
 }

@@ -2,10 +2,11 @@ import ModalShell from './ModalShell.tsx'
 import type { SpeciesSummary } from '../types/observations.ts'
 
 interface Props {
-  species: SpeciesSummary
+  species: SpeciesSummary | null
   busy: boolean
   error: string | null
   notFound: boolean
+  scope?: 'photo' | 'all'
   onConfirm: () => void
   onCancel: () => void
   onBack: () => void
@@ -16,19 +17,29 @@ function ValidationConfirmModal({
   busy,
   error,
   notFound,
+  scope = 'all',
   onConfirm,
   onCancel,
   onBack,
 }: Props) {
+  const question =
+    scope === 'photo'
+      ? '¿Confirmás que esta fotografía corresponde a la especie propuesta?'
+      : '¿Confirmás que todas las fotografías corresponden a la especie propuesta?'
+  const confirmLabel =
+    scope === 'photo' ? 'Validar fotografía' : 'Validar todas'
+
   return (
     <ModalShell title="Confirmar validación" busy={busy} onClose={onCancel}>
-      <p>¿Confirmás que esta observación corresponde a la especie propuesta?</p>
-      <p className="modal-species">
-        <strong>{species.common_name || 'Especie no disponible'}</strong>
-        {species.scientific_name && (
-          <em className="secondary-text">{species.scientific_name}</em>
-        )}
-      </p>
+      <p>{question}</p>
+      {species && (
+        <p className="modal-species">
+          <strong>{species.common_name || 'Especie no disponible'}</strong>
+          {species.scientific_name && (
+            <em className="secondary-text">{species.scientific_name}</em>
+          )}
+        </p>
+      )}
 
       {error && (
         <p className="alert" role="alert">
@@ -57,11 +68,7 @@ function ValidationConfirmModal({
               onClick={onConfirm}
               disabled={busy}
             >
-              {busy
-                ? 'Validando…'
-                : error
-                  ? 'Reintentar'
-                  : 'Confirmar validación'}
+              {busy ? 'Validando…' : error ? 'Reintentar' : confirmLabel}
             </button>
           </>
         )}

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/notification_repository.dart';
 import '../../../data/repositories/species_repository.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../auth/services/session_service.dart';
 import '../../catalog/screens/catalog_screen.dart';
 import '../../collection/screens/my_plants_screen.dart';
 import '../../identify/screens/identify_flow_screen.dart';
+import '../../notifications/screens/notifications_screen.dart';
 import '../../ruler/screens/ruler_screen.dart';
 import '../widgets/dashboard_tab.dart';
 
@@ -59,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 DashboardTab(onNavigate: _navigateTo),
                 const IdentifyFlowScreen(),
-                const MyPlantsScreen(),
+                MyPlantsScreen(onNavigate: _navigateTo),
                 const CatalogScreen(),
                 const RulerScreen(),
               ],
@@ -142,6 +144,20 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'MIS PLANTAS',
               isSelected: _currentIndex == 2,
               onTap: () => _navigateTo(2),
+            ),
+            const SizedBox(height: 16),
+            _NavItem(
+              icon: Icons.notifications_rounded,
+              label: 'AVISOS',
+              isSelected: false,
+              badge: const _NotificationsBadge(),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             _NavItem(
@@ -230,8 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (dialogContext.mounted) {
                               setDialogState(() {
                                 isLoggingOut = false;
-                                errorMessage =
-                                    'No se pudo cerrar sesión. Intentá nuevamente.';
+                                errorMessage = 'No se pudo cerrar sesión. Intentá nuevamente.';
                               });
                             }
                           }
@@ -326,12 +341,14 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final Widget? badge;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -340,16 +357,22 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.white.withValues(alpha: 0.25)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Icon(icon, color: Colors.white, size: 22)),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(child: Icon(icon, color: Colors.white, size: 22)),
+              ),
+              if (badge != null) Positioned(right: 2, top: 2, child: badge!),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
@@ -363,6 +386,44 @@ class _NavItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Burbuja roja con el conteo de notificaciones no leídas. Se oculta en 0.
+class _NotificationsBadge extends StatelessWidget {
+  const _NotificationsBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final repository = context.watch<NotificationRepository>();
+
+    return FutureBuilder<int>(
+      future: repository.getUnreadCount(),
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        if (count <= 0) return const SizedBox.shrink();
+
+        return Container(
+          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: AppColors.error,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.accentGreen, width: 1.5),
+          ),
+          child: Center(
+            child: Text(
+              count > 9 ? '•' : '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -2649,6 +2649,40 @@ class $ObservationsTable extends Observations
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   );
+  static const VerificationMeta _validationStatusMeta = const VerificationMeta(
+    'validationStatus',
+  );
+  @override
+  late final GeneratedColumn<String> validationStatus = GeneratedColumn<String>(
+    'validation_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _validatedSpeciesIdMeta =
+      const VerificationMeta('validatedSpeciesId');
+  @override
+  late final GeneratedColumn<String> validatedSpeciesId =
+      GeneratedColumn<String>(
+        'validated_species_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _rejectionReasonMeta = const VerificationMeta(
+    'rejectionReason',
+  );
+  @override
+  late final GeneratedColumn<String> rejectionReason = GeneratedColumn<String>(
+    'rejection_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2691,6 +2725,9 @@ class $ObservationsTable extends Observations
     speciesId,
     notes,
     syncStatus,
+    validationStatus,
+    validatedSpeciesId,
+    rejectionReason,
     createdAt,
     updatedAt,
     syncedAt,
@@ -2740,6 +2777,33 @@ class $ObservationsTable extends Observations
         syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
       );
     }
+    if (data.containsKey('validation_status')) {
+      context.handle(
+        _validationStatusMeta,
+        validationStatus.isAcceptableOrUnknown(
+          data['validation_status']!,
+          _validationStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_species_id')) {
+      context.handle(
+        _validatedSpeciesIdMeta,
+        validatedSpeciesId.isAcceptableOrUnknown(
+          data['validated_species_id']!,
+          _validatedSpeciesIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rejection_reason')) {
+      context.handle(
+        _rejectionReasonMeta,
+        rejectionReason.isAcceptableOrUnknown(
+          data['rejection_reason']!,
+          _rejectionReasonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2787,6 +2851,18 @@ class $ObservationsTable extends Observations
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
       )!,
+      validationStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validation_status'],
+      )!,
+      validatedSpeciesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validated_species_id'],
+      ),
+      rejectionReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rejection_reason'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2814,6 +2890,15 @@ class Observation extends DataClass implements Insertable<Observation> {
   final String speciesId;
   final String notes;
   final String syncStatus;
+
+  /// Estado de validación: pending, validated, rejected.
+  final String validationStatus;
+
+  /// Especie confirmada por el profesional (caso species_changed).
+  final String? validatedSpeciesId;
+
+  /// Motivo del rechazo, cuando validationStatus == rejected.
+  final String? rejectionReason;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? syncedAt;
@@ -2823,6 +2908,9 @@ class Observation extends DataClass implements Insertable<Observation> {
     required this.speciesId,
     required this.notes,
     required this.syncStatus,
+    required this.validationStatus,
+    this.validatedSpeciesId,
+    this.rejectionReason,
     required this.createdAt,
     required this.updatedAt,
     this.syncedAt,
@@ -2835,6 +2923,13 @@ class Observation extends DataClass implements Insertable<Observation> {
     map['species_id'] = Variable<String>(speciesId);
     map['notes'] = Variable<String>(notes);
     map['sync_status'] = Variable<String>(syncStatus);
+    map['validation_status'] = Variable<String>(validationStatus);
+    if (!nullToAbsent || validatedSpeciesId != null) {
+      map['validated_species_id'] = Variable<String>(validatedSpeciesId);
+    }
+    if (!nullToAbsent || rejectionReason != null) {
+      map['rejection_reason'] = Variable<String>(rejectionReason);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || syncedAt != null) {
@@ -2850,6 +2945,13 @@ class Observation extends DataClass implements Insertable<Observation> {
       speciesId: Value(speciesId),
       notes: Value(notes),
       syncStatus: Value(syncStatus),
+      validationStatus: Value(validationStatus),
+      validatedSpeciesId: validatedSpeciesId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedSpeciesId),
+      rejectionReason: rejectionReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rejectionReason),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       syncedAt: syncedAt == null && nullToAbsent
@@ -2869,6 +2971,11 @@ class Observation extends DataClass implements Insertable<Observation> {
       speciesId: serializer.fromJson<String>(json['speciesId']),
       notes: serializer.fromJson<String>(json['notes']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      validationStatus: serializer.fromJson<String>(json['validationStatus']),
+      validatedSpeciesId: serializer.fromJson<String?>(
+        json['validatedSpeciesId'],
+      ),
+      rejectionReason: serializer.fromJson<String?>(json['rejectionReason']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
@@ -2883,6 +2990,9 @@ class Observation extends DataClass implements Insertable<Observation> {
       'speciesId': serializer.toJson<String>(speciesId),
       'notes': serializer.toJson<String>(notes),
       'syncStatus': serializer.toJson<String>(syncStatus),
+      'validationStatus': serializer.toJson<String>(validationStatus),
+      'validatedSpeciesId': serializer.toJson<String?>(validatedSpeciesId),
+      'rejectionReason': serializer.toJson<String?>(rejectionReason),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'syncedAt': serializer.toJson<DateTime?>(syncedAt),
@@ -2895,6 +3005,9 @@ class Observation extends DataClass implements Insertable<Observation> {
     String? speciesId,
     String? notes,
     String? syncStatus,
+    String? validationStatus,
+    Value<String?> validatedSpeciesId = const Value.absent(),
+    Value<String?> rejectionReason = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> syncedAt = const Value.absent(),
@@ -2904,6 +3017,13 @@ class Observation extends DataClass implements Insertable<Observation> {
     speciesId: speciesId ?? this.speciesId,
     notes: notes ?? this.notes,
     syncStatus: syncStatus ?? this.syncStatus,
+    validationStatus: validationStatus ?? this.validationStatus,
+    validatedSpeciesId: validatedSpeciesId.present
+        ? validatedSpeciesId.value
+        : this.validatedSpeciesId,
+    rejectionReason: rejectionReason.present
+        ? rejectionReason.value
+        : this.rejectionReason,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
@@ -2917,6 +3037,15 @@ class Observation extends DataClass implements Insertable<Observation> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      validationStatus: data.validationStatus.present
+          ? data.validationStatus.value
+          : this.validationStatus,
+      validatedSpeciesId: data.validatedSpeciesId.present
+          ? data.validatedSpeciesId.value
+          : this.validatedSpeciesId,
+      rejectionReason: data.rejectionReason.present
+          ? data.rejectionReason.value
+          : this.rejectionReason,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
@@ -2931,6 +3060,9 @@ class Observation extends DataClass implements Insertable<Observation> {
           ..write('speciesId: $speciesId, ')
           ..write('notes: $notes, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('validationStatus: $validationStatus, ')
+          ..write('validatedSpeciesId: $validatedSpeciesId, ')
+          ..write('rejectionReason: $rejectionReason, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncedAt: $syncedAt')
@@ -2945,6 +3077,9 @@ class Observation extends DataClass implements Insertable<Observation> {
     speciesId,
     notes,
     syncStatus,
+    validationStatus,
+    validatedSpeciesId,
+    rejectionReason,
     createdAt,
     updatedAt,
     syncedAt,
@@ -2958,6 +3093,9 @@ class Observation extends DataClass implements Insertable<Observation> {
           other.speciesId == this.speciesId &&
           other.notes == this.notes &&
           other.syncStatus == this.syncStatus &&
+          other.validationStatus == this.validationStatus &&
+          other.validatedSpeciesId == this.validatedSpeciesId &&
+          other.rejectionReason == this.rejectionReason &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncedAt == this.syncedAt);
@@ -2969,6 +3107,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
   final Value<String> speciesId;
   final Value<String> notes;
   final Value<String> syncStatus;
+  final Value<String> validationStatus;
+  final Value<String?> validatedSpeciesId;
+  final Value<String?> rejectionReason;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> syncedAt;
@@ -2979,6 +3120,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     this.speciesId = const Value.absent(),
     this.notes = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.validationStatus = const Value.absent(),
+    this.validatedSpeciesId = const Value.absent(),
+    this.rejectionReason = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncedAt = const Value.absent(),
@@ -2990,6 +3134,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     required String speciesId,
     this.notes = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.validationStatus = const Value.absent(),
+    this.validatedSpeciesId = const Value.absent(),
+    this.rejectionReason = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncedAt = const Value.absent(),
@@ -3003,6 +3150,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     Expression<String>? speciesId,
     Expression<String>? notes,
     Expression<String>? syncStatus,
+    Expression<String>? validationStatus,
+    Expression<String>? validatedSpeciesId,
+    Expression<String>? rejectionReason,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? syncedAt,
@@ -3014,6 +3164,10 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
       if (speciesId != null) 'species_id': speciesId,
       if (notes != null) 'notes': notes,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (validationStatus != null) 'validation_status': validationStatus,
+      if (validatedSpeciesId != null)
+        'validated_species_id': validatedSpeciesId,
+      if (rejectionReason != null) 'rejection_reason': rejectionReason,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncedAt != null) 'synced_at': syncedAt,
@@ -3027,6 +3181,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     Value<String>? speciesId,
     Value<String>? notes,
     Value<String>? syncStatus,
+    Value<String>? validationStatus,
+    Value<String?>? validatedSpeciesId,
+    Value<String?>? rejectionReason,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? syncedAt,
@@ -3038,6 +3195,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
       speciesId: speciesId ?? this.speciesId,
       notes: notes ?? this.notes,
       syncStatus: syncStatus ?? this.syncStatus,
+      validationStatus: validationStatus ?? this.validationStatus,
+      validatedSpeciesId: validatedSpeciesId ?? this.validatedSpeciesId,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncedAt: syncedAt ?? this.syncedAt,
@@ -3063,6 +3223,15 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
+    if (validationStatus.present) {
+      map['validation_status'] = Variable<String>(validationStatus.value);
+    }
+    if (validatedSpeciesId.present) {
+      map['validated_species_id'] = Variable<String>(validatedSpeciesId.value);
+    }
+    if (rejectionReason.present) {
+      map['rejection_reason'] = Variable<String>(rejectionReason.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3086,6 +3255,9 @@ class ObservationsCompanion extends UpdateCompanion<Observation> {
           ..write('speciesId: $speciesId, ')
           ..write('notes: $notes, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('validationStatus: $validationStatus, ')
+          ..write('validatedSpeciesId: $validatedSpeciesId, ')
+          ..write('rejectionReason: $rejectionReason, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncedAt: $syncedAt, ')
@@ -3224,6 +3396,63 @@ class $ObservationPhotosTable extends ObservationPhotos
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _validationStatusMeta = const VerificationMeta(
+    'validationStatus',
+  );
+  @override
+  late final GeneratedColumn<String> validationStatus = GeneratedColumn<String>(
+    'validation_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _validationCommentMeta = const VerificationMeta(
+    'validationComment',
+  );
+  @override
+  late final GeneratedColumn<String> validationComment =
+      GeneratedColumn<String>(
+        'validation_comment',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _validatedSpeciesIdMeta =
+      const VerificationMeta('validatedSpeciesId');
+  @override
+  late final GeneratedColumn<String> validatedSpeciesId =
+      GeneratedColumn<String>(
+        'validated_species_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _validatedAtMeta = const VerificationMeta(
+    'validatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> validatedAt = GeneratedColumn<DateTime>(
+    'validated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _validatedByMeta = const VerificationMeta(
+    'validatedBy',
+  );
+  @override
+  late final GeneratedColumn<String> validatedBy = GeneratedColumn<String>(
+    'validated_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3237,6 +3466,11 @@ class $ObservationPhotosTable extends ObservationPhotos
     source,
     syncStatus,
     capturedAt,
+    validationStatus,
+    validationComment,
+    validatedSpeciesId,
+    validatedAt,
+    validatedBy,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3326,6 +3560,51 @@ class $ObservationPhotosTable extends ObservationPhotos
         capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
       );
     }
+    if (data.containsKey('validation_status')) {
+      context.handle(
+        _validationStatusMeta,
+        validationStatus.isAcceptableOrUnknown(
+          data['validation_status']!,
+          _validationStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validation_comment')) {
+      context.handle(
+        _validationCommentMeta,
+        validationComment.isAcceptableOrUnknown(
+          data['validation_comment']!,
+          _validationCommentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_species_id')) {
+      context.handle(
+        _validatedSpeciesIdMeta,
+        validatedSpeciesId.isAcceptableOrUnknown(
+          data['validated_species_id']!,
+          _validatedSpeciesIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_at')) {
+      context.handle(
+        _validatedAtMeta,
+        validatedAt.isAcceptableOrUnknown(
+          data['validated_at']!,
+          _validatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_by')) {
+      context.handle(
+        _validatedByMeta,
+        validatedBy.isAcceptableOrUnknown(
+          data['validated_by']!,
+          _validatedByMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3379,6 +3658,26 @@ class $ObservationPhotosTable extends ObservationPhotos
         DriftSqlType.dateTime,
         data['${effectivePrefix}captured_at'],
       )!,
+      validationStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validation_status'],
+      )!,
+      validationComment: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validation_comment'],
+      ),
+      validatedSpeciesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validated_species_id'],
+      ),
+      validatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}validated_at'],
+      ),
+      validatedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}validated_by'],
+      ),
     );
   }
 
@@ -3405,6 +3704,18 @@ class ObservationPhoto extends DataClass
   final String source;
   final String syncStatus;
   final DateTime capturedAt;
+
+  /// Estado de validación por-foto: pending, validated, rejected.
+  /// Lo decide el servidor; la app nunca lo escribe (solo-bajada por PowerSync).
+  final String validationStatus;
+
+  /// Comentario del profesional (motivo de rechazo o nota de validación).
+  final String? validationComment;
+
+  /// Especie corregida de esta foto (caso reasignación / species_changed).
+  final String? validatedSpeciesId;
+  final DateTime? validatedAt;
+  final String? validatedBy;
   const ObservationPhoto({
     required this.id,
     required this.observationId,
@@ -3417,6 +3728,11 @@ class ObservationPhoto extends DataClass
     required this.source,
     required this.syncStatus,
     required this.capturedAt,
+    required this.validationStatus,
+    this.validationComment,
+    this.validatedSpeciesId,
+    this.validatedAt,
+    this.validatedBy,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3432,6 +3748,19 @@ class ObservationPhoto extends DataClass
     map['source'] = Variable<String>(source);
     map['sync_status'] = Variable<String>(syncStatus);
     map['captured_at'] = Variable<DateTime>(capturedAt);
+    map['validation_status'] = Variable<String>(validationStatus);
+    if (!nullToAbsent || validationComment != null) {
+      map['validation_comment'] = Variable<String>(validationComment);
+    }
+    if (!nullToAbsent || validatedSpeciesId != null) {
+      map['validated_species_id'] = Variable<String>(validatedSpeciesId);
+    }
+    if (!nullToAbsent || validatedAt != null) {
+      map['validated_at'] = Variable<DateTime>(validatedAt);
+    }
+    if (!nullToAbsent || validatedBy != null) {
+      map['validated_by'] = Variable<String>(validatedBy);
+    }
     return map;
   }
 
@@ -3448,6 +3777,19 @@ class ObservationPhoto extends DataClass
       source: Value(source),
       syncStatus: Value(syncStatus),
       capturedAt: Value(capturedAt),
+      validationStatus: Value(validationStatus),
+      validationComment: validationComment == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validationComment),
+      validatedSpeciesId: validatedSpeciesId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedSpeciesId),
+      validatedAt: validatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedAt),
+      validatedBy: validatedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedBy),
     );
   }
 
@@ -3468,6 +3810,15 @@ class ObservationPhoto extends DataClass
       source: serializer.fromJson<String>(json['source']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      validationStatus: serializer.fromJson<String>(json['validationStatus']),
+      validationComment: serializer.fromJson<String?>(
+        json['validationComment'],
+      ),
+      validatedSpeciesId: serializer.fromJson<String?>(
+        json['validatedSpeciesId'],
+      ),
+      validatedAt: serializer.fromJson<DateTime?>(json['validatedAt']),
+      validatedBy: serializer.fromJson<String?>(json['validatedBy']),
     );
   }
   @override
@@ -3485,6 +3836,11 @@ class ObservationPhoto extends DataClass
       'source': serializer.toJson<String>(source),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'validationStatus': serializer.toJson<String>(validationStatus),
+      'validationComment': serializer.toJson<String?>(validationComment),
+      'validatedSpeciesId': serializer.toJson<String?>(validatedSpeciesId),
+      'validatedAt': serializer.toJson<DateTime?>(validatedAt),
+      'validatedBy': serializer.toJson<String?>(validatedBy),
     };
   }
 
@@ -3500,6 +3856,11 @@ class ObservationPhoto extends DataClass
     String? source,
     String? syncStatus,
     DateTime? capturedAt,
+    String? validationStatus,
+    Value<String?> validationComment = const Value.absent(),
+    Value<String?> validatedSpeciesId = const Value.absent(),
+    Value<DateTime?> validatedAt = const Value.absent(),
+    Value<String?> validatedBy = const Value.absent(),
   }) => ObservationPhoto(
     id: id ?? this.id,
     observationId: observationId ?? this.observationId,
@@ -3512,6 +3873,15 @@ class ObservationPhoto extends DataClass
     source: source ?? this.source,
     syncStatus: syncStatus ?? this.syncStatus,
     capturedAt: capturedAt ?? this.capturedAt,
+    validationStatus: validationStatus ?? this.validationStatus,
+    validationComment: validationComment.present
+        ? validationComment.value
+        : this.validationComment,
+    validatedSpeciesId: validatedSpeciesId.present
+        ? validatedSpeciesId.value
+        : this.validatedSpeciesId,
+    validatedAt: validatedAt.present ? validatedAt.value : this.validatedAt,
+    validatedBy: validatedBy.present ? validatedBy.value : this.validatedBy,
   );
   ObservationPhoto copyWithCompanion(ObservationPhotosCompanion data) {
     return ObservationPhoto(
@@ -3532,6 +3902,21 @@ class ObservationPhoto extends DataClass
       capturedAt: data.capturedAt.present
           ? data.capturedAt.value
           : this.capturedAt,
+      validationStatus: data.validationStatus.present
+          ? data.validationStatus.value
+          : this.validationStatus,
+      validationComment: data.validationComment.present
+          ? data.validationComment.value
+          : this.validationComment,
+      validatedSpeciesId: data.validatedSpeciesId.present
+          ? data.validatedSpeciesId.value
+          : this.validatedSpeciesId,
+      validatedAt: data.validatedAt.present
+          ? data.validatedAt.value
+          : this.validatedAt,
+      validatedBy: data.validatedBy.present
+          ? data.validatedBy.value
+          : this.validatedBy,
     );
   }
 
@@ -3548,7 +3933,12 @@ class ObservationPhoto extends DataClass
           ..write('accuracy: $accuracy, ')
           ..write('source: $source, ')
           ..write('syncStatus: $syncStatus, ')
-          ..write('capturedAt: $capturedAt')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('validationStatus: $validationStatus, ')
+          ..write('validationComment: $validationComment, ')
+          ..write('validatedSpeciesId: $validatedSpeciesId, ')
+          ..write('validatedAt: $validatedAt, ')
+          ..write('validatedBy: $validatedBy')
           ..write(')'))
         .toString();
   }
@@ -3566,6 +3956,11 @@ class ObservationPhoto extends DataClass
     source,
     syncStatus,
     capturedAt,
+    validationStatus,
+    validationComment,
+    validatedSpeciesId,
+    validatedAt,
+    validatedBy,
   );
   @override
   bool operator ==(Object other) =>
@@ -3581,7 +3976,12 @@ class ObservationPhoto extends DataClass
           other.accuracy == this.accuracy &&
           other.source == this.source &&
           other.syncStatus == this.syncStatus &&
-          other.capturedAt == this.capturedAt);
+          other.capturedAt == this.capturedAt &&
+          other.validationStatus == this.validationStatus &&
+          other.validationComment == this.validationComment &&
+          other.validatedSpeciesId == this.validatedSpeciesId &&
+          other.validatedAt == this.validatedAt &&
+          other.validatedBy == this.validatedBy);
 }
 
 class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
@@ -3596,6 +3996,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
   final Value<String> source;
   final Value<String> syncStatus;
   final Value<DateTime> capturedAt;
+  final Value<String> validationStatus;
+  final Value<String?> validationComment;
+  final Value<String?> validatedSpeciesId;
+  final Value<DateTime?> validatedAt;
+  final Value<String?> validatedBy;
   final Value<int> rowid;
   const ObservationPhotosCompanion({
     this.id = const Value.absent(),
@@ -3609,6 +4014,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
     this.source = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.capturedAt = const Value.absent(),
+    this.validationStatus = const Value.absent(),
+    this.validationComment = const Value.absent(),
+    this.validatedSpeciesId = const Value.absent(),
+    this.validatedAt = const Value.absent(),
+    this.validatedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ObservationPhotosCompanion.insert({
@@ -3623,6 +4033,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
     this.source = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.capturedAt = const Value.absent(),
+    this.validationStatus = const Value.absent(),
+    this.validationComment = const Value.absent(),
+    this.validatedSpeciesId = const Value.absent(),
+    this.validatedAt = const Value.absent(),
+    this.validatedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        observationId = Value(observationId),
@@ -3641,6 +4056,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
     Expression<String>? source,
     Expression<String>? syncStatus,
     Expression<DateTime>? capturedAt,
+    Expression<String>? validationStatus,
+    Expression<String>? validationComment,
+    Expression<String>? validatedSpeciesId,
+    Expression<DateTime>? validatedAt,
+    Expression<String>? validatedBy,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3655,6 +4075,12 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
       if (source != null) 'source': source,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (capturedAt != null) 'captured_at': capturedAt,
+      if (validationStatus != null) 'validation_status': validationStatus,
+      if (validationComment != null) 'validation_comment': validationComment,
+      if (validatedSpeciesId != null)
+        'validated_species_id': validatedSpeciesId,
+      if (validatedAt != null) 'validated_at': validatedAt,
+      if (validatedBy != null) 'validated_by': validatedBy,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3671,6 +4097,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
     Value<String>? source,
     Value<String>? syncStatus,
     Value<DateTime>? capturedAt,
+    Value<String>? validationStatus,
+    Value<String?>? validationComment,
+    Value<String?>? validatedSpeciesId,
+    Value<DateTime?>? validatedAt,
+    Value<String?>? validatedBy,
     Value<int>? rowid,
   }) {
     return ObservationPhotosCompanion(
@@ -3685,6 +4116,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
       source: source ?? this.source,
       syncStatus: syncStatus ?? this.syncStatus,
       capturedAt: capturedAt ?? this.capturedAt,
+      validationStatus: validationStatus ?? this.validationStatus,
+      validationComment: validationComment ?? this.validationComment,
+      validatedSpeciesId: validatedSpeciesId ?? this.validatedSpeciesId,
+      validatedAt: validatedAt ?? this.validatedAt,
+      validatedBy: validatedBy ?? this.validatedBy,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3725,6 +4161,21 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
     if (capturedAt.present) {
       map['captured_at'] = Variable<DateTime>(capturedAt.value);
     }
+    if (validationStatus.present) {
+      map['validation_status'] = Variable<String>(validationStatus.value);
+    }
+    if (validationComment.present) {
+      map['validation_comment'] = Variable<String>(validationComment.value);
+    }
+    if (validatedSpeciesId.present) {
+      map['validated_species_id'] = Variable<String>(validatedSpeciesId.value);
+    }
+    if (validatedAt.present) {
+      map['validated_at'] = Variable<DateTime>(validatedAt.value);
+    }
+    if (validatedBy.present) {
+      map['validated_by'] = Variable<String>(validatedBy.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3745,6 +4196,11 @@ class ObservationPhotosCompanion extends UpdateCompanion<ObservationPhoto> {
           ..write('source: $source, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('capturedAt: $capturedAt, ')
+          ..write('validationStatus: $validationStatus, ')
+          ..write('validationComment: $validationComment, ')
+          ..write('validatedSpeciesId: $validatedSpeciesId, ')
+          ..write('validatedAt: $validatedAt, ')
+          ..write('validatedBy: $validatedBy, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4212,6 +4668,732 @@ class UsersCompanion extends UpdateCompanion<User> {
   }
 }
 
+class $NotificationsTable extends Notifications
+    with TableInfo<$NotificationsTable, Notification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _observationIdMeta = const VerificationMeta(
+    'observationId',
+  );
+  @override
+  late final GeneratedColumn<String> observationId = GeneratedColumn<String>(
+    'observation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _oldSpeciesIdMeta = const VerificationMeta(
+    'oldSpeciesId',
+  );
+  @override
+  late final GeneratedColumn<String> oldSpeciesId = GeneratedColumn<String>(
+    'old_species_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _oldSpeciesNameMeta = const VerificationMeta(
+    'oldSpeciesName',
+  );
+  @override
+  late final GeneratedColumn<String> oldSpeciesName = GeneratedColumn<String>(
+    'old_species_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _newSpeciesIdMeta = const VerificationMeta(
+    'newSpeciesId',
+  );
+  @override
+  late final GeneratedColumn<String> newSpeciesId = GeneratedColumn<String>(
+    'new_species_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _newSpeciesNameMeta = const VerificationMeta(
+    'newSpeciesName',
+  );
+  @override
+  late final GeneratedColumn<String> newSpeciesName = GeneratedColumn<String>(
+    'new_species_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readAtMeta = const VerificationMeta('readAt');
+  @override
+  late final GeneratedColumn<DateTime> readAt = GeneratedColumn<DateTime>(
+    'read_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    observationId,
+    type,
+    title,
+    body,
+    oldSpeciesId,
+    oldSpeciesName,
+    newSpeciesId,
+    newSpeciesName,
+    readAt,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Notification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('observation_id')) {
+      context.handle(
+        _observationIdMeta,
+        observationId.isAcceptableOrUnknown(
+          data['observation_id']!,
+          _observationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_observationIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('old_species_id')) {
+      context.handle(
+        _oldSpeciesIdMeta,
+        oldSpeciesId.isAcceptableOrUnknown(
+          data['old_species_id']!,
+          _oldSpeciesIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('old_species_name')) {
+      context.handle(
+        _oldSpeciesNameMeta,
+        oldSpeciesName.isAcceptableOrUnknown(
+          data['old_species_name']!,
+          _oldSpeciesNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('new_species_id')) {
+      context.handle(
+        _newSpeciesIdMeta,
+        newSpeciesId.isAcceptableOrUnknown(
+          data['new_species_id']!,
+          _newSpeciesIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('new_species_name')) {
+      context.handle(
+        _newSpeciesNameMeta,
+        newSpeciesName.isAcceptableOrUnknown(
+          data['new_species_name']!,
+          _newSpeciesNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('read_at')) {
+      context.handle(
+        _readAtMeta,
+        readAt.isAcceptableOrUnknown(data['read_at']!, _readAtMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Notification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Notification(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      observationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}observation_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      oldSpeciesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}old_species_id'],
+      ),
+      oldSpeciesName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}old_species_name'],
+      ),
+      newSpeciesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_species_id'],
+      ),
+      newSpeciesName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_species_name'],
+      ),
+      readAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}read_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NotificationsTable createAlias(String alias) {
+    return $NotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class Notification extends DataClass implements Insertable<Notification> {
+  final String id;
+  final String userId;
+  final String observationId;
+  final String type;
+  final String title;
+  final String body;
+  final String? oldSpeciesId;
+  final String? oldSpeciesName;
+  final String? newSpeciesId;
+  final String? newSpeciesName;
+  final DateTime? readAt;
+  final DateTime createdAt;
+  const Notification({
+    required this.id,
+    required this.userId,
+    required this.observationId,
+    required this.type,
+    required this.title,
+    required this.body,
+    this.oldSpeciesId,
+    this.oldSpeciesName,
+    this.newSpeciesId,
+    this.newSpeciesName,
+    this.readAt,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['observation_id'] = Variable<String>(observationId);
+    map['type'] = Variable<String>(type);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || oldSpeciesId != null) {
+      map['old_species_id'] = Variable<String>(oldSpeciesId);
+    }
+    if (!nullToAbsent || oldSpeciesName != null) {
+      map['old_species_name'] = Variable<String>(oldSpeciesName);
+    }
+    if (!nullToAbsent || newSpeciesId != null) {
+      map['new_species_id'] = Variable<String>(newSpeciesId);
+    }
+    if (!nullToAbsent || newSpeciesName != null) {
+      map['new_species_name'] = Variable<String>(newSpeciesName);
+    }
+    if (!nullToAbsent || readAt != null) {
+      map['read_at'] = Variable<DateTime>(readAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  NotificationsCompanion toCompanion(bool nullToAbsent) {
+    return NotificationsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      observationId: Value(observationId),
+      type: Value(type),
+      title: Value(title),
+      body: Value(body),
+      oldSpeciesId: oldSpeciesId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(oldSpeciesId),
+      oldSpeciesName: oldSpeciesName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(oldSpeciesName),
+      newSpeciesId: newSpeciesId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(newSpeciesId),
+      newSpeciesName: newSpeciesName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(newSpeciesName),
+      readAt: readAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Notification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Notification(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      observationId: serializer.fromJson<String>(json['observationId']),
+      type: serializer.fromJson<String>(json['type']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      oldSpeciesId: serializer.fromJson<String?>(json['oldSpeciesId']),
+      oldSpeciesName: serializer.fromJson<String?>(json['oldSpeciesName']),
+      newSpeciesId: serializer.fromJson<String?>(json['newSpeciesId']),
+      newSpeciesName: serializer.fromJson<String?>(json['newSpeciesName']),
+      readAt: serializer.fromJson<DateTime?>(json['readAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'observationId': serializer.toJson<String>(observationId),
+      'type': serializer.toJson<String>(type),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'oldSpeciesId': serializer.toJson<String?>(oldSpeciesId),
+      'oldSpeciesName': serializer.toJson<String?>(oldSpeciesName),
+      'newSpeciesId': serializer.toJson<String?>(newSpeciesId),
+      'newSpeciesName': serializer.toJson<String?>(newSpeciesName),
+      'readAt': serializer.toJson<DateTime?>(readAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Notification copyWith({
+    String? id,
+    String? userId,
+    String? observationId,
+    String? type,
+    String? title,
+    String? body,
+    Value<String?> oldSpeciesId = const Value.absent(),
+    Value<String?> oldSpeciesName = const Value.absent(),
+    Value<String?> newSpeciesId = const Value.absent(),
+    Value<String?> newSpeciesName = const Value.absent(),
+    Value<DateTime?> readAt = const Value.absent(),
+    DateTime? createdAt,
+  }) => Notification(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    observationId: observationId ?? this.observationId,
+    type: type ?? this.type,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    oldSpeciesId: oldSpeciesId.present ? oldSpeciesId.value : this.oldSpeciesId,
+    oldSpeciesName: oldSpeciesName.present
+        ? oldSpeciesName.value
+        : this.oldSpeciesName,
+    newSpeciesId: newSpeciesId.present ? newSpeciesId.value : this.newSpeciesId,
+    newSpeciesName: newSpeciesName.present
+        ? newSpeciesName.value
+        : this.newSpeciesName,
+    readAt: readAt.present ? readAt.value : this.readAt,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Notification copyWithCompanion(NotificationsCompanion data) {
+    return Notification(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      observationId: data.observationId.present
+          ? data.observationId.value
+          : this.observationId,
+      type: data.type.present ? data.type.value : this.type,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      oldSpeciesId: data.oldSpeciesId.present
+          ? data.oldSpeciesId.value
+          : this.oldSpeciesId,
+      oldSpeciesName: data.oldSpeciesName.present
+          ? data.oldSpeciesName.value
+          : this.oldSpeciesName,
+      newSpeciesId: data.newSpeciesId.present
+          ? data.newSpeciesId.value
+          : this.newSpeciesId,
+      newSpeciesName: data.newSpeciesName.present
+          ? data.newSpeciesName.value
+          : this.newSpeciesName,
+      readAt: data.readAt.present ? data.readAt.value : this.readAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Notification(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('observationId: $observationId, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('oldSpeciesId: $oldSpeciesId, ')
+          ..write('oldSpeciesName: $oldSpeciesName, ')
+          ..write('newSpeciesId: $newSpeciesId, ')
+          ..write('newSpeciesName: $newSpeciesName, ')
+          ..write('readAt: $readAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    observationId,
+    type,
+    title,
+    body,
+    oldSpeciesId,
+    oldSpeciesName,
+    newSpeciesId,
+    newSpeciesName,
+    readAt,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Notification &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.observationId == this.observationId &&
+          other.type == this.type &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.oldSpeciesId == this.oldSpeciesId &&
+          other.oldSpeciesName == this.oldSpeciesName &&
+          other.newSpeciesId == this.newSpeciesId &&
+          other.newSpeciesName == this.newSpeciesName &&
+          other.readAt == this.readAt &&
+          other.createdAt == this.createdAt);
+}
+
+class NotificationsCompanion extends UpdateCompanion<Notification> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> observationId;
+  final Value<String> type;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<String?> oldSpeciesId;
+  final Value<String?> oldSpeciesName;
+  final Value<String?> newSpeciesId;
+  final Value<String?> newSpeciesName;
+  final Value<DateTime?> readAt;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const NotificationsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.observationId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.oldSpeciesId = const Value.absent(),
+    this.oldSpeciesName = const Value.absent(),
+    this.newSpeciesId = const Value.absent(),
+    this.newSpeciesName = const Value.absent(),
+    this.readAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NotificationsCompanion.insert({
+    required String id,
+    required String userId,
+    required String observationId,
+    required String type,
+    required String title,
+    required String body,
+    this.oldSpeciesId = const Value.absent(),
+    this.oldSpeciesName = const Value.absent(),
+    this.newSpeciesId = const Value.absent(),
+    this.newSpeciesName = const Value.absent(),
+    this.readAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       observationId = Value(observationId),
+       type = Value(type),
+       title = Value(title),
+       body = Value(body);
+  static Insertable<Notification> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? observationId,
+    Expression<String>? type,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? oldSpeciesId,
+    Expression<String>? oldSpeciesName,
+    Expression<String>? newSpeciesId,
+    Expression<String>? newSpeciesName,
+    Expression<DateTime>? readAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (observationId != null) 'observation_id': observationId,
+      if (type != null) 'type': type,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (oldSpeciesId != null) 'old_species_id': oldSpeciesId,
+      if (oldSpeciesName != null) 'old_species_name': oldSpeciesName,
+      if (newSpeciesId != null) 'new_species_id': newSpeciesId,
+      if (newSpeciesName != null) 'new_species_name': newSpeciesName,
+      if (readAt != null) 'read_at': readAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NotificationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? observationId,
+    Value<String>? type,
+    Value<String>? title,
+    Value<String>? body,
+    Value<String?>? oldSpeciesId,
+    Value<String?>? oldSpeciesName,
+    Value<String?>? newSpeciesId,
+    Value<String?>? newSpeciesName,
+    Value<DateTime?>? readAt,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return NotificationsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      observationId: observationId ?? this.observationId,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      oldSpeciesId: oldSpeciesId ?? this.oldSpeciesId,
+      oldSpeciesName: oldSpeciesName ?? this.oldSpeciesName,
+      newSpeciesId: newSpeciesId ?? this.newSpeciesId,
+      newSpeciesName: newSpeciesName ?? this.newSpeciesName,
+      readAt: readAt ?? this.readAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (observationId.present) {
+      map['observation_id'] = Variable<String>(observationId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (oldSpeciesId.present) {
+      map['old_species_id'] = Variable<String>(oldSpeciesId.value);
+    }
+    if (oldSpeciesName.present) {
+      map['old_species_name'] = Variable<String>(oldSpeciesName.value);
+    }
+    if (newSpeciesId.present) {
+      map['new_species_id'] = Variable<String>(newSpeciesId.value);
+    }
+    if (newSpeciesName.present) {
+      map['new_species_name'] = Variable<String>(newSpeciesName.value);
+    }
+    if (readAt.present) {
+      map['read_at'] = Variable<DateTime>(readAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('observationId: $observationId, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('oldSpeciesId: $oldSpeciesId, ')
+          ..write('oldSpeciesName: $oldSpeciesName, ')
+          ..write('newSpeciesId: $newSpeciesId, ')
+          ..write('newSpeciesName: $newSpeciesName, ')
+          ..write('readAt: $readAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4225,6 +5407,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ObservationPhotosTable observationPhotos =
       $ObservationPhotosTable(this);
   late final $UsersTable users = $UsersTable(this);
+  late final $NotificationsTable notifications = $NotificationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4237,6 +5420,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     observations,
     observationPhotos,
     users,
+    notifications,
   ];
 }
 
@@ -5560,6 +6744,9 @@ typedef $$ObservationsTableCreateCompanionBuilder =
       required String speciesId,
       Value<String> notes,
       Value<String> syncStatus,
+      Value<String> validationStatus,
+      Value<String?> validatedSpeciesId,
+      Value<String?> rejectionReason,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> syncedAt,
@@ -5572,6 +6759,9 @@ typedef $$ObservationsTableUpdateCompanionBuilder =
       Value<String> speciesId,
       Value<String> notes,
       Value<String> syncStatus,
+      Value<String> validationStatus,
+      Value<String?> validatedSpeciesId,
+      Value<String?> rejectionReason,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> syncedAt,
@@ -5609,6 +6799,21 @@ class $$ObservationsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5662,6 +6867,21 @@ class $$ObservationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5701,6 +6921,21 @@ class $$ObservationsTableAnnotationComposer
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
     builder: (column) => column,
   );
 
@@ -5750,6 +6985,9 @@ class $$ObservationsTableTableManager
                 Value<String> speciesId = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<String> validationStatus = const Value.absent(),
+                Value<String?> validatedSpeciesId = const Value.absent(),
+                Value<String?> rejectionReason = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
@@ -5760,6 +6998,9 @@ class $$ObservationsTableTableManager
                 speciesId: speciesId,
                 notes: notes,
                 syncStatus: syncStatus,
+                validationStatus: validationStatus,
+                validatedSpeciesId: validatedSpeciesId,
+                rejectionReason: rejectionReason,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncedAt: syncedAt,
@@ -5772,6 +7013,9 @@ class $$ObservationsTableTableManager
                 required String speciesId,
                 Value<String> notes = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<String> validationStatus = const Value.absent(),
+                Value<String?> validatedSpeciesId = const Value.absent(),
+                Value<String?> rejectionReason = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
@@ -5782,6 +7026,9 @@ class $$ObservationsTableTableManager
                 speciesId: speciesId,
                 notes: notes,
                 syncStatus: syncStatus,
+                validationStatus: validationStatus,
+                validatedSpeciesId: validatedSpeciesId,
+                rejectionReason: rejectionReason,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncedAt: syncedAt,
@@ -5834,6 +7081,11 @@ typedef $$ObservationPhotosTableCreateCompanionBuilder =
       Value<String> source,
       Value<String> syncStatus,
       Value<DateTime> capturedAt,
+      Value<String> validationStatus,
+      Value<String?> validationComment,
+      Value<String?> validatedSpeciesId,
+      Value<DateTime?> validatedAt,
+      Value<String?> validatedBy,
       Value<int> rowid,
     });
 typedef $$ObservationPhotosTableUpdateCompanionBuilder =
@@ -5849,6 +7101,11 @@ typedef $$ObservationPhotosTableUpdateCompanionBuilder =
       Value<String> source,
       Value<String> syncStatus,
       Value<DateTime> capturedAt,
+      Value<String> validationStatus,
+      Value<String?> validationComment,
+      Value<String?> validatedSpeciesId,
+      Value<DateTime?> validatedAt,
+      Value<String?> validatedBy,
       Value<int> rowid,
     });
 
@@ -5913,6 +7170,31 @@ class $$ObservationPhotosTableFilterComposer
 
   ColumnFilters<DateTime> get capturedAt => $composableBuilder(
     column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validationComment => $composableBuilder(
+    column: $table.validationComment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validatedBy => $composableBuilder(
+    column: $table.validatedBy,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5980,6 +7262,31 @@ class $$ObservationPhotosTableOrderingComposer
     column: $table.capturedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validationComment => $composableBuilder(
+    column: $table.validationComment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validatedBy => $composableBuilder(
+    column: $table.validatedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ObservationPhotosTableAnnotationComposer
@@ -6027,6 +7334,31 @@ class $$ObservationPhotosTableAnnotationComposer
 
   GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
     column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validationStatus => $composableBuilder(
+    column: $table.validationStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validationComment => $composableBuilder(
+    column: $table.validationComment,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validatedSpeciesId => $composableBuilder(
+    column: $table.validatedSpeciesId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get validatedBy => $composableBuilder(
+    column: $table.validatedBy,
     builder: (column) => column,
   );
 }
@@ -6082,6 +7414,11 @@ class $$ObservationPhotosTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> capturedAt = const Value.absent(),
+                Value<String> validationStatus = const Value.absent(),
+                Value<String?> validationComment = const Value.absent(),
+                Value<String?> validatedSpeciesId = const Value.absent(),
+                Value<DateTime?> validatedAt = const Value.absent(),
+                Value<String?> validatedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ObservationPhotosCompanion(
                 id: id,
@@ -6095,6 +7432,11 @@ class $$ObservationPhotosTableTableManager
                 source: source,
                 syncStatus: syncStatus,
                 capturedAt: capturedAt,
+                validationStatus: validationStatus,
+                validationComment: validationComment,
+                validatedSpeciesId: validatedSpeciesId,
+                validatedAt: validatedAt,
+                validatedBy: validatedBy,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6110,6 +7452,11 @@ class $$ObservationPhotosTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> capturedAt = const Value.absent(),
+                Value<String> validationStatus = const Value.absent(),
+                Value<String?> validationComment = const Value.absent(),
+                Value<String?> validatedSpeciesId = const Value.absent(),
+                Value<DateTime?> validatedAt = const Value.absent(),
+                Value<String?> validatedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ObservationPhotosCompanion.insert(
                 id: id,
@@ -6123,6 +7470,11 @@ class $$ObservationPhotosTableTableManager
                 source: source,
                 syncStatus: syncStatus,
                 capturedAt: capturedAt,
+                validationStatus: validationStatus,
+                validationComment: validationComment,
+                validatedSpeciesId: validatedSpeciesId,
+                validatedAt: validatedAt,
+                validatedBy: validatedBy,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6409,6 +7761,358 @@ typedef $$UsersTableProcessedTableManager =
       User,
       PrefetchHooks Function()
     >;
+typedef $$NotificationsTableCreateCompanionBuilder =
+    NotificationsCompanion Function({
+      required String id,
+      required String userId,
+      required String observationId,
+      required String type,
+      required String title,
+      required String body,
+      Value<String?> oldSpeciesId,
+      Value<String?> oldSpeciesName,
+      Value<String?> newSpeciesId,
+      Value<String?> newSpeciesName,
+      Value<DateTime?> readAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$NotificationsTableUpdateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> observationId,
+      Value<String> type,
+      Value<String> title,
+      Value<String> body,
+      Value<String?> oldSpeciesId,
+      Value<String?> oldSpeciesName,
+      Value<String?> newSpeciesId,
+      Value<String?> newSpeciesName,
+      Value<DateTime?> readAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$NotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get oldSpeciesId => $composableBuilder(
+    column: $table.oldSpeciesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get oldSpeciesName => $composableBuilder(
+    column: $table.oldSpeciesName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newSpeciesId => $composableBuilder(
+    column: $table.newSpeciesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newSpeciesName => $composableBuilder(
+    column: $table.newSpeciesName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get readAt => $composableBuilder(
+    column: $table.readAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get oldSpeciesId => $composableBuilder(
+    column: $table.oldSpeciesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get oldSpeciesName => $composableBuilder(
+    column: $table.oldSpeciesName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newSpeciesId => $composableBuilder(
+    column: $table.newSpeciesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newSpeciesName => $composableBuilder(
+    column: $table.newSpeciesName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get readAt => $composableBuilder(
+    column: $table.readAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get observationId => $composableBuilder(
+    column: $table.observationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get oldSpeciesId => $composableBuilder(
+    column: $table.oldSpeciesId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get oldSpeciesName => $composableBuilder(
+    column: $table.oldSpeciesName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newSpeciesId => $composableBuilder(
+    column: $table.newSpeciesId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newSpeciesName => $composableBuilder(
+    column: $table.newSpeciesName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get readAt =>
+      $composableBuilder(column: $table.readAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$NotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NotificationsTable,
+          Notification,
+          $$NotificationsTableFilterComposer,
+          $$NotificationsTableOrderingComposer,
+          $$NotificationsTableAnnotationComposer,
+          $$NotificationsTableCreateCompanionBuilder,
+          $$NotificationsTableUpdateCompanionBuilder,
+          (
+            Notification,
+            BaseReferences<_$AppDatabase, $NotificationsTable, Notification>,
+          ),
+          Notification,
+          PrefetchHooks Function()
+        > {
+  $$NotificationsTableTableManager(_$AppDatabase db, $NotificationsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotificationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> observationId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> oldSpeciesId = const Value.absent(),
+                Value<String?> oldSpeciesName = const Value.absent(),
+                Value<String?> newSpeciesId = const Value.absent(),
+                Value<String?> newSpeciesName = const Value.absent(),
+                Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotificationsCompanion(
+                id: id,
+                userId: userId,
+                observationId: observationId,
+                type: type,
+                title: title,
+                body: body,
+                oldSpeciesId: oldSpeciesId,
+                oldSpeciesName: oldSpeciesName,
+                newSpeciesId: newSpeciesId,
+                newSpeciesName: newSpeciesName,
+                readAt: readAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String observationId,
+                required String type,
+                required String title,
+                required String body,
+                Value<String?> oldSpeciesId = const Value.absent(),
+                Value<String?> oldSpeciesName = const Value.absent(),
+                Value<String?> newSpeciesId = const Value.absent(),
+                Value<String?> newSpeciesName = const Value.absent(),
+                Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotificationsCompanion.insert(
+                id: id,
+                userId: userId,
+                observationId: observationId,
+                type: type,
+                title: title,
+                body: body,
+                oldSpeciesId: oldSpeciesId,
+                oldSpeciesName: oldSpeciesName,
+                newSpeciesId: newSpeciesId,
+                newSpeciesName: newSpeciesName,
+                readAt: readAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotificationsTable, Notification>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NotificationsTable,
+                    Notification
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NotificationsTable,
+      Notification,
+      $$NotificationsTableFilterComposer,
+      $$NotificationsTableOrderingComposer,
+      $$NotificationsTableAnnotationComposer,
+      $$NotificationsTableCreateCompanionBuilder,
+      $$NotificationsTableUpdateCompanionBuilder,
+      (
+        Notification,
+        BaseReferences<_$AppDatabase, $NotificationsTable, Notification>,
+      ),
+      Notification,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6427,4 +8131,6 @@ class $AppDatabaseManager {
       $$ObservationPhotosTableTableManager(_db, _db.observationPhotos);
   $$UsersTableTableManager get users =>
       $$UsersTableTableManager(_db, _db.users);
+  $$NotificationsTableTableManager get notifications =>
+      $$NotificationsTableTableManager(_db, _db.notifications);
 }

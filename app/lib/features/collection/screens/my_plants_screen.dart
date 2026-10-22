@@ -8,6 +8,8 @@ import '../../../core/utils/species_images.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/observation_repository.dart';
 import '../../../data/repositories/species_repository.dart';
+import '../../auth/services/session_service.dart';
+import '../widgets/photo_thumbnail.dart';
 
 /// Retorna las partes requeridas para completar una especie.
 /// Espinas son opcionales (no bloquean completado). Fruto solo si es visible.
@@ -40,9 +42,13 @@ bool isSpeciesComplete(Specy species, Set<String> partsCompleted) {
   return required.every((p) => partsCompleted.contains(p));
 }
 
-/// Pantalla "Mis Plantas" con progreso dinámico y sección "sin identificar".
+/// Pantalla "Mis Plantas" con progreso dinámico y accesos a pendientes y
+/// rechazadas. La grilla solo cuenta observaciones validadas.
 class MyPlantsScreen extends StatefulWidget {
-  const MyPlantsScreen({super.key});
+  const MyPlantsScreen({super.key, this.onNavigate});
+
+  /// Permite enrutar "Volver a intentar" a la pestaña Identificar del shell.
+  final void Function(int)? onNavigate;
 
   @override
   State<MyPlantsScreen> createState() => _MyPlantsScreenState();
@@ -52,7 +58,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   List<Specy> _allSpecies = [];
   List<Specy> _filtered = [];
   Map<String, Set<String>> _progressMap = {};
-  List<Observation> _unidentifiedObs = [];
+  int _pendingCount = 0;
+  int _rejectedCount = 0;
   bool _loading = true;
   bool _sortByProgress = false;
   final TextEditingController _searchController = TextEditingController();
@@ -77,6 +84,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   Future<void> _loadData() async {
     final speciesRepo = context.read<SpeciesRepository>();
     final obsRepo = context.read<ObservationRepository>();
+    final sessionService = context.read<SessionService>();
 
     final species = await speciesRepo.getAll();
     species.sort(
@@ -84,23 +92,25 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
           a.commonName.toLowerCase().compareTo(b.commonName.toLowerCase()),
     );
 
-    final observations = await obsRepo.getAll();
-    final partsBySpecies = await obsRepo.getPartsGroupedBySpecies();
-    final progressMap = <String, Set<String>>{};
-    final unidentified = <Observation>[];
+    final session = await sessionService.loadSession();
+    final userId = session?.userId ?? '';
 
-    for (final obs in observations) {
-      if (obs.speciesId == 'unidentified') {
-        unidentified.add(obs);
-      }
-    }
+    final partsBySpecies = await obsRepo.getPartsGroupedBySpecies();
+    final pendingCount = userId.isEmpty
+        ? 0
+        : await obsRepo.getPendingCount(userId);
+    final rejectedCount = userId.isEmpty
+        ? 0
+        : await obsRepo.getRejectedCount(userId);
+    final progressMap = <String, Set<String>>{};
     progressMap.addAll(partsBySpecies);
 
     if (mounted) {
       setState(() {
         _allSpecies = species;
         _progressMap = progressMap;
-        _unidentifiedObs = unidentified;
+        _pendingCount = pendingCount;
+        _rejectedCount = rejectedCount;
         _loading = false;
       });
       _applyFilter();
@@ -250,12 +260,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            // Unidentified section
-            if (_unidentifiedObs.isNotEmpty && _searchController.text.isEmpty)
-              GestureDetector(
-                onTap: _openUnidentifiedList,
-                child: _UnidentifiedBanner(count: _unidentifiedObs.length),
-              ),
+            // Chips de estado: pendientes y rechazadas (ocultos si cuenta 0).
+            _buildStatusChips(),
             // Grid
             Expanded(
               child: RefreshIndicator(
@@ -297,51 +303,93 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     );
   }
 
-  void _openUnidentifiedList() {
+  Widget _buildStatusChips() {
+    if (_pendingCount == 0 && _rejectedCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          if (_pendingCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _StatusChip(
+                label: 'Pendientes',
+                count: _pendingCount,
+                color: AppColors.warning,
+                icon: Icons.schedule_rounded,
+                onTap: _openPendingList,
+              ),
+            ),
+          if (_rejectedCount > 0)
+            _StatusChip(
+              label: 'Rechazadas',
+              count: _rejectedCount,
+              color: AppColors.error,
+              icon: Icons.error_outline_rounded,
+              onTap: _openRejectedList,
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _openPendingList() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const _PendingListScreen()));
+  }
+
+  void _openRejectedList() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _UnidentifiedListScreen(observations: _unidentifiedObs),
+        builder: (_) => _RejectedListScreen(onNavigate: widget.onNavigate),
       ),
     );
   }
 }
 
-class _UnidentifiedBanner extends StatelessWidget {
+/// Chip de estado (pendientes/rechazadas) con contador.
+class _StatusChip extends StatelessWidget {
+  final String label;
   final int count;
-  const _UnidentifiedBanner({required this.count});
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _StatusChip({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.help_outline_rounded,
-              color: AppColors.warning,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '$count registro${count > 1 ? 's' : ''} sin identificar',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              '$label ($count)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textLight,
-              size: 20,
             ),
           ],
         ),
@@ -1152,83 +1200,74 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
   }
 }
 
-/// Pantalla que muestra todos los registros sin identificar.
-class _UnidentifiedListScreen extends StatefulWidget {
-  final List<Observation> observations;
-
-  const _UnidentifiedListScreen({required this.observations});
+/// Pantalla que muestra todas las identificaciones en estado pendiente
+/// (incluidas las que aún no tienen especie propuesta).
+class _PendingListScreen extends StatefulWidget {
+  const _PendingListScreen();
 
   @override
-  State<_UnidentifiedListScreen> createState() =>
-      _UnidentifiedListScreenState();
+  State<_PendingListScreen> createState() => _PendingListScreenState();
 }
 
-class _UnidentifiedListScreenState extends State<_UnidentifiedListScreen> {
-  Map<String, List<ObservationPhoto>> _photosByObs = {};
+class _PendingListScreenState extends State<_PendingListScreen> {
+  List<PhotoStatusItem> _photos = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadPhotos();
+    _load();
   }
 
-  Future<void> _loadPhotos() async {
+  Future<void> _load() async {
     final repo = context.read<ObservationRepository>();
-    final map = <String, List<ObservationPhoto>>{};
-    for (final obs in widget.observations) {
-      map[obs.id] = await repo.getPhotosForObservation(obs.id);
-    }
-    if (mounted)
+    final session = await context.read<SessionService>().loadSession();
+    final userId = session?.userId ?? '';
+
+    final photos = userId.isEmpty
+        ? <PhotoStatusItem>[]
+        : await repo.getPendingPhotos(userId);
+
+    if (mounted) {
       setState(() {
-        _photosByObs = map;
+        _photos = photos;
         _loading = false;
       });
-  }
-
-  void _openPhoto(String path) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _FullPhotoViewer(photoPaths: [path])),
-    );
-  }
-
-  String _partLabel(String part) {
-    switch (part) {
-      case 'general':
-        return 'General';
-      case 'hoja':
-        return 'Hoja';
-      case 'flor':
-        return 'Flor';
-      case 'espinas':
-        return 'Espinas';
-      case 'fruto':
-        return 'Fruto';
-      default:
-        return part;
     }
+  }
+
+  void _openPhoto(String photoId) {
+    final item = _photos.firstWhere(
+      (p) => p.photo.id == photoId,
+      orElse: () => _photos.first,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FullPhotoByIdViewer(
+          photoId: item.photo.id,
+          localPath: item.photo.photoPath,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sin identificar')),
+      appBar: AppBar(title: const Text('Pendientes')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : widget.observations.isEmpty
-          ? const Center(child: Text('No hay registros sin identificar'))
+          : _photos.isEmpty
+          ? const Center(child: Text('No hay fotografías pendientes'))
           : ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: widget.observations.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemCount: _photos.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final obs = widget.observations[index];
-                final photos = _photosByObs[obs.id] ?? [];
-                return _UnidentifiedCard(
-                  observation: obs,
-                  photos: photos,
+                return _PhotoStatusCard(
+                  item: _photos[index],
+                  isRejected: false,
                   onTapPhoto: _openPhoto,
-                  partLabel: _partLabel,
                 );
               },
             ),
@@ -1236,24 +1275,135 @@ class _UnidentifiedListScreenState extends State<_UnidentifiedListScreen> {
   }
 }
 
-class _UnidentifiedCard extends StatelessWidget {
-  final Observation observation;
-  final List<ObservationPhoto> photos;
-  final ValueChanged<String> onTapPhoto;
-  final String Function(String) partLabel;
+/// Pantalla que muestra las identificaciones rechazadas con su motivo.
+class _RejectedListScreen extends StatefulWidget {
+  const _RejectedListScreen({this.onNavigate});
 
-  const _UnidentifiedCard({
-    required this.observation,
-    required this.photos,
+  final void Function(int)? onNavigate;
+
+  @override
+  State<_RejectedListScreen> createState() => _RejectedListScreenState();
+}
+
+class _RejectedListScreenState extends State<_RejectedListScreen> {
+  List<PhotoStatusItem> _photos = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final repo = context.read<ObservationRepository>();
+    final session = await context.read<SessionService>().loadSession();
+    final userId = session?.userId ?? '';
+
+    final photos = userId.isEmpty
+        ? <PhotoStatusItem>[]
+        : await repo.getRejectedPhotos(userId);
+
+    if (mounted) {
+      setState(() {
+        _photos = photos;
+        _loading = false;
+      });
+    }
+  }
+
+  void _openPhoto(String photoId) {
+    final item = _photos.firstWhere(
+      (p) => p.photo.id == photoId,
+      orElse: () => _photos.first,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FullPhotoByIdViewer(
+          photoId: item.photo.id,
+          localPath: item.photo.photoPath,
+        ),
+      ),
+    );
+  }
+
+  void _retry() {
+    Navigator.of(context).pop();
+    widget.onNavigate?.call(1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Rechazadas')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _photos.isEmpty
+          ? const Center(child: Text('No hay fotografías rechazadas'))
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _photos.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                return _PhotoStatusCard(
+                  item: _photos[index],
+                  isRejected: true,
+                  onTapPhoto: _openPhoto,
+                  onRetry: _retry,
+                );
+              },
+            ),
+    );
+  }
+}
+
+/// Etiqueta legible de la parte de la planta.
+String _plantPartLabel(String part) {
+  switch (part) {
+    case 'general':
+      return 'General';
+    case 'hoja':
+      return 'Hoja';
+    case 'flor':
+      return 'Flor';
+    case 'espinas':
+      return 'Espinas';
+    case 'fruto':
+      return 'Fruto';
+    default:
+      return part;
+  }
+}
+
+/// Tarjeta por-foto para las vistas Pendientes y Rechazadas.
+/// Muestra la parte, la miniatura, la fecha y — en rechazadas — el comentario.
+class _PhotoStatusCard extends StatelessWidget {
+  final PhotoStatusItem item;
+  final bool isRejected;
+  final ValueChanged<String> onTapPhoto;
+  final VoidCallback? onRetry;
+
+  const _PhotoStatusCard({
+    required this.item,
+    required this.isRejected,
     required this.onTapPhoto,
-    required this.partLabel,
+    this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
-    final date = observation.createdAt;
+    final photo = item.photo;
+    final hasSpecies = item.speciesCommonName != null;
+    final notes = item.observationNotes.trim();
+    final date = photo.capturedAt;
     final dateStr =
         '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    final comment = item.photo.validationComment?.trim();
+    final statusColor = isRejected ? AppColors.error : AppColors.warning;
+    final statusLabel = isRejected ? 'Rechazada' : 'En revisión';
+    final statusIcon = isRejected
+        ? Icons.error_outline_rounded
+        : Icons.schedule_rounded;
 
     return Card(
       child: Padding(
@@ -1261,117 +1411,128 @@ class _UnidentifiedCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: date + note
             Row(
               children: [
-                const Icon(
-                  Icons.help_outline_rounded,
-                  color: AppColors.warning,
-                  size: 20,
+                GestureDetector(
+                  onTap: () => onTapPhoto(photo.id),
+                  child: PhotoThumbnail(
+                    photoId: photo.id,
+                    localPath: photo.photoPath,
+                    width: 64,
+                    height: 64,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (hasSpecies) ...[
+                        Text(
+                          item.speciesCommonName!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (item.speciesScientificName != null) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            item.speciesScientificName!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.textMedium,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                      ] else ...[
+                        Text(
+                          notes.isNotEmpty
+                              ? 'Sin especie — $notes'
+                              : 'Sin especie',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       Text(
-                        'Registro del $dateStr',
+                        _plantPartLabel(photo.plantPart),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
                       ),
-                      if (observation.notes.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            observation.notes,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMedium,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Capturada el $dateStr',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMedium,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-            // Photos grouped by part
-            if (photos.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              // Group photos by plantPart
-              ..._buildPhotosByPart(),
-            ],
-            if (photos.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Sin fotos',
-                  style: TextStyle(fontSize: 12, color: AppColors.textLight),
+            if (isRejected) ...[
+              const SizedBox(height: 10),
+              Text(
+                comment != null && comment.isNotEmpty
+                    ? comment
+                    : 'Sin motivo especificado.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMedium,
                 ),
               ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Volver a intentar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accentGreen,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),
     );
-  }
-
-  List<Widget> _buildPhotosByPart() {
-    final grouped = <String, List<ObservationPhoto>>{};
-    for (final photo in photos) {
-      grouped.putIfAbsent(photo.plantPart, () => []).add(photo);
-    }
-
-    return grouped.entries.map((entry) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              partLabel(entry.key),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMedium,
-              ),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              height: 64,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: entry.value.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (context, index) {
-                  final photo = entry.value[index];
-                  return GestureDetector(
-                    onTap: () => onTapPhoto(photo.photoPath),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(photo.photoPath),
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 64,
-                          height: 64,
-                          color: AppColors.surfaceLilac,
-                          child: const Icon(Icons.broken_image, size: 20),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
   }
 }

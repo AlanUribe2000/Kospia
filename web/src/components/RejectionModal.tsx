@@ -6,6 +6,7 @@ interface Props {
   busy: boolean
   error: string | null
   notFound: boolean
+  scope?: 'photo' | 'all'
   onSubmit: (reason: string) => void
   onCancel: () => void
   onBack: () => void
@@ -16,10 +17,15 @@ function RejectionModal({
   busy,
   error,
   notFound,
+  scope = 'all',
   onSubmit,
   onCancel,
   onBack,
 }: Props) {
+  const title =
+    scope === 'photo' ? 'Rechazar fotografía' : 'Rechazar todas las fotografías'
+  const submitLabel =
+    scope === 'photo' ? 'Rechazar fotografía' : 'Rechazar todas'
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState<string | null>(null)
 
@@ -38,7 +44,7 @@ function RejectionModal({
   }
 
   return (
-    <ModalShell title="Rechazar observación" busy={busy} onClose={onCancel}>
+    <ModalShell title={title} busy={busy} onClose={onCancel}>
       <form onSubmit={handleSubmit} className="form">
         <label htmlFor="rejection-reason">Motivo del rechazo</label>
         <textarea
@@ -76,11 +82,7 @@ function RejectionModal({
                 Cancelar
               </button>
               <button type="submit" className="btn-reject" disabled={busy}>
-                {busy
-                  ? 'Rechazando…'
-                  : error
-                    ? 'Reintentar'
-                    : 'Rechazar observación'}
+                {busy ? 'Rechazando…' : error ? 'Reintentar' : submitLabel}
               </button>
             </>
           )}

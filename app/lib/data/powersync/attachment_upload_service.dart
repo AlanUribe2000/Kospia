@@ -78,6 +78,13 @@ class AttachmentUploadService {
               'DELETE FROM attachments_queue WHERE id = ?',
               [queueId],
             );
+          } else if (response.statusCode == 404) {
+            // 404 = el registro de la foto (observation_photos) todavía no
+            // sincronizó al servidor vía PowerSync. Es transitorio: se deja el
+            // archivo en la cola y se reintenta en la próxima pasada (al
+            // completar un upload de PowerSync o al cambiar la conectividad),
+            // sin cortar la subida del resto de la cola.
+            continue;
           } else {
             throw StateError(
               'Error seguro subiendo attachment. HTTP ${response.statusCode}',

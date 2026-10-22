@@ -8,6 +8,7 @@ import 'data/database/app_database.dart';
 import 'data/powersync/powersync_session_manager.dart';
 import 'data/repositories/species_repository.dart';
 import 'data/repositories/observation_repository.dart';
+import 'data/repositories/notification_repository.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/services/google_auth_service.dart';
@@ -121,6 +122,10 @@ class KospiaApp extends StatelessWidget {
             manager.attachmentUploadService!,
             sessionService,
           ),
+        ),
+        ChangeNotifierProvider<NotificationRepository>(
+          create: (_) =>
+              NotificationRepository(powerSyncDatabase, sessionService),
         ),
       ],
       child: app,

@@ -61,13 +61,90 @@ class ObservationRepository extends ChangeNotifier {
     return rows.map(_observationPhotoFromPowerSync).toList();
   }
 
+  /// Observaciones del usuario filtradas por estado de validación,
+  /// más recientes primero.
+  Future<List<Observation>> getByValidationStatus(
+    String userId,
+    String status,
+  ) async {
+    final rows = await _powerSync.getAll(
+      'SELECT * FROM observations '
+      'WHERE user_id = ? AND validation_status = ? '
+      'ORDER BY created_at DESC',
+      [userId, status],
+    );
+    return rows.map(_observationFromPowerSync).toList();
+  }
+
+  Future<int> getPendingCount(String userId) =>
+      _countByValidationStatus(userId, AppConstants.validationPending);
+
+  Future<int> getRejectedCount(String userId) =>
+      _countByValidationStatus(userId, AppConstants.validationRejected);
+
+  /// Cuenta FOTOS del usuario en el estado dado (no observaciones), para que
+  /// los chips Pendientes/Rechazadas reflejen la realidad por-foto.
+  Future<int> _countByValidationStatus(String userId, String status) async {
+    final rows = await _powerSync.getAll(
+      'SELECT COUNT(*) AS total FROM observation_photos op '
+      'INNER JOIN observations o ON o.id = op.observation_id '
+      'WHERE o.user_id = ? AND op.validation_status = ?',
+      [userId, status],
+    );
+    if (rows.isEmpty) return 0;
+    return (rows.first['total'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Fotos pendientes del usuario, más recientes primero.
+  Future<List<PhotoStatusItem>> getPendingPhotos(String userId) =>
+      _photosByValidationStatus(userId, AppConstants.validationPending);
+
+  /// Fotos rechazadas del usuario (su validationComment lleva el motivo).
+  Future<List<PhotoStatusItem>> getRejectedPhotos(String userId) =>
+      _photosByValidationStatus(userId, AppConstants.validationRejected);
+
+  Future<List<PhotoStatusItem>> _photosByValidationStatus(
+    String userId,
+    String status,
+  ) async {
+    final rows = await _powerSync.getAll(
+      'SELECT op.*, '
+      's.common_name AS species_common_name, '
+      's.scientific_name AS species_scientific_name, '
+      'o.notes AS observation_notes '
+      'FROM observation_photos op '
+      'INNER JOIN observations o ON o.id = op.observation_id '
+      'LEFT JOIN species s '
+      'ON s.id = COALESCE(op.validated_species_id, o.species_id) '
+      'WHERE o.user_id = ? AND op.validation_status = ? '
+      'ORDER BY op.captured_at DESC',
+      [userId, status],
+    );
+    return rows.map(_photoStatusItemFromPowerSync).toList();
+  }
+
+  PhotoStatusItem _photoStatusItemFromPowerSync(Map<String, dynamic> row) {
+    final common = row['species_common_name']?.toString();
+    final scientific = row['species_scientific_name']?.toString();
+    return PhotoStatusItem(
+      photo: _observationPhotoFromPowerSync(row),
+      speciesCommonName: (common != null && common.isNotEmpty) ? common : null,
+      speciesScientificName: (scientific != null && scientific.isNotEmpty)
+          ? scientific
+          : null,
+      observationNotes: row['observation_notes']?.toString() ?? '',
+    );
+  }
+
   Future<List<ObservationPhoto>> getAllPhotosForSpecies(
     String speciesId,
   ) async {
     final rows = await _powerSync.getAll(
       'SELECT op.* FROM observation_photos op '
       'INNER JOIN observations o ON o.id = op.observation_id '
-      'WHERE o.species_id = ? ORDER BY op.captured_at DESC',
+      "WHERE op.validation_status = 'validated' "
+      'AND COALESCE(op.validated_species_id, o.species_id) = ? '
+      'ORDER BY op.captured_at DESC',
       [speciesId],
     );
     return rows.map(_observationPhotoFromPowerSync).toList();
@@ -77,7 +154,8 @@ class ObservationRepository extends ChangeNotifier {
     final rows = await _powerSync.getAll(
       'SELECT DISTINCT op.plant_part FROM observation_photos op '
       'INNER JOIN observations o ON o.id = op.observation_id '
-      'WHERE o.species_id = ?',
+      "WHERE op.validation_status = 'validated' "
+      'AND COALESCE(op.validated_species_id, o.species_id) = ?',
       [speciesId],
     );
     return rows
@@ -88,11 +166,13 @@ class ObservationRepository extends ChangeNotifier {
 
   Future<Map<String, Set<String>>> getPartsGroupedBySpecies() async {
     final rows = await _powerSync.getAll('''
-      SELECT o.species_id, op.plant_part
+      SELECT COALESCE(op.validated_species_id, o.species_id) AS species_id,
+             op.plant_part
       FROM observation_photos op
       INNER JOIN observations o ON o.id = op.observation_id
-      WHERE o.species_id != 'unidentified'
-      GROUP BY o.species_id, op.plant_part
+      WHERE op.validation_status = 'validated'
+        AND COALESCE(op.validated_species_id, o.species_id) != 'unidentified'
+      GROUP BY COALESCE(op.validated_species_id, o.species_id), op.plant_part
     ''');
 
     final partsBySpecies = <String, Set<String>>{};
@@ -209,6 +289,11 @@ class ObservationRepository extends ChangeNotifier {
         speciesId: row['species_id']?.toString() ?? '',
         notes: row['notes']?.toString() ?? '',
         syncStatus: row['sync_status']?.toString() ?? AppConstants.syncPending,
+        validationStatus:
+            row['validation_status']?.toString() ??
+            AppConstants.validationPending,
+        validatedSpeciesId: row['validated_species_id']?.toString(),
+        rejectionReason: row['rejection_reason']?.toString(),
         createdAt: _parseDate(row['created_at']),
         updatedAt: _parseDate(row['updated_at']),
         syncedAt: _parseNullableDate(row['synced_at']),
@@ -227,6 +312,13 @@ class ObservationRepository extends ChangeNotifier {
         source: row['source']?.toString() ?? 'camera',
         syncStatus: row['sync_status']?.toString() ?? AppConstants.syncPending,
         capturedAt: _parseDate(row['captured_at']),
+        validationStatus:
+            row['validation_status']?.toString() ??
+            AppConstants.validationPending,
+        validationComment: row['validation_comment']?.toString(),
+        validatedSpeciesId: row['validated_species_id']?.toString(),
+        validatedAt: _parseNullableDate(row['validated_at']),
+        validatedBy: row['validated_by']?.toString(),
       );
 
   DateTime _parseDate(dynamic value) =>
@@ -242,6 +334,25 @@ class ObservationRepository extends ChangeNotifier {
     if (dot < 0 || dot == fileName.length - 1) return 'jpg';
     return fileName.substring(dot + 1).toLowerCase();
   }
+}
+
+/// Foto en estado pendiente/rechazada enriquecida con la especie a la que
+/// pertenece (resuelta desde la observación) y las notas de la observación.
+/// Si no hay especie elegida (caso "sin identificar"), [speciesCommonName]
+/// queda en null y [observationNotes] lleva la descripción escrita por el
+/// usuario.
+class PhotoStatusItem {
+  final ObservationPhoto photo;
+  final String? speciesCommonName;
+  final String? speciesScientificName;
+  final String observationNotes;
+
+  const PhotoStatusItem({
+    required this.photo,
+    this.speciesCommonName,
+    this.speciesScientificName,
+    this.observationNotes = '',
+  });
 }
 
 class PhotoData {

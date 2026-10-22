@@ -60,6 +60,12 @@ class KospiaBackendConnector extends PowerSyncBackendConnector {
       final data = Map<String, dynamic>.from(operation.opData ?? {})
         ..['id'] = operation.id;
 
+      // INVARIANTE: 'notifications' es una tabla de SOLO-BAJADA. La UI nunca
+      // ejecuta execute/UPDATE/INSERT/DELETE local sobre ella; su único cambio
+      // de estado (read_at) viaja por REST (PATCH /notifications/<id>/read) y la
+      // fila vuelve a bajar por PowerSync. Por eso NO se agrega un case para
+      // 'notifications' aquí: cualquier CRUD local caería al default y lanzaría
+      // StateError, rompiendo toda la cola de upload (observations/fotos).
       switch (operation.table) {
         case 'observations':
           await _postJson('/observations', data);

@@ -1,5 +1,7 @@
 export type ValidationStatus = 'pending' | 'validated' | 'rejected'
 
+export type PhotoValidationStatus = 'pending' | 'validated' | 'rejected'
+
 // Los campos de usuario y especie son null cuando el LEFT JOIN no resuelve.
 export interface ObservationUser {
   id: string | null
@@ -35,6 +37,17 @@ export interface ProfessionalObservationsResponse {
   observations: ObservationSummary[]
 }
 
+// Conteos por estado para los contadores de las pestañas de filtro.
+export interface ObservationCounts {
+  pending: number
+  validated: number
+  rejected: number
+}
+
+export interface ProfessionalObservationCountsResponse {
+  counts: ObservationCounts
+}
+
 // Contrato real de GET /professional/observations/<id>.
 // Los numéricos pueden serializarse como string (columnas NUMERIC).
 export interface ObservationPhoto {
@@ -49,6 +62,18 @@ export interface ObservationPhoto {
   sync_status: string | null
   captured_at: string | null
   file_extension: string | null
+  validation_status: PhotoValidationStatus
+  validation_comment: string | null
+  validated_species_id: string | null
+  validated_species: SpeciesSummary | null
+  validated_at: string | null
+  validated_by: string | null
+}
+
+export interface ObservationSummaryCounts {
+  validated: number
+  rejected: number
+  pending: number
 }
 
 export interface ObservationDetail {
@@ -66,10 +91,38 @@ export interface ObservationDetail {
   proposed_species: SpeciesSummary | null
   confirmed_species: SpeciesSummary | null
   photos: ObservationPhoto[]
+  summary: ObservationSummaryCounts
 }
 
 export interface ProfessionalObservationResponse {
   observation: ObservationDetail
+}
+
+// Decisión por-foto (y "aplicar a todas"). El servidor decide quién/cuándo.
+export type PhotoDecisionPayload =
+  | { action: 'validate'; comment?: string }
+  | { action: 'reject'; comment: string }
+  | { action: 'reassign'; target_species_id: string; comment?: string }
+
+export interface PhotoDecisionResponse {
+  photo: {
+    id: string
+    validation_status: PhotoValidationStatus
+    validation_comment: string | null
+    validated_species_id: string | null
+    validated_at: string | null
+    validated_by: string | null
+    observation_id: string
+  }
+  observation: { id: string; validation_status: ValidationStatus }
+}
+
+export interface AllPhotosDecisionResponse {
+  observation: {
+    id: string
+    validation_status: ValidationStatus
+    counts: ObservationSummaryCounts
+  }
 }
 
 export type ValidationDecision = 'validated' | 'rejected'

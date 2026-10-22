@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, getProfessionalObservation } from '../api/client.ts'
+import { ApiError, decidePhotoValidation, getProfessionalObservation } from '../api/client.ts'
 import AuthenticatedPhoto from './AuthenticatedPhoto.tsx'
 import PhotoLightbox from './PhotoLightbox.tsx'
 import DecisionSection from './DecisionSection.tsx'
+import PhotoDecisionControls from './PhotoDecisionControls.tsx'
+import PhotoMap from './PhotoMap.tsx'
 import type { LightboxItem } from './PhotoLightbox.tsx'
 import type {
   ObservationDetail,
   ObservationPhoto,
-  ValidationResult,
+  PhotoDecisionPayload,
+  SpeciesSummary,
 } from '../types/observations.ts'
+import { useProfessionalSpecies } from '../hooks/useProfessionalSpecies.ts'
+import type { ProfessionalSpeciesState } from '../hooks/useProfessionalSpecies.ts'
 import { STATUS_LABEL, formatDate, toNumber } from '../utils/format.ts'
 
 interface Props {
@@ -31,7 +36,7 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function locationLabel(photo: ObservationPhoto): string {
+function locationText(photo: ObservationPhoto): string {
   const lat = toNumber(photo.latitude)
   const lon = toNumber(photo.longitude)
   if (lat === null || lon === null) return 'Ubicación no disponible'
@@ -143,11 +148,15 @@ function DetailContent({
   // Se actualiza solo con lo que confirma el servidor tras el PATCH.
   const [o, setObservation] = useState(initialObservation)
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
+  const speciesState = useProfessionalSpecies(token, onSessionInvalid)
+
   const userName = o.user.display_name || o.user.email || 'Usuario no disponible'
   const showEmail = o.user.display_name && o.user.email
 
-  const handleDecided = useCallback(
-    async (result: ValidationResult, signal: AbortSignal) => {
+  // Tras cualquier decisión (por-foto o masiva), recarga el detalle completo
+  // para reflejar estados por-foto, resumen y agregado desde el servidor.
+  const reload = useCallback(
+    async (signal: AbortSignal) => {
       setRefreshNotice(null)
       try {
         const response = await getProfessionalObservation(token, o.id, signal)
@@ -163,20 +172,25 @@ function DetailContent({
           return
         }
 
-        setObservation((previous) => ({
-          ...previous,
-          validation_status: result.validation_status,
-          validated_at: result.validated_at,
-          validated_by: result.validated_by,
-          rejection_reason: result.rejection_reason,
-          confirmed_species: null,
-        }))
         setRefreshNotice(
-          'La decisión se guardó, pero no se pudo recargar la especie confirmada. Volvé a abrir el detalle para actualizarla.',
+          'La decisión se guardó, pero no se pudo recargar el detalle. Volvé a abrir la observación para ver el estado actualizado.',
         )
       }
     },
     [onSessionInvalid, o.id, token],
+  )
+
+  const submitPhoto = useCallback(
+    async (
+      photoId: string,
+      payload: PhotoDecisionPayload,
+      signal: AbortSignal,
+    ) => {
+      await decidePhotoValidation(token, o.id, photoId, payload, signal)
+      if (signal.aborted) return
+      await reload(signal)
+    },
+    [o.id, reload, token],
   )
 
   // URLs ya cargadas por cada AuthenticatedPhoto; el visor solo las reutiliza.
@@ -212,6 +226,8 @@ function DetailContent({
   const lightboxOpen =
     openPhotoId !== null && lightboxItems.some((item) => item.id === openPhotoId)
 
+  const summary = o.summary
+
   return (
     <>
       <header className="detail-header">
@@ -220,6 +236,24 @@ function DetailContent({
           {STATUS_LABEL[o.validation_status]}
         </span>
       </header>
+
+      <div className="photo-summary">
+        <span className="badge badge-validated">
+          {summary.validated} validadas
+        </span>
+        <span className="badge badge-rejected">
+          {summary.rejected} rechazadas
+        </span>
+        <span className="badge badge-pending">
+          {summary.pending} pendientes
+        </span>
+      </div>
+
+      {refreshNotice && (
+        <p className="alert" role="alert">
+          {refreshNotice}
+        </p>
+      )}
 
       <div className="detail-grid">
         <section className="panel">
@@ -234,9 +268,7 @@ function DetailContent({
             <dt>Usuario</dt>
             <dd>
               {userName}
-              {showEmail && (
-                <em className="secondary-text">{o.user.email}</em>
-              )}
+              {showEmail && <em className="secondary-text">{o.user.email}</em>}
             </dd>
           </dl>
         </section>
@@ -256,56 +288,12 @@ function DetailContent({
             <dd>{o.proposed_species?.scientific_name || '—'}</dd>
           </dl>
         </section>
-
-        {o.validation_status !== 'rejected' && (
-          <section className="panel">
-            <h3>Especie confirmada</h3>
-            {o.confirmed_species ? (
-              <dl>
-                <dt>Nombre común</dt>
-                <dd>{o.confirmed_species.common_name || 'Especie no disponible'}</dd>
-                <dt>Nombre científico</dt>
-                <dd>{o.confirmed_species.scientific_name || '—'}</dd>
-              </dl>
-            ) : (
-              <p className="muted-text">
-                  {refreshNotice ?? (o.validation_status === 'validated'
-                  ? 'Especie confirmada no registrada'
-                    : 'Aún sin confirmar')}
-              </p>
-            )}
-          </section>
-        )}
       </div>
 
       <section className="panel">
         <h3>Notas</h3>
         <p className="notes">{o.notes?.trim() ? o.notes : 'Sin notas'}</p>
       </section>
-
-      {o.validation_status !== 'pending' && (
-        <section className="panel">
-          <h3>Decisión</h3>
-          <dl>
-            <dt>Estado</dt>
-            <dd>{STATUS_LABEL[o.validation_status]}</dd>
-            <dt>
-              {o.validation_status === 'validated'
-                ? 'Fecha de validación'
-                : 'Fecha de decisión'}
-            </dt>
-            <dd>{formatDate(o.validated_at)}</dd>
-            {o.validation_status === 'rejected' && (
-              <>
-                <dt>Motivo del rechazo</dt>
-                <dd className="notes">
-                  {o.rejection_reason?.trim() || 'No se registró un motivo.'}
-                </dd>
-              </>
-            )}
-          </dl>
-        </section>
-      )}
 
       <section className="panel">
         <h3>Fotografías ({o.photos.length})</h3>
@@ -319,21 +307,26 @@ function DetailContent({
                 photo={photo}
                 index={index + 1}
                 token={token}
+                proposedSpecies={o.proposed_species}
+                speciesState={speciesState}
+                submitPhoto={submitPhoto}
                 onSessionInvalid={onSessionInvalid}
                 onImageChange={handleImageChange}
                 onOpen={() => setOpenPhotoId(photo.id)}
+                onBack={onBack}
               />
             ))}
           </div>
         )}
       </section>
 
-      {o.validation_status === 'pending' && (
+      {o.photos.length > 0 && (
         <DecisionSection
           token={token}
           observationId={o.id}
           species={o.proposed_species}
-          onDecided={handleDecided}
+          speciesState={speciesState}
+          onDecided={reload}
           onSessionInvalid={onSessionInvalid}
           onBack={onBack}
         />
@@ -355,23 +348,48 @@ function PhotoCard({
   photo,
   index,
   token,
+  proposedSpecies,
+  speciesState,
+  submitPhoto,
   onSessionInvalid,
   onImageChange,
   onOpen,
+  onBack,
 }: {
   photo: ObservationPhoto
   index: number
   token: string
+  proposedSpecies: SpeciesSummary | null
+  speciesState: ProfessionalSpeciesState
+  submitPhoto: (
+    photoId: string,
+    payload: PhotoDecisionPayload,
+    signal: AbortSignal,
+  ) => Promise<void>
   onSessionInvalid: (message: string) => void
   onImageChange: (photoId: string, url: string | null) => void
   onOpen: () => void
+  onBack: () => void
 }) {
   const altitude = toNumber(photo.altitude)
   const accuracy = toNumber(photo.accuracy)
+  const lat = toNumber(photo.latitude)
+  const lon = toNumber(photo.longitude)
+
+  const submit = useCallback(
+    (payload: PhotoDecisionPayload, signal: AbortSignal) =>
+      submitPhoto(photo.id, payload, signal),
+    [photo.id, submitPhoto],
+  )
 
   return (
     <article className="photo-card">
-      <h4>Fotografía {index}</h4>
+      <div className="photo-card-header">
+        <h4>Fotografía {index}</h4>
+        <span className={`badge badge-${photo.validation_status}`}>
+          {STATUS_LABEL[photo.validation_status]}
+        </span>
+      </div>
       <AuthenticatedPhoto
         token={token}
         photoId={photo.id}
@@ -381,6 +399,15 @@ function PhotoCard({
         onOpen={onOpen}
         openLabel={`Ampliar fotografía ${index}`}
       />
+
+      {lat !== null && lon !== null && (
+        <PhotoMap
+          latitude={lat}
+          longitude={lon}
+          label={`Ubicación de la fotografía ${index}`}
+        />
+      )}
+
       <dl>
         {photo.plant_part && (
           <>
@@ -397,7 +424,7 @@ function PhotoCard({
         <dt>Fecha de captura</dt>
         <dd>{formatDate(photo.captured_at)}</dd>
         <dt>Ubicación</dt>
-        <dd>{locationLabel(photo)}</dd>
+        <dd>{locationText(photo)}</dd>
         {accuracy !== null && (
           <>
             <dt>Precisión</dt>
@@ -416,7 +443,36 @@ function PhotoCard({
             <dd>{photo.file_extension.toUpperCase()}</dd>
           </>
         )}
+        {photo.validated_species && (
+          <>
+            <dt>Especie corregida</dt>
+            <dd>
+              {photo.validated_species.common_name || 'Especie no disponible'}
+              {photo.validated_species.scientific_name && (
+                <em className="secondary-text">
+                  {photo.validated_species.scientific_name}
+                </em>
+              )}
+            </dd>
+          </>
+        )}
       </dl>
+
+      {photo.validation_comment && (
+        <p className="photo-comment">{photo.validation_comment}</p>
+      )}
+
+      <PhotoDecisionControls
+        proposedSpecies={proposedSpecies}
+        scope="photo"
+        speciesState={speciesState}
+        submit={submit}
+        onSessionInvalid={onSessionInvalid}
+        onBack={onBack}
+        validateLabel="Validar"
+        reassignLabel="Cambiar especie"
+        rejectLabel="Rechazar"
+      />
     </article>
   )
 }

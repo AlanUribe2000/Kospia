@@ -17,6 +17,7 @@ class PowerSyncSessionManager extends ChangeNotifier {
   AttachmentUploadService? _attachmentUploadService;
   String? _activeUserId;
   bool _isSwitching = false;
+  StreamSubscription<SyncStatus>? _statusSubscription;
 
   PowerSyncDatabase? get database => _database;
   AttachmentUploadService? get attachmentUploadService =>
@@ -53,6 +54,18 @@ class PowerSyncSessionManager extends ChangeNotifier {
         connector: KospiaBackendConnector(_sessionService),
       );
       attachmentUploadService.startConnectivityListener();
+
+      // Reintenta subir archivos pendientes cada vez que PowerSync completa un
+      // ciclo de sincronización. Esto resuelve la carrera en la que el archivo
+      // (PUT /attachments) se intenta subir antes de que el registro de la foto
+      // (observation_photos) haya sincronizado al servidor y daba 404: cuando
+      // el registro finalmente llega, este listener vuelve a disparar la cola.
+      _statusSubscription = database.statusStream.listen((status) {
+        if (!status.uploading && !status.downloading) {
+          unawaited(attachmentUploadService.uploadPending());
+        }
+      });
+
       unawaited(attachmentUploadService.uploadPending());
     } catch (_) {
       final database = _database;
@@ -70,6 +83,9 @@ class PowerSyncSessionManager extends ChangeNotifier {
   }
 
   Future<void> deactivateSession() async {
+    await _statusSubscription?.cancel();
+    _statusSubscription = null;
+
     final attachmentUploadService = _attachmentUploadService;
     _attachmentUploadService = null;
     attachmentUploadService?.dispose();
