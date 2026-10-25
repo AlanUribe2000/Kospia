@@ -8,14 +8,23 @@ import '../../../data/database/app_database.dart';
 class SpeciesDetailScreen extends StatelessWidget {
   final Specy species;
 
-  const SpeciesDetailScreen({super.key, required this.species});
+  /// Cuando el detalle se muestra como sub-vista dentro de un panel del shell
+  /// (en lugar de una ruta apilada), [onBack] cambia el sub-estado para volver
+  /// a la grilla sin tapar la barra lateral. Si es null se usa Navigator.pop
+  /// (comportamiento clásico de ruta apilada, p. ej. deep-link de avisos).
+  final VoidCallback? onBack;
+
+  const SpeciesDetailScreen({super.key, required this.species, this.onBack});
 
   @override
   Widget build(BuildContext context) {
     final images = SpeciesImages.getImages(species.scientificName);
 
     return Scaffold(
-      appBar: AppBar(title: Text(species.commonName)),
+      appBar: AppBar(
+        title: Text(species.commonName),
+        leading: onBack != null ? BackButton(onPressed: onBack) : null,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

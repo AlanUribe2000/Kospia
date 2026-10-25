@@ -22,8 +22,7 @@ interface Props {
 
 const FILTERS: { value: ValidationStatus; label: string; empty: string }[] = [
   { value: 'pending', label: 'Pendientes', empty: 'No hay observaciones pendientes.' },
-  { value: 'validated', label: 'Validadas', empty: 'No hay observaciones validadas.' },
-  { value: 'rejected', label: 'Rechazadas', empty: 'No hay observaciones rechazadas.' },
+  { value: 'reviewed', label: 'Revisadas', empty: 'No hay observaciones revisadas.' },
 ]
 
 // Intervalo de refresco automático en segundo plano (5 minutos).

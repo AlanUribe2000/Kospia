@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import psycopg2
@@ -7,9 +8,29 @@ from authentication import require_kospia_jwt, require_role
 from database.connection import get_connection
 
 
+logger = logging.getLogger(__name__)
+
 professional = Blueprint("professional", __name__)
 
-VALID_VALIDATION_STATUSES = {"pending", "validated", "rejected"}
+
+def _log_psycopg_error(exc, message, *args):
+    # Registra con lujo de detalle una excepción de psycopg2: traceback
+    # completo + el detalle de Postgres (pgcode, mensaje primario, constraint y
+    # pgerror) para poder identificar de un vistazo qué falló (p. ej. un CHECK
+    # violado). exc.diag puede no estar poblado en todos los errores, de ahí el
+    # getattr defensivo.
+    diag = getattr(exc, "diag", None)
+    logger.exception(message, *args)
+    logger.error(
+        "Detalle psycopg2: pgcode=%s message_primary=%s constraint=%s "
+        "pgerror=%s",
+        getattr(exc, "pgcode", None),
+        getattr(diag, "message_primary", None),
+        getattr(diag, "constraint_name", None),
+        getattr(exc, "pgerror", None),
+    )
+
+VALID_VALIDATION_STATUSES = {"pending", "reviewed"}
 VALID_PHOTO_ACTIONS = {"validate", "reject", "reassign"}
 MAX_COMMENT_LENGTH = 2000
 
@@ -41,20 +62,33 @@ def build_notification(notification_type, old_name, new_name, reason):
     raise ValueError(f"Tipo de notificación desconocido: {notification_type}")
 
 
-def build_photo_notification(action, part_label, comment, old_name, new_name):
+def build_photo_notification(
+    action, part_label, comment, old_name, new_name, species_name=None
+):
     # Función pura (sin BD) para la decisión por-foto individual (§3.3).
     # Devuelve (notification_type, title, body); el type respeta el CHECK de
     # notifications (validated|rejected|species_changed).
+    # species_name (opcional) identifica la especie de la foto para que la
+    # notificación diga qué foto cambió (ej: varias observaciones distintas).
     part = part_label or "una parte"
 
     if action == "validate":
-        body = f"Tu foto de {part} fue validada."
+        body = (
+            f"Tu foto de {part} ({species_name}) fue validada."
+            if species_name
+            else f"Tu foto de {part} fue validada."
+        )
         if comment:
             body = f"{body} Comentario: {comment}"
         return ("validated", "Fotografía validada", body)
 
     if action == "reject":
-        body = comment if comment else f"Tu foto de {part} fue rechazada."
+        if comment:
+            body = comment
+        elif species_name:
+            body = f"Tu foto de {part} ({species_name}) fue rechazada."
+        else:
+            body = f"Tu foto de {part} fue rechazada."
         return ("rejected", "Fotografía rechazada", body)
 
     if action == "reassign":
@@ -74,10 +108,13 @@ def build_photo_notification(action, part_label, comment, old_name, new_name):
     raise ValueError(f"Acción de foto desconocida: {action}")
 
 
-def build_bulk_notification(action, counts, comment, old_name, new_name):
+def build_bulk_notification(
+    action, counts, comment, old_name, new_name, species_name=None
+):
     # Función pura (sin BD) para el resumen "aplicar a todas" (§3.3).
     # counts = {'validated': int, 'rejected': int, 'pending': int}.
     # Prioridad de tipo: species_changed > validated > rejected.
+    # species_name (opcional) identifica la especie de la observación.
     validated_n = counts.get("validated", 0)
     rejected_n = counts.get("rejected", 0)
     total = validated_n + rejected_n + counts.get("pending", 0)
@@ -97,13 +134,22 @@ def build_bulk_notification(action, counts, comment, old_name, new_name):
         return ("species_changed", "Especie corregida", body)
 
     if action == "validate":
-        body = f"Se validaron {validated_n} foto(s)."
+        body = (
+            f"Se validaron {validated_n} foto(s) de {species_name}."
+            if species_name
+            else f"Se validaron {validated_n} foto(s)."
+        )
         if comment:
             body = f"{body} Comentario: {comment}"
         return ("validated", "Fotografías validadas", body)
 
     if action == "reject":
-        body = comment if comment else f"Se rechazaron {rejected_n} foto(s)."
+        if comment:
+            body = comment
+        elif species_name:
+            body = f"Se rechazaron {rejected_n} foto(s) de {species_name}."
+        else:
+            body = f"Se rechazaron {rejected_n} foto(s)."
         return ("rejected", "Fotografías rechazadas", body)
 
     raise ValueError(f"Acción masiva desconocida: {action}")
@@ -111,7 +157,9 @@ def build_bulk_notification(action, counts, comment, old_name, new_name):
 
 def recompute_observation_status(cursor, observation_id):
     # Recalcula el estado agregado de la observación a partir de sus fotos (§2.2).
-    # Prioridad: validated > (todas rejected) > pending. total_n=0 -> pending.
+    # Dos estados funcionales a nivel observación: 'pending' (queda >=1 foto
+    # pendiente o sin fotos) y 'reviewed' (todas las fotos decididas). El estado
+    # por foto (validated/rejected) es el que la app consume y el detalle muestra.
     # Se llama SIEMPRE dentro de la transacción del endpoint llamador.
     cursor.execute(
         """
@@ -131,13 +179,13 @@ def recompute_observation_status(cursor, observation_id):
         UPDATE public.observations o
         SET validation_status = CASE
                 WHEN agg.total_n = 0 THEN 'pending'
-                WHEN agg.validated_n >= 1 THEN 'validated'
-                WHEN agg.rejected_n = agg.total_n THEN 'rejected'
+                WHEN (agg.validated_n + agg.rejected_n) = agg.total_n
+                    THEN 'reviewed'
                 ELSE 'pending'
             END,
             validated_at = CASE
-                WHEN agg.validated_n >= 1
-                     OR (agg.total_n > 0 AND agg.rejected_n = agg.total_n)
+                WHEN agg.total_n > 0
+                     AND (agg.validated_n + agg.rejected_n) = agg.total_n
                     THEN agg.last_validated_at
                 ELSE NULL
             END,
@@ -169,9 +217,10 @@ def recompute_observation_status(cursor, observation_id):
         (observation_id, observation_id),
     )
 
-    # rejection_reason a nivel observación: compuesto solo si el agregado es
-    # 'rejected'; el detalle real vive por-foto en validation_comment.
-    if aggregated_status == "rejected":
+    # rejection_reason a nivel observación: compuesto cuando la observación está
+    # 'reviewed'; el STRING_AGG agrega solo las fotos rechazadas (NULL si no hay
+    # ninguna). El detalle real vive por-foto en validation_comment.
+    if aggregated_status == "reviewed":
         cursor.execute(
             """
             UPDATE public.observations o
@@ -199,27 +248,13 @@ def recompute_observation_status(cursor, observation_id):
             (observation_id,),
         )
 
-    # validated_species_id de la observación = species_id cuando valida sin
-    # reasignación (compatibilidad con COALESCE existente); NULL si no validada.
-    # La agrupación real por-especie se calcula por-foto, no desde aquí.
-    if aggregated_status == "validated":
-        cursor.execute(
-            """
-            UPDATE public.observations
-            SET validated_species_id = species_id
-            WHERE id = %s;
-            """,
-            (observation_id,),
-        )
-    else:
-        cursor.execute(
-            """
-            UPDATE public.observations
-            SET validated_species_id = NULL
-            WHERE id = %s;
-            """,
-            (observation_id,),
-        )
+    # NOTA: la especie de la observación es INMUTABLE y no se toca aquí.
+    # recompute solo recalcula el estado agregado (pending/reviewed). La especie
+    # editable vive por-foto en observation_photos.validated_species_id, y la
+    # agrupación por especie se resuelve con COALESCE(op.validated_species_id,
+    # o.species_id). No se escribe observations.validated_species_id: copiar
+    # species_id (p.ej. el marcador 'unidentified') a esa columna con FK a
+    # species provocaba ForeignKeyViolation (23503) al quedar 'reviewed'.
 
     return aggregated_status
 
@@ -362,8 +397,10 @@ def list_professional_species():
             ]
         }), 200
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(exc, "Error al obtener las especies")
 
         return jsonify({
             "error": "No se pudieron obtener las especies"
@@ -461,8 +498,10 @@ def list_professional_observations():
             "observations": observations
         }), 200
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(exc, "Error al obtener las observaciones")
 
         return jsonify({
             "error": "No se pudieron obtener las observaciones"
@@ -491,18 +530,25 @@ def count_professional_observations():
 
         rows = cursor.fetchall()
 
-        counts = {"pending": 0, "validated": 0, "rejected": 0}
+        # Dos buckets a nivel observación: pending y reviewed. Los históricos
+        # 'validated'/'rejected' (previos a este modelo, no migrados) se suman a
+        # reviewed para que los contadores cuadren con el total.
+        counts = {"pending": 0, "reviewed": 0}
 
-        for row in rows:
-            if row[0] in counts:
-                counts[row[0]] = row[1]
+        for status_value, n in rows:
+            if status_value == "pending":
+                counts["pending"] += n
+            elif status_value in ("reviewed", "validated", "rejected"):
+                counts["reviewed"] += n
 
         return jsonify({
             "counts": counts
         }), 200
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(exc, "Error al obtener los conteos")
 
         return jsonify({
             "error": "No se pudieron obtener los conteos"
@@ -687,8 +733,12 @@ def get_professional_observation(observation_id):
             }
         }), 200
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(
+            exc, "Error al obtener la observación (obs=%s)", observation_id
+        )
 
         return jsonify({
             "error": "No se pudo obtener la observación"
@@ -961,8 +1011,14 @@ def update_observation_validation(observation_id):
             }
         }), 200
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(
+            exc,
+            "Error al actualizar la validación (obs=%s)",
+            observation_id,
+        )
 
         return jsonify({
             "error": "No se pudo actualizar la validación"
@@ -1111,7 +1167,8 @@ def decide_photo_validation(observation_id, photo_id):
         # La foto debe pertenecer a la observación indicada.
         cursor.execute(
             """
-            SELECT op.id, op.plant_part, o.user_id, o.species_id
+            SELECT op.id, op.plant_part, o.user_id, o.species_id,
+                   op.validation_status
             FROM public.observation_photos op
             INNER JOIN public.observations o
                 ON o.id = op.observation_id
@@ -1132,6 +1189,15 @@ def decide_photo_validation(observation_id, photo_id):
         plant_part = photo_row[1]
         observation_user_id = photo_row[2]
         source_species_id = photo_row[3]
+        current_photo_status = photo_row[4]
+
+        # Decisión única e irreversible: una foto ya decidida no se re-decide.
+        # Evita notificaciones duplicadas sobre la misma foto (§A).
+        if current_photo_status != "pending":
+            conn.rollback()
+            return jsonify({
+                "error": "La fotografía ya fue decidida"
+            }), 409
 
         if action == "reassign":
             # Validar especie destino activa.
@@ -1242,8 +1308,14 @@ def decide_photo_validation(observation_id, photo_id):
 
             recompute_observation_status(cursor, observation_id)
 
+            names = _fetch_species_names(cursor, [source_species_id])
             notification_type, title, body = build_photo_notification(
-                action, plant_part, comment, None, None
+                action,
+                plant_part,
+                comment,
+                None,
+                None,
+                species_name=names.get(source_species_id),
             )
 
             _insert_notification(
@@ -1307,8 +1379,14 @@ def decide_photo_validation(observation_id, photo_id):
 
         return jsonify({"error": "id inválido"}), 400
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(
+            exc,
+            "Error al actualizar la validación (obs=%s)",
+            observation_id,
+        )
 
         return jsonify({
             "error": "No se pudo actualizar la validación"
@@ -1379,6 +1457,21 @@ def decide_all_photos_validation(observation_id):
                 "error": "La observación no tiene fotografías"
             }), 400
 
+        # Las acciones "a todas" aplican SOLO sobre las fotos pendientes (§C).
+        # Se cuenta antes de los UPDATE para dimensionar la notificación y para
+        # rechazar la acción si no quedan pendientes.
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM public.observation_photos
+            WHERE observation_id = %s
+              AND validation_status = 'pending';
+            """,
+            (observation_id,),
+        )
+
+        pending_count = cursor.fetchone()[0]
+
         if action == "reassign":
             cursor.execute(
                 """
@@ -1402,6 +1495,14 @@ def decide_all_photos_validation(observation_id):
                     )
                 }), 400
 
+            if pending_count == 0:
+                conn.rollback()
+                return jsonify({
+                    "error": (
+                        "No hay fotografías pendientes para aplicar la acción"
+                    )
+                }), 409
+
             target_obs_id = resolve_target_observation(
                 cursor,
                 observation_user_id,
@@ -1409,6 +1510,8 @@ def decide_all_photos_validation(observation_id):
                 observation_id,
             )
 
+            # Solo se trasladan las fotos pendientes; las ya decididas se quedan
+            # en la observación origen con su estado final (§C).
             cursor.execute(
                 """
                 UPDATE public.observation_photos
@@ -1418,7 +1521,8 @@ def decide_all_photos_validation(observation_id):
                     validated_species_id = %s,
                     validated_at = NOW(),
                     validated_by = %s::uuid
-                WHERE observation_id = %s;
+                WHERE observation_id = %s
+                  AND validation_status = 'pending';
                 """,
                 (
                     target_obs_id,
@@ -1435,7 +1539,7 @@ def decide_all_photos_validation(observation_id):
             names = _fetch_species_names(
                 cursor, [source_species_id, target_species_id]
             )
-            counts = {"validated": photo_count, "rejected": 0, "pending": 0}
+            counts = {"validated": pending_count, "rejected": 0, "pending": 0}
             notification_type, title, body = build_bulk_notification(
                 "reassign",
                 counts,
@@ -1458,8 +1562,18 @@ def decide_all_photos_validation(observation_id):
             )
 
         else:
+            if pending_count == 0:
+                conn.rollback()
+                return jsonify({
+                    "error": (
+                        "No hay fotografías pendientes para aplicar la acción"
+                    )
+                }), 409
+
             new_status = "validated" if action == "validate" else "rejected"
 
+            # Solo se deciden las fotos pendientes; las ya decididas conservan
+            # su estado final (§C).
             cursor.execute(
                 """
                 UPDATE public.observation_photos
@@ -1468,7 +1582,8 @@ def decide_all_photos_validation(observation_id):
                     validated_species_id = NULL,
                     validated_at = NOW(),
                     validated_by = %s::uuid
-                WHERE observation_id = %s;
+                WHERE observation_id = %s
+                  AND validation_status = 'pending';
                 """,
                 (new_status, comment, g.kospia_user_id, observation_id),
             )
@@ -1476,12 +1591,18 @@ def decide_all_photos_validation(observation_id):
             recompute_observation_status(cursor, observation_id)
 
             counts = {
-                "validated": photo_count if action == "validate" else 0,
-                "rejected": photo_count if action == "reject" else 0,
+                "validated": pending_count if action == "validate" else 0,
+                "rejected": pending_count if action == "reject" else 0,
                 "pending": 0,
             }
+            names = _fetch_species_names(cursor, [source_species_id])
             notification_type, title, body = build_bulk_notification(
-                action, counts, comment, None, None
+                action,
+                counts,
+                comment,
+                None,
+                None,
+                species_name=names.get(source_species_id),
             )
 
             _insert_notification(
@@ -1539,8 +1660,14 @@ def decide_all_photos_validation(observation_id):
 
         return jsonify({"error": "id inválido"}), 400
 
-    except psycopg2.Error:
+    except psycopg2.Error as exc:
         conn.rollback()
+
+        _log_psycopg_error(
+            exc,
+            "Error al actualizar la validación (obs=%s)",
+            observation_id,
+        )
 
         return jsonify({
             "error": "No se pudo actualizar la validación"

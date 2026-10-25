@@ -64,6 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 MyPlantsScreen(onNavigate: _navigateTo),
                 const CatalogScreen(),
                 const RulerScreen(),
+                // Índice 5: AVISOS integrado en el shell (antes se abría con
+                // Navigator.push y tapaba la barra lateral).
+                const NotificationsScreen(),
               ],
             ),
           ),
@@ -149,15 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
             _NavItem(
               icon: Icons.notifications_rounded,
               label: 'AVISOS',
-              isSelected: false,
+              isSelected: _currentIndex == 5,
               badge: const _NotificationsBadge(),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const NotificationsScreen(),
-                  ),
-                );
-              },
+              onTap: () => _navigateTo(5),
             ),
             const SizedBox(height: 16),
             _NavItem(
@@ -246,7 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (dialogContext.mounted) {
                               setDialogState(() {
                                 isLoggingOut = false;
-                                errorMessage = 'No se pudo cerrar sesión. Intentá nuevamente.';
+                                errorMessage =
+                                    'No se pudo cerrar sesión. Intentá nuevamente.';
                               });
                             }
                           }

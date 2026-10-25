@@ -88,11 +88,36 @@ class ObservationRepository extends ChangeNotifier {
     final rows = await _powerSync.getAll(
       'SELECT COUNT(*) AS total FROM observation_photos op '
       'INNER JOIN observations o ON o.id = op.observation_id '
-      'WHERE o.user_id = ? AND op.validation_status = ?',
+      'WHERE o.user_id = ? AND op.validation_status = ?'
+      '${status == AppConstants.validationRejected ? ' $_notDismissedFilter' : ''}',
       [userId, status],
     );
     if (rows.isEmpty) return 0;
     return (rows.first['total'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Cuenta FOTOS del usuario en el estado dado como Stream reactivo. Se
+  /// re-emite ante cualquier cambio de las tablas involucradas, incluido el
+  /// sync entrante de PowerSync (que no pasa por notifyListeners()).
+  Stream<int> watchPendingCount(String userId) =>
+      _watchCountByValidationStatus(userId, AppConstants.validationPending);
+
+  Stream<int> watchRejectedCount(String userId) =>
+      _watchCountByValidationStatus(userId, AppConstants.validationRejected);
+
+  Stream<int> _watchCountByValidationStatus(String userId, String status) {
+    return _powerSync
+        .watch(
+          'SELECT COUNT(*) AS total FROM observation_photos op '
+          'INNER JOIN observations o ON o.id = op.observation_id '
+          'WHERE o.user_id = ? AND op.validation_status = ?'
+          '${status == AppConstants.validationRejected ? ' $_notDismissedFilter' : ''}',
+          parameters: [userId, status],
+        )
+        .map(
+          (rows) =>
+              rows.isEmpty ? 0 : (rows.first['total'] as num?)?.toInt() ?? 0,
+        );
   }
 
   /// Fotos pendientes del usuario, más recientes primero.
@@ -103,24 +128,72 @@ class ObservationRepository extends ChangeNotifier {
   Future<List<PhotoStatusItem>> getRejectedPhotos(String userId) =>
       _photosByValidationStatus(userId, AppConstants.validationRejected);
 
+  /// Versión reactiva: re-emite ante escrituras locales Y sync entrante.
+  Stream<List<PhotoStatusItem>> watchPendingPhotos(String userId) =>
+      _watchPhotosByValidationStatus(userId, AppConstants.validationPending);
+
+  Stream<List<PhotoStatusItem>> watchRejectedPhotos(String userId) =>
+      _watchPhotosByValidationStatus(userId, AppConstants.validationRejected);
+
   Future<List<PhotoStatusItem>> _photosByValidationStatus(
     String userId,
     String status,
   ) async {
-    final rows = await _powerSync.getAll(
-      'SELECT op.*, '
-      's.common_name AS species_common_name, '
-      's.scientific_name AS species_scientific_name, '
-      'o.notes AS observation_notes '
+    final rows = await _powerSync.getAll(_photosByValidationStatusSql(status), [
+      userId,
+      status,
+    ]);
+    return rows.map(_photoStatusItemFromPowerSync).toList();
+  }
+
+  Stream<List<PhotoStatusItem>> _watchPhotosByValidationStatus(
+    String userId,
+    String status,
+  ) {
+    return _powerSync
+        .watch(
+          _photosByValidationStatusSql(status),
+          parameters: [userId, status],
+        )
+        .map((rows) => rows.map(_photoStatusItemFromPowerSync).toList());
+  }
+
+  /// Filtro que excluye las fotos rechazadas ocultadas localmente
+  /// (soft-dismiss). La tabla `dismissed_photos` es local-only: no sincroniza
+  /// con el backend, así que ocultar no borra datos del servidor.
+  static const _notDismissedFilter =
+      'AND op.id NOT IN (SELECT photo_id FROM dismissed_photos)';
+
+  String _photosByValidationStatusSql(String status) {
+    final dismissFilter = status == AppConstants.validationRejected
+        ? ' $_notDismissedFilter'
+        : '';
+    return 'SELECT op.*, '
+        's.common_name AS species_common_name, '
+        's.scientific_name AS species_scientific_name, '
+        'o.notes AS observation_notes '
+        'FROM observation_photos op '
+        'INNER JOIN observations o ON o.id = op.observation_id '
+        'LEFT JOIN species s '
+        'ON s.id = COALESCE(op.validated_species_id, o.species_id) '
+        'WHERE o.user_id = ? AND op.validation_status = ?$dismissFilter '
+        'ORDER BY op.captured_at DESC';
+  }
+
+  /// Oculta localmente (soft-dismiss) todas las fotos rechazadas actuales del
+  /// usuario, insertándolas en la tabla local-only `dismissed_photos`. No
+  /// toca ni borra nada en el servidor.
+  Future<void> dismissAllRejected(String userId) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    await _powerSync.execute(
+      'INSERT OR IGNORE INTO dismissed_photos (id, photo_id, dismissed_at) '
+      'SELECT op.id, op.id, ? '
       'FROM observation_photos op '
       'INNER JOIN observations o ON o.id = op.observation_id '
-      'LEFT JOIN species s '
-      'ON s.id = COALESCE(op.validated_species_id, o.species_id) '
-      'WHERE o.user_id = ? AND op.validation_status = ? '
-      'ORDER BY op.captured_at DESC',
-      [userId, status],
+      'WHERE o.user_id = ? AND op.validation_status = ?',
+      [now, userId, AppConstants.validationRejected],
     );
-    return rows.map(_photoStatusItemFromPowerSync).toList();
+    notifyListeners();
   }
 
   PhotoStatusItem _photoStatusItemFromPowerSync(Map<String, dynamic> row) {
@@ -136,18 +209,25 @@ class ObservationRepository extends ChangeNotifier {
     );
   }
 
-  Future<List<ObservationPhoto>> getAllPhotosForSpecies(
-    String speciesId,
-  ) async {
-    final rows = await _powerSync.getAll(
+  static const _allPhotosForSpeciesSql =
       'SELECT op.* FROM observation_photos op '
       'INNER JOIN observations o ON o.id = op.observation_id '
       "WHERE op.validation_status = 'validated' "
       'AND COALESCE(op.validated_species_id, o.species_id) = ? '
-      'ORDER BY op.captured_at DESC',
-      [speciesId],
-    );
+      'ORDER BY op.captured_at DESC';
+
+  Future<List<ObservationPhoto>> getAllPhotosForSpecies(
+    String speciesId,
+  ) async {
+    final rows = await _powerSync.getAll(_allPhotosForSpeciesSql, [speciesId]);
     return rows.map(_observationPhotoFromPowerSync).toList();
+  }
+
+  /// Versión reactiva: re-emite ante escrituras locales Y sync entrante.
+  Stream<List<ObservationPhoto>> watchAllPhotosForSpecies(String speciesId) {
+    return _powerSync
+        .watch(_allPhotosForSpeciesSql, parameters: [speciesId])
+        .map((rows) => rows.map(_observationPhotoFromPowerSync).toList());
   }
 
   Future<Set<String>> getPartsForSpecies(String speciesId) async {
@@ -164,8 +244,7 @@ class ObservationRepository extends ChangeNotifier {
         .toSet();
   }
 
-  Future<Map<String, Set<String>>> getPartsGroupedBySpecies() async {
-    final rows = await _powerSync.getAll('''
+  static const _partsGroupedBySpeciesSql = '''
       SELECT COALESCE(op.validated_species_id, o.species_id) AS species_id,
              op.plant_part
       FROM observation_photos op
@@ -173,8 +252,11 @@ class ObservationRepository extends ChangeNotifier {
       WHERE op.validation_status = 'validated'
         AND COALESCE(op.validated_species_id, o.species_id) != 'unidentified'
       GROUP BY COALESCE(op.validated_species_id, o.species_id), op.plant_part
-    ''');
+    ''';
 
+  Map<String, Set<String>> _groupPartsBySpecies(
+    Iterable<Map<String, dynamic>> rows,
+  ) {
     final partsBySpecies = <String, Set<String>>{};
     for (final row in rows) {
       final speciesId = row['species_id']?.toString() ?? '';
@@ -183,6 +265,18 @@ class ObservationRepository extends ChangeNotifier {
       partsBySpecies.putIfAbsent(speciesId, () => <String>{}).add(plantPart);
     }
     return partsBySpecies;
+  }
+
+  Future<Map<String, Set<String>>> getPartsGroupedBySpecies() async {
+    final rows = await _powerSync.getAll(_partsGroupedBySpeciesSql);
+    return _groupPartsBySpecies(rows);
+  }
+
+  /// Versión reactiva: re-emite ante escrituras locales Y sync entrante.
+  Stream<Map<String, Set<String>>> watchPartsGroupedBySpecies() {
+    return _powerSync
+        .watch(_partsGroupedBySpeciesSql)
+        .map(_groupPartsBySpecies);
   }
 
   Future<double> getProgressForSpecies(String speciesId) async {
@@ -208,8 +302,8 @@ class ObservationRepository extends ChangeNotifier {
     await _powerSync.execute(
       '''
       INSERT INTO observations
-        (id, user_id, species_id, notes, sync_status, created_at, updated_at, synced_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, user_id, species_id, notes, sync_status, validation_status, created_at, updated_at, synced_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''',
       [
         observationId,
@@ -217,6 +311,7 @@ class ObservationRepository extends ChangeNotifier {
         speciesId,
         notes,
         AppConstants.syncPending,
+        AppConstants.validationPending,
         now,
         now,
         null,
@@ -231,8 +326,9 @@ class ObservationRepository extends ChangeNotifier {
         '''
         INSERT INTO observation_photos
           (id, observation_id, photo_path, plant_part, latitude, longitude,
-           altitude, accuracy, source, sync_status, captured_at, file_extension)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           altitude, accuracy, source, sync_status, captured_at, file_extension,
+           validation_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
         [
           photoId,
@@ -247,6 +343,7 @@ class ObservationRepository extends ChangeNotifier {
           AppConstants.syncPending,
           (photo.capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
           extension,
+          AppConstants.validationPending,
         ],
       );
 

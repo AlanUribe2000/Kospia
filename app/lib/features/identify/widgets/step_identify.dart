@@ -178,20 +178,70 @@ class _StepIdentifyState extends State<StepIdentify> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // En modo "sin identificar", al abrir el teclado para escribir la
+    // descripción el viewport se reduce; ocultamos la imagen fija de Kospi
+    // para que la navegación no desborde (franjas amarillas de overflow).
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final hideKospi = keyboardOpen && _mode == _IdentifyMode.unidentified;
+
+    // En modo "sin identificar", el contenido (incluida la fila de
+    // navegación) debe scrollear bajo el teclado para evitar overflow en
+    // pantallas de poca altura. En los demás modos conservamos el layout
+    // con Expanded (los grids/listas de cuestionario/resultados dependen de
+    // él). Ver item G del diagnóstico.
+    if (_mode == _IdentifyMode.unidentified) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      if (!hideKospi)
+                        SizedBox(
+                          height: AppConstants.kospiImageHeight,
+                          child: Image.asset(
+                            'assets/images/Kospi/Kospi pensando.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                      _buildContent(),
+                      const SizedBox(height: 12),
+                      _buildNavigation(),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
           const SizedBox(height: 12),
           // Kospi
-          SizedBox(
-            height: AppConstants.kospiImageHeight,
-            child: Image.asset(
-              'assets/images/Kospi/Kospi pensando.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          if (!hideKospi)
+            SizedBox(
+              height: AppConstants.kospiImageHeight,
+              child: Image.asset(
+                'assets/images/Kospi/Kospi pensando.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
-          ),
           const SizedBox(height: 8),
           // Progress subtitle (Pregunta X · N especies posibles)
           if (_mode == _IdentifyMode.questionnaire && _questionnaire != null)
@@ -603,53 +653,53 @@ class _StepIdentifyState extends State<StepIdentify> {
   }
 
   Widget _buildUnidentified() {
+    // El scroll lo provee el SingleChildScrollView externo de build() en
+    // este modo; aquí solo armamos el contenido (sin scroll anidado).
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            const Icon(
-              Icons.help_outline_rounded,
-              size: 48,
-              color: AppColors.textLight,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Sin identificar',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Escribí el nombre de la planta si lo conocés, '
-              'o dejá un comentario para el experto.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textMedium),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _noteController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Nombre o comentario (opcional)',
-                filled: true,
-                fillColor: AppColors.surfaceLilac,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          const Icon(
+            Icons.help_outline_rounded,
+            size: 48,
+            color: AppColors.textLight,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Sin identificar',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Escribí el nombre de la planta si lo conocés, '
+            'o dejá un comentario para el experto.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.textMedium),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _noteController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Nombre o comentario (opcional)',
+              filled: true,
+              fillColor: AppColors.surfaceLilac,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _confirmUnidentified,
-                child: const Text('Confirmar sin identificar'),
-              ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _confirmUnidentified,
+              child: const Text('Confirmar sin identificar'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

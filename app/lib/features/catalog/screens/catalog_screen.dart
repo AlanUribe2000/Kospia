@@ -21,6 +21,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
   bool _loading = true;
   final TextEditingController _searchController = TextEditingController();
 
+  // Sub-vista interna del panel: si hay una especie seleccionada se muestra su
+  // detalle dentro del mismo panel (sin Navigator.push) para que la barra
+  // lateral verde quede siempre visible. 'Volver' limpia este estado.
+  Specy? _selectedSpecies;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +73,23 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Detalle como sub-vista interna: el botón 'atrás' (AppBar y gesto Android)
+    // vuelve a la grilla cambiando el sub-estado, sin salir del shell.
+    if (_selectedSpecies != null) {
+      final selected = _selectedSpecies!;
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          setState(() => _selectedSpecies = null);
+        },
+        child: SpeciesDetailScreen(
+          species: selected,
+          onBack: () => setState(() => _selectedSpecies = null),
+        ),
+      );
+    }
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -128,14 +150,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         final sp = _filtered[index];
                         return _SpeciesCard(
                           species: sp,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    SpeciesDetailScreen(species: sp),
-                              ),
-                            );
-                          },
+                          onTap: () => setState(() => _selectedSpecies = sp),
                         );
                       },
                     ),

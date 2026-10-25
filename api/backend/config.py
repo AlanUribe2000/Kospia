@@ -50,3 +50,6 @@ class Config:
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
     KOSPIA_JWT_SECRET = os.getenv("KOSPIA_JWT_SECRET")
+
+    # Nivel de log configurable por variable de entorno (por defecto INFO).
+    LOG_LEVEL = os.getenv("KOSPIA_LOG_LEVEL", "INFO")

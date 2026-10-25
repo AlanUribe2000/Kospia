@@ -1,0 +1,181 @@
+========================================================================
+  KOSPIA - PASOS PARA CORRER LA APP CON LOS ULTIMOS CAMBIOS
+========================================================================
+
+Estos cambios tocan la API (backend), la app (Flutter) y la web.
+La mayoria no necesita nada especial para correr, SALVO un paso
+OBLIGATORIO en la base de datos (ver PASO 1). Si no se hace el PASO 1,
+la API va a devolver error 500 al validar/rechazar/cambiar especie.
+
+Segui los pasos en orden.
+
+
+------------------------------------------------------------------------
+  PASO 1 (OBLIGATORIO) - APLICAR LA MIGRACION EN LA BASE DE DATOS
+------------------------------------------------------------------------
+
+Se agrego un nuevo estado de observacion llamado "reviewed" (revisada).
+Para que la base acepte ese valor hay que correr la migracion 007 UNA
+sola vez contra la base de datos de Postgres.
+
+Archivo a ejecutar:
+  api/backend/migrations/007_add_reviewed_status.sql
+
+Que hace: amplia la restriccion (CHECK) de la columna validation_status
+de la tabla observations para que admita el valor 'reviewed', ademas de
+los que ya existian (pending, validated, rejected).
+
+Como correrla (elegir UNA opcion):
+
+  OPCION A - con psql (linea de comandos):
+    psql -h <DB_HOST> -p <DB_PORT> -U <DB_USER> -d <DB_NAME> -f api/backend/migrations/007_add_reviewed_status.sql
+    (usa los mismos datos de conexion del archivo api/backend/.env:
+     DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD)
+
+  OPCION B - con DBeaver / pgAdmin / cualquier cliente SQL:
+    Abrir el archivo 007_add_reviewed_status.sql, conectarse a la base
+    de Kospia y ejecutar todo el script.
+
+IMPORTANTE:
+  - El script ya viene envuelto en BEGIN; ... COMMIT; asi que o se
+    aplica entero o no se aplica (no queda a medias).
+  - Dentro del archivo hay un bloque UPDATE OPCIONAL comentado. Sirve
+    para reclasificar a 'reviewed' las observaciones viejas que ya
+    tenian todas sus fotos decididas (para que aparezcan en la pestaña
+    "Revisadas" de la web desde el arranque). Es OPCIONAL:
+      * Si NO lo descomentas: igual funciona todo; las observaciones
+        viejas se iran pasando a 'reviewed' a medida que se toque alguna
+        de sus fotos.
+      * Si lo descomentas y corres: las observaciones historicas ya
+        decididas pasan a 'reviewed' de una.
+
+Como saber si quedo aplicada: entrar a la web, abrir una observacion
+pendiente, decidir (validar/rechazar/cambiar especie) todas sus fotos y
+verificar que NO aparece el error "El servidor respondio con un error
+(HTTP 500)". Si aparece 500, la migracion no se aplico (ver PASO 4 para
+leer el log del error).
+
+
+------------------------------------------------------------------------
+  PASO 2 - BACKEND (API Flask)
+------------------------------------------------------------------------
+
+No hay dependencias nuevas que instalar. Si venis de una copia limpia
+del repo, lo de siempre:
+
+  cd api/backend
+  .venv\Scripts\activate
+  (si hace falta: pip install -r requirements.txt)
+  py app.py
+
+Para iniciar la API (igual que antes):
+  .venv\Scripts\activate
+  py app.py
+
+Swagger:  http://127.0.0.1:5000/swagger-ui
+OpenAPI:  http://127.0.0.1:5000/openapi.json
+
+NOVEDAD - LOGS DE ERROR:
+  Ahora la API registra en la consola el detalle completo de cualquier
+  error de base de datos (traceback + mensaje real de Postgres) en vez
+  de un 500 generico. Si algo falla, mirar la consola donde corre la API.
+
+  Se puede controlar el nivel de log con una variable de entorno
+  (opcional). En api/backend/.env se puede agregar:
+      KOSPIA_LOG_LEVEL=INFO
+  Valores posibles: DEBUG, INFO, WARNING, ERROR. Por defecto es INFO.
+  No es obligatorio agregarla; si no esta, usa INFO.
+
+
+------------------------------------------------------------------------
+  PASO 3 - APP (Flutter)
+------------------------------------------------------------------------
+
+No hay dependencias nuevas. Por las dudas, si venis de una copia limpia:
+  cd app
+  flutter pub get
+
+Para iniciar la app (MISMO comando de siempre; ajustar la IP del backend
+y de PowerSync a la de tu maquina/red):
+
+  flutter run --dart-define=KOSPIA_BACKEND_URL=http://192.168.1.40:5000 --dart-define=KOSPIA_POWERSYNC_URL=http://192.168.1.40:8080 --dart-define=KOSPIA_TOKEN_PATH=/auth/powersync-token --dart-define=KOSPIA_GOOGLE_SERVER_CLIENT_ID=804279267852-u645tsbnee3unkqtibphiif9e67ta4k5.apps.googleusercontent.com
+
+NOTA SOBRE LA BASE LOCAL DE LA APP (PowerSync):
+  Se agrego una tabla local nueva en la app (para poder "limpiar" las
+  observaciones rechazadas sin borrarlas del servidor) y subio la version
+  del esquema local. Normalmente la app migra sola el esquema local al
+  abrirse. Si al abrir la app despues de actualizar pasara algo raro con
+  los datos locales, basta con desinstalar/reinstalar la app en el
+  dispositivo (NO se pierde nada del servidor: los datos vuelven a bajar
+  por sync).
+
+
+------------------------------------------------------------------------
+  PASO 4 - WEB
+------------------------------------------------------------------------
+
+No hay dependencias nuevas que instalar. Si venis de copia limpia:
+  cd web
+  npm install
+
+Para iniciar la web (igual que antes):
+  npm run dev
+
+Si el navegador quedo con la version vieja cacheada, hacer refuerzo de
+recarga (Ctrl + F5).
+
+
+------------------------------------------------------------------------
+  RESUMEN DE QUE CAMBIO (para entender que se va a ver distinto)
+------------------------------------------------------------------------
+
+APP (Flutter):
+  - Ahora se puede crear una observacion SIN internet (en el campo): el
+    boton "Siguiente" del paso de ubicacion ya no se bloquea sin GPS/mapa.
+  - Se ven TODAS las fotos (incluida la sacada con la camara) en el paso
+    "Donde se tomaron las fotos", aunque no haya conexion.
+  - Se corrigio el overflow (franjas amarillas) al abrir el teclado en
+    "Sin identificar".
+  - "Mis Plantas" se actualiza solo cuando vuelve el internet (ya no hay
+    que bajar el dedo para refrescar).
+  - En "Rechazadas": se quito "Volver a intentar" y se agrego un tacho
+    (arriba a la derecha) para ocultar las rechazadas (solo se ocultan en
+    el celular, NO se borran del servidor).
+  - Las notificaciones ahora dicen la especie ademas de la parte.
+  - La barra lateral verde queda SIEMPRE visible (Avisos, Pendientes,
+    Rechazadas y el detalle del Catalogo ya no la tapan).
+
+WEB (panel profesional):
+  - Pestañas: Pendientes / Revisadas (antes Pendientes/Validadas/Rechazadas).
+    Una observacion pasa a "Revisada" cuando TODAS sus fotos fueron decididas.
+  - Una foto ya decidida no se puede volver a cambiar (decision unica); ya
+    no aparecen los botones para re-decidirla. Esto corta las notificaciones
+    repetidas que llegaban a la app.
+  - El detalle de una observacion "Revisada" es solo de lectura y muestra,
+    por cada foto, como quedo (validada / rechazada / reasignada y a que
+    especie).
+  - Las acciones masivas (Validar todas / Cambiar especie / Rechazar todas)
+    aplican SOLO a las fotos que siguen pendientes.
+  - Si la observacion no tiene especie propuesta, NO aparece el boton de
+    validar (no se puede validar sin especie); solo "Identificar especie"
+    o "Rechazar".
+  - Se mejoraron los colores de los botones (verde=validar, violeta=cambiar
+    especie, rojo=rechazar) y se arreglo el icono del mapa que no cargaba.
+
+API (backend):
+  - Nuevo estado de observacion "reviewed" (requiere el PASO 1).
+  - Logs de error detallados en la consola.
+  - La especie de la observacion es inmutable (solo se cambia la especie de
+    cada foto); se corrigio un error 500 que ocurria al decidir fotos de
+    observaciones "Sin identificar".
+
+
+------------------------------------------------------------------------
+  CHECKLIST RAPIDO
+------------------------------------------------------------------------
+  [ ] PASO 1: correr 007_add_reviewed_status.sql en la base (OBLIGATORIO)
+  [ ] PASO 2: levantar la API (py app.py)
+  [ ] PASO 3: correr la app (flutter run ... con las IP correctas)
+  [ ] PASO 4: levantar la web (npm run dev)
+  [ ] Probar: validar/rechazar/cambiar especie en la web -> sin error 500
+========================================================================

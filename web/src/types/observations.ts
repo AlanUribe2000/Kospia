@@ -1,5 +1,8 @@
-export type ValidationStatus = 'pending' | 'validated' | 'rejected'
+// Estado a nivel OBSERVACIÓN: dos valores funcionales. 'reviewed' = todas las
+// fotos decididas. El estado por foto es distinto (ver PhotoValidationStatus).
+export type ValidationStatus = 'pending' | 'reviewed'
 
+// Estado POR FOTO: no cambia. Es el que la app consume y el detalle muestra.
 export type PhotoValidationStatus = 'pending' | 'validated' | 'rejected'
 
 // Los campos de usuario y especie son null cuando el LEFT JOIN no resuelve.
@@ -40,8 +43,7 @@ export interface ProfessionalObservationsResponse {
 // Conteos por estado para los contadores de las pestañas de filtro.
 export interface ObservationCounts {
   pending: number
-  validated: number
-  rejected: number
+  reviewed: number
 }
 
 export interface ProfessionalObservationCountsResponse {

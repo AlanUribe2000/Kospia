@@ -117,22 +117,33 @@ function PhotoDecisionControls({
 
   return (
     <div className="photo-actions">
+      {proposedSpecies != null && (
+        <button
+          type="button"
+          className="btn-validate"
+          disabled={busy}
+          onClick={() => {
+            // Guard: no se puede validar sin especie propuesta.
+            if (proposedSpecies == null) return
+            setDialog('validate')
+          }}
+        >
+          {validateLabel}
+        </button>
+      )}
+
       <button
         type="button"
-        className="btn-validate"
+        className="btn-reassign"
+        onClick={openSpeciesPicker}
         disabled={busy}
-        onClick={() => setDialog('validate')}
       >
-        {validateLabel}
-      </button>
-
-      <button type="button" onClick={openSpeciesPicker} disabled={busy}>
         {reassignLabel}
       </button>
 
       <button
         type="button"
-        className="btn-reject-outline"
+        className="btn-reject"
         disabled={busy}
         onClick={() => setDialog('reject')}
       >

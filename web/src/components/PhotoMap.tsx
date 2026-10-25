@@ -7,6 +7,9 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import ModalShell from './ModalShell.tsx'
 
 // Vite no resuelve los PNG por defecto de Leaflet; se setean explícitamente.
+// Hay que borrar _getIconUrl para que Leaflet no reconstruya la ruta rota
+// (/node_modules/leaflet/dist/images/...) en vez de usar los iconos importados.
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,

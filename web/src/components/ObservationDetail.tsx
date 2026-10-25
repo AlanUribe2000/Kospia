@@ -14,7 +14,12 @@ import type {
 } from '../types/observations.ts'
 import { useProfessionalSpecies } from '../hooks/useProfessionalSpecies.ts'
 import type { ProfessionalSpeciesState } from '../hooks/useProfessionalSpecies.ts'
-import { STATUS_LABEL, formatDate, toNumber } from '../utils/format.ts'
+import {
+  PHOTO_STATUS_LABEL,
+  STATUS_LABEL,
+  formatDate,
+  toNumber,
+} from '../utils/format.ts'
 
 interface Props {
   token: string
@@ -34,6 +39,16 @@ function sourceLabel(source: string): string {
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+// Texto de la decisión final por foto. Reasignada = validada con especie
+// corregida presente (según el contrato de estados por foto).
+function photoFinalLabel(photo: ObservationPhoto): string {
+  if (photo.validation_status === 'validated') {
+    return photo.validated_species ? 'Reasignada' : 'Validada'
+  }
+  if (photo.validation_status === 'rejected') return 'Rechazada'
+  return PHOTO_STATUS_LABEL[photo.validation_status]
 }
 
 function locationText(photo: ObservationPhoto): string {
@@ -162,6 +177,12 @@ function DetailContent({
         const response = await getProfessionalObservation(token, o.id, signal)
         if (signal.aborted) return
         setObservation(response.observation)
+        // Si ya no quedan fotos pendientes, cerramos la observación y volvemos
+        // al listado. Cubre tanto "todas decididas" como la reasignación de la
+        // observación entera (las fotos se mueven y la original queda vacía).
+        if (response.observation.summary.pending === 0) {
+          onBack()
+        }
       } catch (error) {
         if (signal.aborted) return
         if (
@@ -177,7 +198,7 @@ function DetailContent({
         )
       }
     },
-    [onSessionInvalid, o.id, token],
+    [onBack, onSessionInvalid, o.id, token],
   )
 
   const submitPhoto = useCallback(
@@ -314,18 +335,20 @@ function DetailContent({
                 onImageChange={handleImageChange}
                 onOpen={() => setOpenPhotoId(photo.id)}
                 onBack={onBack}
+                readOnly={o.validation_status === 'reviewed'}
               />
             ))}
           </div>
         )}
       </section>
 
-      {o.photos.length > 0 && (
+      {o.validation_status !== 'reviewed' && o.photos.length > 0 && (
         <DecisionSection
           token={token}
           observationId={o.id}
           species={o.proposed_species}
           speciesState={speciesState}
+          pending={summary.pending}
           onDecided={reload}
           onSessionInvalid={onSessionInvalid}
           onBack={onBack}
@@ -355,6 +378,7 @@ function PhotoCard({
   onImageChange,
   onOpen,
   onBack,
+  readOnly,
 }: {
   photo: ObservationPhoto
   index: number
@@ -370,6 +394,7 @@ function PhotoCard({
   onImageChange: (photoId: string, url: string | null) => void
   onOpen: () => void
   onBack: () => void
+  readOnly: boolean
 }) {
   const altitude = toNumber(photo.altitude)
   const accuracy = toNumber(photo.accuracy)
@@ -387,7 +412,7 @@ function PhotoCard({
       <div className="photo-card-header">
         <h4>Fotografía {index}</h4>
         <span className={`badge badge-${photo.validation_status}`}>
-          {STATUS_LABEL[photo.validation_status]}
+          {PHOTO_STATUS_LABEL[photo.validation_status]}
         </span>
       </div>
       <AuthenticatedPhoto
@@ -462,17 +487,23 @@ function PhotoCard({
         <p className="photo-comment">{photo.validation_comment}</p>
       )}
 
-      <PhotoDecisionControls
-        proposedSpecies={proposedSpecies}
-        scope="photo"
-        speciesState={speciesState}
-        submit={submit}
-        onSessionInvalid={onSessionInvalid}
-        onBack={onBack}
-        validateLabel="Validar"
-        reassignLabel="Cambiar especie"
-        rejectLabel="Rechazar"
-      />
+      {!readOnly && photo.validation_status === 'pending' ? (
+        <PhotoDecisionControls
+          proposedSpecies={proposedSpecies}
+          scope="photo"
+          speciesState={speciesState}
+          submit={submit}
+          onSessionInvalid={onSessionInvalid}
+          onBack={onBack}
+          validateLabel="Validar"
+          reassignLabel="Cambiar especie"
+          rejectLabel="Rechazar"
+        />
+      ) : (
+        <p className="photo-final-state">
+          Decisión final: {photoFinalLabel(photo)}
+        </p>
+      )}
     </article>
   )
 }

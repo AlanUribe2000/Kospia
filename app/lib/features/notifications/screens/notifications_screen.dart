@@ -80,27 +80,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Avisos')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-          ? const Center(child: Text('No tenés avisos todavía'))
-          : RefreshIndicator(
-              onRefresh: _load,
-              color: AppColors.accentGreen,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _notifications.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return _NotificationCard(
-                    item: _notifications[index],
-                    onTap: () => _onTap(_notifications[index]),
-                  );
-                },
-              ),
+    // Contenido del área derecha del shell (sin Scaffold/AppBar propios) para
+    // que la barra lateral verde quede siempre visible. El título va en un
+    // encabezado interno en lugar de un AppBar.
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Text(
+              'Avisos',
+              style: Theme.of(context).textTheme.displayLarge,
             ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _notifications.isEmpty
+                ? const Center(child: Text('No tenés avisos todavía'))
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    color: AppColors.accentGreen,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _notifications.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _NotificationCard(
+                          item: _notifications[index],
+                          onTap: () => _onTap(_notifications[index]),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -134,9 +150,7 @@ class _NotificationCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isUnread
-              ? color.withValues(alpha: 0.08)
-              : Colors.white,
+          color: isUnread ? color.withValues(alpha: 0.08) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isUnread

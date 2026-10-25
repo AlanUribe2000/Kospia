@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -54,6 +55,12 @@ class MyPlantsScreen extends StatefulWidget {
   State<MyPlantsScreen> createState() => _MyPlantsScreenState();
 }
 
+/// Sub-vista interna del panel "Mis Plantas". Permite alternar entre la grilla
+/// y las listas de pendientes/rechazadas en el MISMO panel, sin Navigator.push,
+/// para que la barra lateral verde (fuera de esta pantalla) quede siempre
+/// visible.
+enum _MyPlantsView { grid, pending, rejected }
+
 class _MyPlantsScreenState extends State<MyPlantsScreen> {
   List<Specy> _allSpecies = [];
   List<Specy> _filtered = [];
@@ -62,24 +69,31 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   int _rejectedCount = 0;
   bool _loading = true;
   bool _sortByProgress = false;
+  _MyPlantsView _view = _MyPlantsView.grid;
   final TextEditingController _searchController = TextEditingController();
+
+  // Suscripciones reactivas a PowerSync: se re-emiten ante escrituras locales
+  // Y ante el sync entrante del servidor, por lo que "Mis Plantas" se refresca
+  // solo sin pull-to-refresh. Ver item H del diagnóstico.
+  StreamSubscription<Map<String, Set<String>>>? _progressSub;
+  StreamSubscription<int>? _pendingSub;
+  StreamSubscription<int>? _rejectedSub;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _searchController.addListener(_applyFilter);
-    context.read<ObservationRepository>().addListener(_onDataChanged);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    context.read<ObservationRepository>().removeListener(_onDataChanged);
+    _progressSub?.cancel();
+    _pendingSub?.cancel();
+    _rejectedSub?.cancel();
     super.dispose();
   }
-
-  void _onDataChanged() => _loadData();
 
   Future<void> _loadData() async {
     final speciesRepo = context.read<SpeciesRepository>();
@@ -95,25 +109,32 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     final session = await sessionService.loadSession();
     final userId = session?.userId ?? '';
 
-    final partsBySpecies = await obsRepo.getPartsGroupedBySpecies();
-    final pendingCount = userId.isEmpty
-        ? 0
-        : await obsRepo.getPendingCount(userId);
-    final rejectedCount = userId.isEmpty
-        ? 0
-        : await obsRepo.getRejectedCount(userId);
-    final progressMap = <String, Set<String>>{};
-    progressMap.addAll(partsBySpecies);
-
     if (mounted) {
       setState(() {
         _allSpecies = species;
-        _progressMap = progressMap;
-        _pendingCount = pendingCount;
-        _rejectedCount = rejectedCount;
         _loading = false;
       });
       _applyFilter();
+    }
+
+    // (Re)suscribirse a los streams reactivos del repositorio.
+    _progressSub?.cancel();
+    _pendingSub?.cancel();
+    _rejectedSub?.cancel();
+    _progressSub = obsRepo.watchPartsGroupedBySpecies().listen((
+      partsBySpecies,
+    ) {
+      if (!mounted) return;
+      setState(() => _progressMap = Map.of(partsBySpecies));
+      _applyFilter();
+    });
+    if (userId.isNotEmpty) {
+      _pendingSub = obsRepo.watchPendingCount(userId).listen((count) {
+        if (mounted) setState(() => _pendingCount = count);
+      });
+      _rejectedSub = obsRepo.watchRejectedCount(userId).listen((count) {
+        if (mounted) setState(() => _rejectedCount = count);
+      });
     }
   }
 
@@ -162,6 +183,34 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+
+    // Sub-vistas Pendientes/Rechazadas dentro del mismo panel. El 'atrás'
+    // (encabezado interno y gesto Android) vuelve a la grilla sin salir del
+    // shell, por lo que la barra lateral nunca se tapa.
+    if (_view == _MyPlantsView.pending) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          setState(() => _view = _MyPlantsView.grid);
+        },
+        child: _PendingListScreen(
+          onBack: () => setState(() => _view = _MyPlantsView.grid),
+        ),
+      );
+    }
+    if (_view == _MyPlantsView.rejected) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          setState(() => _view = _MyPlantsView.grid);
+        },
+        child: _RejectedListScreen(
+          onBack: () => setState(() => _view = _MyPlantsView.grid),
+        ),
+      );
+    }
 
     return SafeArea(
       child: Padding(
@@ -337,17 +386,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   }
 
   void _openPendingList() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const _PendingListScreen()));
+    setState(() => _view = _MyPlantsView.pending);
   }
 
   void _openRejectedList() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _RejectedListScreen(onNavigate: widget.onNavigate),
-      ),
-    );
+    setState(() => _view = _MyPlantsView.rejected);
   }
 }
 
@@ -586,22 +629,17 @@ class _PlantProgressDetail extends StatefulWidget {
 }
 
 class _PlantProgressDetailState extends State<_PlantProgressDetail> {
+  // Fotos agrupadas por parte; se actualiza solo vía Stream (item H).
   Map<String, List<ObservationPhoto>> _photosByPart = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPhotos();
-  }
-
-  Future<void> _loadPhotos() async {
-    final repo = context.read<ObservationRepository>();
-    final photos = await repo.getAllPhotosForSpecies(widget.species.id);
+  Map<String, List<ObservationPhoto>> _groupByPart(
+    List<ObservationPhoto> photos,
+  ) {
     final grouped = <String, List<ObservationPhoto>>{};
     for (final photo in photos) {
       grouped.putIfAbsent(photo.plantPart, () => []).add(photo);
     }
-    if (mounted) setState(() => _photosByPart = grouped);
+    return grouped;
   }
 
   void _openFullPhoto(String path) {
@@ -659,158 +697,168 @@ class _PlantProgressDetailState extends State<_PlantProgressDetail> {
         .where((p) => allVisible.contains(p.$1))
         .toList();
 
+    final repo = context.read<ObservationRepository>();
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.species.commonName)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Center(
-              child: GestureDetector(
-                onTap: img != null ? () => _openCatalogImage(img) : null,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: img != null
-                      ? Image.asset(
-                          img,
-                          width: 120,
-                          height: 120,
-                          cacheWidth: 360,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceLilac,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.local_florist_rounded,
-                            size: 48,
-                            color: AppColors.textLight,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(
-                widget.species.commonName,
-                style: Theme.of(context).textTheme.displayLarge,
-              ),
-            ),
-            Center(
-              child: Text(
-                widget.species.scientificName,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.textMedium,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Progress
-            Row(
+      body: StreamBuilder<List<ObservationPhoto>>(
+        stream: repo.watchAllPhotosForSpecies(widget.species.id),
+        builder: (context, snapshot) {
+          _photosByPart = _groupByPart(
+            snapshot.data ?? const <ObservationPhoto>[],
+          );
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: AppColors.surfaceLilac,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        isComplete
-                            ? AppColors.accentGreen
-                            : AppColors.accentGreenLight,
-                      ),
+                // Header
+                Center(
+                  child: GestureDetector(
+                    onTap: img != null ? () => _openCatalogImage(img) : null,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: img != null
+                          ? Image.asset(
+                              img,
+                              width: 120,
+                              height: 120,
+                              cacheWidth: 360,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceLilac,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.local_florist_rounded,
+                                size: 48,
+                                color: AppColors.textLight,
+                              ),
+                            ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    widget.species.commonName,
+                    style: Theme.of(context).textTheme.displayLarge,
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    widget.species.scientificName,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textMedium,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Progress
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: AppColors.surfaceLilac,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isComplete
+                                ? AppColors.accentGreen
+                                : AppColors.accentGreenLight,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isComplete
+                            ? AppColors.accentGreen
+                            : AppColors.textMedium,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  '${(progress * 100).toInt()}%',
+                  isComplete
+                      ? '¡Planta completa!'
+                      : 'Faltan ${requiredParts.where((p) => !widget.partsCompleted.contains(p)).length} parte${requiredParts.where((p) => !widget.partsCompleted.contains(p)).length > 1 ? 's' : ''}',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                     color: isComplete
                         ? AppColors.accentGreen
                         : AppColors.textMedium,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isComplete
-                  ? '¡Planta completa!'
-                  : 'Faltan ${requiredParts.where((p) => !widget.partsCompleted.contains(p)).length} parte${requiredParts.where((p) => !widget.partsCompleted.contains(p)).length > 1 ? 's' : ''}',
-              style: TextStyle(
-                fontSize: 13,
-                color: isComplete
-                    ? AppColors.accentGreen
-                    : AppColors.textMedium,
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Parts
-            Text(
-              'Partes requeridas',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            ...(visibleParts.map((part) {
-              final isDone = widget.partsCompleted.contains(part.$1);
-              final userPhotos = _photosByPart[part.$1] ?? [];
-              final isOptional = !requiredParts.contains(part.$1);
-              return _PartSlot(
-                partLabel: isOptional ? '${part.$2} (opcional)' : part.$2,
-                partIcon: part.$3,
-                isDone: isDone,
-                isOptional: isOptional,
-                userPhotos: userPhotos,
-                onTapPhoto: _openFullPhoto,
-              );
-            })),
-            const SizedBox(height: 24),
-            // Catalog images
-            if (catalogImages.isNotEmpty) ...[
-              Text(
-                'Fotos del catálogo',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 24),
+                // Parts
+                Text(
+                  'Partes requeridas',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: catalogImages.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) => GestureDetector(
-                    onTap: () => _openCatalogImage(catalogImages[index]),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        catalogImages[index],
-                        width: 100,
-                        height: 100,
-                        cacheWidth: 300,
-                        fit: BoxFit.cover,
+                const SizedBox(height: 12),
+                ...(visibleParts.map((part) {
+                  final isDone = widget.partsCompleted.contains(part.$1);
+                  final userPhotos = _photosByPart[part.$1] ?? [];
+                  final isOptional = !requiredParts.contains(part.$1);
+                  return _PartSlot(
+                    partLabel: isOptional ? '${part.$2} (opcional)' : part.$2,
+                    partIcon: part.$3,
+                    isDone: isDone,
+                    isOptional: isOptional,
+                    userPhotos: userPhotos,
+                    onTapPhoto: _openFullPhoto,
+                  );
+                })),
+                const SizedBox(height: 24),
+                // Catalog images
+                if (catalogImages.isNotEmpty) ...[
+                  Text(
+                    'Fotos del catálogo',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: catalogImages.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) => GestureDetector(
+                        onTap: () => _openCatalogImage(catalogImages[index]),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            catalogImages[index],
+                            width: 100,
+                            height: 100,
+                            cacheWidth: 300,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1203,43 +1251,36 @@ class _FullAssetViewerState extends State<_FullAssetViewer>
 /// Pantalla que muestra todas las identificaciones en estado pendiente
 /// (incluidas las que aún no tienen especie propuesta).
 class _PendingListScreen extends StatefulWidget {
-  const _PendingListScreen();
+  const _PendingListScreen({required this.onBack});
+
+  /// Vuelve a la grilla de "Mis Plantas" (cambia el sub-estado del panel) en
+  /// lugar de Navigator.pop, para no tapar la barra lateral.
+  final VoidCallback onBack;
 
   @override
   State<_PendingListScreen> createState() => _PendingListScreenState();
 }
 
 class _PendingListScreenState extends State<_PendingListScreen> {
-  List<PhotoStatusItem> _photos = [];
-  bool _loading = true;
+  // userId se resuelve una vez; el Stream del repo refresca automáticamente
+  // ante escrituras locales y sync entrante (item H).
+  Future<String> _userIdFuture = Future.value('');
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _userIdFuture = _resolveUserId();
   }
 
-  Future<void> _load() async {
-    final repo = context.read<ObservationRepository>();
+  Future<String> _resolveUserId() async {
     final session = await context.read<SessionService>().loadSession();
-    final userId = session?.userId ?? '';
-
-    final photos = userId.isEmpty
-        ? <PhotoStatusItem>[]
-        : await repo.getPendingPhotos(userId);
-
-    if (mounted) {
-      setState(() {
-        _photos = photos;
-        _loading = false;
-      });
-    }
+    return session?.userId ?? '';
   }
 
-  void _openPhoto(String photoId) {
-    final item = _photos.firstWhere(
+  void _openPhoto(List<PhotoStatusItem> photos, String photoId) {
+    final item = photos.firstWhere(
       (p) => p.photo.id == photoId,
-      orElse: () => _photos.first,
+      orElse: () => photos.first,
     );
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1253,69 +1294,92 @@ class _PendingListScreenState extends State<_PendingListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pendientes')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _photos.isEmpty
-          ? const Center(child: Text('No hay fotografías pendientes'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _photos.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _PhotoStatusCard(
-                  item: _photos[index],
-                  isRejected: false,
-                  onTapPhoto: _openPhoto,
+    final repo = context.read<ObservationRepository>();
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SubViewHeader(title: 'Pendientes', onBack: widget.onBack),
+          Expanded(
+            child: FutureBuilder<String>(
+              future: _userIdFuture,
+              builder: (context, userSnap) {
+                if (!userSnap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final userId = userSnap.data!;
+                if (userId.isEmpty) {
+                  return const Center(
+                    child: Text('No hay fotografías pendientes'),
+                  );
+                }
+                return StreamBuilder<List<PhotoStatusItem>>(
+                  stream: repo.watchPendingPhotos(userId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final photos = snapshot.data!;
+                    if (photos.isEmpty) {
+                      return const Center(
+                        child: Text('No hay fotografías pendientes'),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: photos.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _PhotoStatusCard(
+                          item: photos[index],
+                          isRejected: false,
+                          onTapPhoto: (id) => _openPhoto(photos, id),
+                        );
+                      },
+                    );
+                  },
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 /// Pantalla que muestra las identificaciones rechazadas con su motivo.
 class _RejectedListScreen extends StatefulWidget {
-  const _RejectedListScreen({this.onNavigate});
+  const _RejectedListScreen({required this.onBack});
 
-  final void Function(int)? onNavigate;
+  /// Vuelve a la grilla de "Mis Plantas" (cambia el sub-estado del panel) en
+  /// lugar de Navigator.pop, para no tapar la barra lateral.
+  final VoidCallback onBack;
 
   @override
   State<_RejectedListScreen> createState() => _RejectedListScreenState();
 }
 
 class _RejectedListScreenState extends State<_RejectedListScreen> {
-  List<PhotoStatusItem> _photos = [];
-  bool _loading = true;
+  // userId se resuelve una vez; el Stream del repo refresca automáticamente
+  // ante escrituras locales, sync entrante y el soft-dismiss local (item H/I).
+  Future<String> _userIdFuture = Future.value('');
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _userIdFuture = _resolveUserId();
   }
 
-  Future<void> _load() async {
-    final repo = context.read<ObservationRepository>();
+  Future<String> _resolveUserId() async {
     final session = await context.read<SessionService>().loadSession();
-    final userId = session?.userId ?? '';
-
-    final photos = userId.isEmpty
-        ? <PhotoStatusItem>[]
-        : await repo.getRejectedPhotos(userId);
-
-    if (mounted) {
-      setState(() {
-        _photos = photos;
-        _loading = false;
-      });
-    }
+    return session?.userId ?? '';
   }
 
-  void _openPhoto(String photoId) {
-    final item = _photos.firstWhere(
+  void _openPhoto(List<PhotoStatusItem> photos, String photoId) {
+    final item = photos.firstWhere(
       (p) => p.photo.id == photoId,
-      orElse: () => _photos.first,
+      orElse: () => photos.first,
     );
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1327,32 +1391,146 @@ class _RejectedListScreenState extends State<_RejectedListScreen> {
     );
   }
 
-  void _retry() {
-    Navigator.of(context).pop();
-    widget.onNavigate?.call(1);
+  /// Oculta localmente todas las rechazadas (soft-dismiss). No borra nada del
+  /// servidor; el Stream re-emite y la lista se vacía sola.
+  Future<void> _confirmClear(String userId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpiar rechazadas'),
+        content: const Text(
+          '¿Querés ocultar todas las fotografías rechazadas? '
+          'Solo se ocultan en este dispositivo, no se borran del servidor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Limpiar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await context.read<ObservationRepository>().dismissAllRejected(userId);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Rechazadas')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _photos.isEmpty
-          ? const Center(child: Text('No hay fotografías rechazadas'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _photos.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _PhotoStatusCard(
-                  item: _photos[index],
-                  isRejected: true,
-                  onTapPhoto: _openPhoto,
-                  onRetry: _retry,
-                );
-              },
+    final repo = context.read<ObservationRepository>();
+    return SafeArea(
+      child: FutureBuilder<String>(
+        future: _userIdFuture,
+        builder: (context, userSnap) {
+          if (!userSnap.hasData) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SubViewHeader(title: 'Rechazadas', onBack: widget.onBack),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            );
+          }
+          final userId = userSnap.data!;
+          if (userId.isEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SubViewHeader(title: 'Rechazadas', onBack: widget.onBack),
+                const Expanded(
+                  child: Center(child: Text('No hay fotografías rechazadas')),
+                ),
+              ],
+            );
+          }
+          return StreamBuilder<List<PhotoStatusItem>>(
+            stream: repo.watchRejectedPhotos(userId),
+            builder: (context, snapshot) {
+              final photos = snapshot.data ?? const <PhotoStatusItem>[];
+              final hasPhotos = photos.isNotEmpty;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SubViewHeader(
+                    title: 'Rechazadas',
+                    onBack: widget.onBack,
+                    action: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Limpiar rechazadas',
+                      onPressed: hasPhotos ? () => _confirmClear(userId) : null,
+                    ),
+                  ),
+                  Expanded(
+                    child: !snapshot.hasData
+                        ? const Center(child: CircularProgressIndicator())
+                        : !hasPhotos
+                        ? const Center(
+                            child: Text('No hay fotografías rechazadas'),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: photos.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              return _PhotoStatusCard(
+                                item: photos[index],
+                                isRejected: true,
+                                onTapPhoto: (id) => _openPhoto(photos, id),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Encabezado interno para las sub-vistas del panel (Pendientes/Rechazadas).
+/// Reemplaza al AppBar de pantalla completa: trae el botón 'atrás' (que cambia
+/// el sub-estado, no hace Navigator.pop) y evita duplicar el chrome del shell.
+class _SubViewHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onBack;
+  final Widget? action;
+
+  const _SubViewHeader({
+    required this.title,
+    required this.onBack,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 8, 0),
+      child: Row(
+        children: [
+          BackButton(onPressed: onBack),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
+          ),
+          if (action != null) action!,
+        ],
+      ),
     );
   }
 }
@@ -1381,13 +1559,11 @@ class _PhotoStatusCard extends StatelessWidget {
   final PhotoStatusItem item;
   final bool isRejected;
   final ValueChanged<String> onTapPhoto;
-  final VoidCallback? onRetry;
 
   const _PhotoStatusCard({
     required this.item,
     required this.isRejected,
     required this.onTapPhoto,
-    this.onRetry,
   });
 
   @override
@@ -1515,20 +1691,6 @@ class _PhotoStatusCard extends StatelessWidget {
                   color: AppColors.textMedium,
                 ),
               ),
-              if (onRetry != null) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Volver a intentar'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.accentGreen,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ],
         ),

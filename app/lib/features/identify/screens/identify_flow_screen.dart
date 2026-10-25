@@ -258,7 +258,8 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
       child: Column(
         children: [
           Expanded(child: _buildCurrentStep()),
-          _buildProgressBar(),
+          if (MediaQuery.of(context).viewInsets.bottom == 0)
+            _buildProgressBar(),
         ],
       ),
     );
@@ -383,7 +384,7 @@ class _IdentifyFlowScreenState extends State<IdentifyFlowScreen> {
         return StepLocation(
           photos: _photos,
           onPhotosChanged: _onPhotosChanged,
-          onNext: _photos.every((p) => p.hasLocation) ? _nextStep : null,
+          onNext: _photos.isNotEmpty ? _nextStep : null,
           onBack: _previousStep,
           onCancel: _confirmCancel,
         );

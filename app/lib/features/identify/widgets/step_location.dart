@@ -107,7 +107,7 @@ class _StepLocationState extends State<StepLocation> {
 
   @override
   Widget build(BuildContext context) {
-    final allHaveLocation = widget.photos.every((p) => p.hasLocation);
+    final canAdvance = widget.photos.isNotEmpty;
     final exif = _exifPhotos;
     final camera = _cameraPhotos;
     final noGps = _galleryNoGps;
@@ -172,18 +172,24 @@ class _StepLocationState extends State<StepLocation> {
                   ),
 
                 // Fotos de cámara (compartidas)
-                if (camera.isNotEmpty && camera.first.hasLocation)
+                if (camera.isNotEmpty)
                   _LocationCard(
                     photos: camera,
                     label: 'Fotos de cámara',
-                    latitude: camera.first.latitude!,
-                    longitude: camera.first.longitude!,
+                    latitude: camera.first.hasLocation
+                        ? camera.first.latitude!
+                        : 0,
+                    longitude: camera.first.hasLocation
+                        ? camera.first.longitude!
+                        : 0,
                     editable: true,
                     onTapPhoto: _openPhoto,
                     onLocationChanged: _updateCameraLocation,
                     onExpandMap: () => _expandMap(
-                      camera.first.latitude!,
-                      camera.first.longitude!,
+                      camera.first.hasLocation ? camera.first.latitude! : -43.3,
+                      camera.first.hasLocation
+                          ? camera.first.longitude!
+                          : -65.1,
                       true,
                       _updateCameraLocation,
                     ),
@@ -241,7 +247,7 @@ class _StepLocationState extends State<StepLocation> {
               const SizedBox(width: 6),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: allHaveLocation ? widget.onNext : null,
+                  onPressed: canAdvance ? widget.onNext : null,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,

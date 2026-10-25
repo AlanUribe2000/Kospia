@@ -7,6 +7,26 @@
   --muted: #5d6b62;
   --danger-bg: #fbeaea;
   --danger: #9b2c2c;
+
+  /* Escala de intención de acciones (jerarquía de botones).
+     Hex elegidos apuntando a WCAG AA para texto blanco sobre relleno; la
+     conformidad real requiere verificación manual (ver nota del plan). */
+  --action-primary: #2f6b47; /* Validar — verde de marca */
+  --action-primary-hover: #255738;
+  --action-primary-text: #ffffff;
+  --action-secondary: #6b4a86; /* Cambiar especie — violeta de marca */
+  --action-secondary-hover: #573c6d;
+  --action-secondary-text: #ffffff;
+  --action-danger: #b4232a; /* Rechazar — destructiva */
+  --action-danger-hover: #8f1b21;
+  --action-danger-text: #ffffff;
+  --action-neutral: #41514a; /* botón por defecto, sin protagonismo */
+  --action-neutral-hover: #33403a;
+  --action-neutral-text: #ffffff;
+  --action-disabled-bg: #d7ddd8;
+  --action-disabled-text: #7a857e;
+  --focus-ring: #2f6b47;
+
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--ink);
   background: var(--cream);
@@ -76,22 +96,24 @@ input {
 
 input:focus-visible,
 button:focus-visible {
-  outline: 2px solid var(--green-700);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
+/* Botón por defecto: neutro de bajo protagonismo. El verde de marca queda
+   reservado a .btn-validate y a .filter.active. */
 button {
   padding: 0.65rem 1rem;
   border: 0;
   border-radius: 8px;
-  background: var(--green-700);
-  color: #fff;
+  background: var(--action-neutral);
+  color: var(--action-neutral-text);
   font-size: 1rem;
   cursor: pointer;
 }
 
 button:hover {
-  background: var(--green-900);
+  background: var(--action-neutral-hover);
 }
 
 button.secondary {
@@ -331,7 +353,18 @@ tbody tr:last-child td {
 
 .badge-rejected {
   background: var(--danger-bg);
-  color: var(--danger);
+  color: var(--action-danger);
+}
+
+.badge-reviewed {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+
+.photo-final-state {
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .visually-hidden {
@@ -527,30 +560,56 @@ tbody tr:last-child td {
   }
 }
 
+/* Acción primaria: Validar (verde de marca). */
 .btn-validate {
-  background: var(--green-700);
+  background: var(--action-primary);
+  color: var(--action-primary-text);
 }
 
+.btn-validate:hover {
+  background: var(--action-primary-hover);
+}
+
+/* Acción secundaria: Cambiar especie / Corregir especie (violeta de marca). */
+.btn-reassign {
+  background: var(--action-secondary);
+  color: var(--action-secondary-text);
+}
+
+.btn-reassign:hover {
+  background: var(--action-secondary-hover);
+}
+
+/* Acción destructiva: Rechazar (relleno rojo reforzado). */
 .btn-reject {
-  background: var(--danger);
+  background: var(--action-danger);
+  color: var(--action-danger-text);
 }
 
 .btn-reject:hover {
-  background: #7c2222;
+  background: var(--action-danger-hover);
 }
 
+/* Variante outline conservada por compatibilidad; ya no se aplica. */
 button.btn-reject-outline {
   background: #fff;
-  color: var(--danger);
-  border: 1px solid var(--danger);
+  color: var(--action-danger);
+  border: 1px solid var(--action-danger);
 }
 
 button.btn-reject-outline:hover {
   background: var(--danger-bg);
 }
 
-button:disabled {
-  opacity: 0.6;
+/* Estado deshabilitado explícito, inequívoco para cualquier variante de color
+   (p. ej. "Actualizar" en curso, o acciones que quedan disabled por busy). */
+button:disabled,
+.btn-validate:disabled,
+.btn-reassign:disabled,
+.btn-reject:disabled,
+button.secondary:disabled {
+  background: var(--action-disabled-bg);
+  color: var(--action-disabled-text);
   cursor: not-allowed;
 }
 

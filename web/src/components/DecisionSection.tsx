@@ -12,6 +12,7 @@ interface Props {
   observationId: string
   species: SpeciesSummary | null
   speciesState: ProfessionalSpeciesState
+  pending: number
   onDecided: (signal: AbortSignal) => Promise<void>
   onSessionInvalid: (message: string) => void
   onBack: () => void
@@ -24,6 +25,7 @@ function DecisionSection({
   observationId,
   species,
   speciesState,
+  pending,
   onDecided,
   onSessionInvalid,
   onBack,
@@ -45,17 +47,28 @@ function DecisionSection({
           ? 'Aplicá la misma decisión a todas las fotografías de la observación: validar la especie propuesta, corregirla o rechazarlas.'
           : 'Esta observación no tiene una especie propuesta válida. Podés reasignar todas las fotografías a una especie o rechazarlas.'}
       </p>
-      <PhotoDecisionControls
-        proposedSpecies={species}
-        scope="all"
-        speciesState={speciesState}
-        submit={submit}
-        onSessionInvalid={onSessionInvalid}
-        onBack={onBack}
-        validateLabel="Validar todas"
-        reassignLabel={species ? 'Corregir especie de todas' : 'Identificar especie'}
-        rejectLabel="Rechazar todas"
-      />
+      {pending === 0 ? (
+        <p className="muted">
+          No quedan fotografías pendientes para aplicar una acción masiva.
+        </p>
+      ) : (
+        <>
+          <p className="muted">
+            Se aplicará a {pending} {pending === 1 ? 'pendiente' : 'pendientes'}.
+          </p>
+          <PhotoDecisionControls
+            proposedSpecies={species}
+            scope="all"
+            speciesState={speciesState}
+            submit={submit}
+            onSessionInvalid={onSessionInvalid}
+            onBack={onBack}
+            validateLabel="Validar todas"
+            reassignLabel={species ? 'Corregir especie de todas' : 'Identificar especie'}
+            rejectLabel="Rechazar todas"
+          />
+        </>
+      )}
     </section>
   )
 }

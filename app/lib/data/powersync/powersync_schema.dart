@@ -96,4 +96,11 @@ final Schema kospiaPowerSyncSchema = Schema([
     Column.text('status'),
     Column.text('created_at'),
   ]),
+  // Fotos rechazadas ocultadas localmente por el usuario (soft-dismiss).
+  // Local-only: NO sincroniza con el backend, así que ocultar no borra datos
+  // del servidor. Ver item I del diagnóstico.
+  Table.localOnly('dismissed_photos', [
+    Column.text('photo_id'),
+    Column.text('dismissed_at'),
+  ]),
 ]);

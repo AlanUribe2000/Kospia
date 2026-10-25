@@ -1,6 +1,16 @@
-import type { ValidationStatus } from '../types/observations.ts'
+import type {
+  PhotoValidationStatus,
+  ValidationStatus,
+} from '../types/observations.ts'
 
+// Etiquetas a nivel OBSERVACIÓN (dos estados).
 export const STATUS_LABEL: Record<ValidationStatus, string> = {
+  pending: 'Pendiente',
+  reviewed: 'Revisada',
+}
+
+// Etiquetas a nivel FOTO (estado por foto, distinto del de observación).
+export const PHOTO_STATUS_LABEL: Record<PhotoValidationStatus, string> = {
   pending: 'Pendiente',
   validated: 'Validada',
   rejected: 'Rechazada',

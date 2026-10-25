@@ -4,7 +4,7 @@ class AppConstants {
   static const String appName = 'Kospia';
   static const String appSubtitle = 'Flora Patagonica';
   static const String databaseName = 'kospia_local.db';
-  static const int databaseVersion = 8;
+  static const int databaseVersion = 9;
   // Partes de la planta para fotos
   static const List<String> plantParts = [
     'general',
