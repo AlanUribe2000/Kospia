@@ -1976,6 +1976,28 @@ class $QuestionOptionsTable extends QuestionOptions
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconAttachmentIdMeta = const VerificationMeta(
+    'iconAttachmentId',
+  );
+  @override
+  late final GeneratedColumn<String> iconAttachmentId = GeneratedColumn<String>(
+    'icon_attachment_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1983,6 +2005,8 @@ class $QuestionOptionsTable extends QuestionOptions
     optionText,
     valueKey,
     orderIndex,
+    description,
+    iconAttachmentId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2029,6 +2053,24 @@ class $QuestionOptionsTable extends QuestionOptions
         orderIndex.isAcceptableOrUnknown(data['order_index']!, _orderIndexMeta),
       );
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon_attachment_id')) {
+      context.handle(
+        _iconAttachmentIdMeta,
+        iconAttachmentId.isAcceptableOrUnknown(
+          data['icon_attachment_id']!,
+          _iconAttachmentIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2058,6 +2100,14 @@ class $QuestionOptionsTable extends QuestionOptions
         DriftSqlType.int,
         data['${effectivePrefix}order_index'],
       )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      iconAttachmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_attachment_id'],
+      ),
     );
   }
 
@@ -2073,12 +2123,20 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
   final String optionText;
   final String valueKey;
   final int orderIndex;
+
+  /// Texto descriptivo de la opción (gestionado desde la web admin).
+  final String? description;
+
+  /// Id del adjunto del icono/logo de la opción servido por la API.
+  final String? iconAttachmentId;
   const QuestionOption({
     required this.id,
     required this.questionId,
     required this.optionText,
     required this.valueKey,
     required this.orderIndex,
+    this.description,
+    this.iconAttachmentId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2088,6 +2146,12 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
     map['option_text'] = Variable<String>(optionText);
     map['value_key'] = Variable<String>(valueKey);
     map['order_index'] = Variable<int>(orderIndex);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || iconAttachmentId != null) {
+      map['icon_attachment_id'] = Variable<String>(iconAttachmentId);
+    }
     return map;
   }
 
@@ -2098,6 +2162,12 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       optionText: Value(optionText),
       valueKey: Value(valueKey),
       orderIndex: Value(orderIndex),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      iconAttachmentId: iconAttachmentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconAttachmentId),
     );
   }
 
@@ -2112,6 +2182,8 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       optionText: serializer.fromJson<String>(json['optionText']),
       valueKey: serializer.fromJson<String>(json['valueKey']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      description: serializer.fromJson<String?>(json['description']),
+      iconAttachmentId: serializer.fromJson<String?>(json['iconAttachmentId']),
     );
   }
   @override
@@ -2123,6 +2195,8 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       'optionText': serializer.toJson<String>(optionText),
       'valueKey': serializer.toJson<String>(valueKey),
       'orderIndex': serializer.toJson<int>(orderIndex),
+      'description': serializer.toJson<String?>(description),
+      'iconAttachmentId': serializer.toJson<String?>(iconAttachmentId),
     };
   }
 
@@ -2132,12 +2206,18 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
     String? optionText,
     String? valueKey,
     int? orderIndex,
+    Value<String?> description = const Value.absent(),
+    Value<String?> iconAttachmentId = const Value.absent(),
   }) => QuestionOption(
     id: id ?? this.id,
     questionId: questionId ?? this.questionId,
     optionText: optionText ?? this.optionText,
     valueKey: valueKey ?? this.valueKey,
     orderIndex: orderIndex ?? this.orderIndex,
+    description: description.present ? description.value : this.description,
+    iconAttachmentId: iconAttachmentId.present
+        ? iconAttachmentId.value
+        : this.iconAttachmentId,
   );
   QuestionOption copyWithCompanion(QuestionOptionsCompanion data) {
     return QuestionOption(
@@ -2152,6 +2232,12 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
       orderIndex: data.orderIndex.present
           ? data.orderIndex.value
           : this.orderIndex,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      iconAttachmentId: data.iconAttachmentId.present
+          ? data.iconAttachmentId.value
+          : this.iconAttachmentId,
     );
   }
 
@@ -2162,14 +2248,23 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
           ..write('questionId: $questionId, ')
           ..write('optionText: $optionText, ')
           ..write('valueKey: $valueKey, ')
-          ..write('orderIndex: $orderIndex')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('description: $description, ')
+          ..write('iconAttachmentId: $iconAttachmentId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, questionId, optionText, valueKey, orderIndex);
+  int get hashCode => Object.hash(
+    id,
+    questionId,
+    optionText,
+    valueKey,
+    orderIndex,
+    description,
+    iconAttachmentId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2178,7 +2273,9 @@ class QuestionOption extends DataClass implements Insertable<QuestionOption> {
           other.questionId == this.questionId &&
           other.optionText == this.optionText &&
           other.valueKey == this.valueKey &&
-          other.orderIndex == this.orderIndex);
+          other.orderIndex == this.orderIndex &&
+          other.description == this.description &&
+          other.iconAttachmentId == this.iconAttachmentId);
 }
 
 class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
@@ -2187,6 +2284,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
   final Value<String> optionText;
   final Value<String> valueKey;
   final Value<int> orderIndex;
+  final Value<String?> description;
+  final Value<String?> iconAttachmentId;
   final Value<int> rowid;
   const QuestionOptionsCompanion({
     this.id = const Value.absent(),
@@ -2194,6 +2293,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     this.optionText = const Value.absent(),
     this.valueKey = const Value.absent(),
     this.orderIndex = const Value.absent(),
+    this.description = const Value.absent(),
+    this.iconAttachmentId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   QuestionOptionsCompanion.insert({
@@ -2202,6 +2303,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     required String optionText,
     this.valueKey = const Value.absent(),
     this.orderIndex = const Value.absent(),
+    this.description = const Value.absent(),
+    this.iconAttachmentId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        questionId = Value(questionId),
@@ -2212,6 +2315,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     Expression<String>? optionText,
     Expression<String>? valueKey,
     Expression<int>? orderIndex,
+    Expression<String>? description,
+    Expression<String>? iconAttachmentId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2220,6 +2325,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
       if (optionText != null) 'option_text': optionText,
       if (valueKey != null) 'value_key': valueKey,
       if (orderIndex != null) 'order_index': orderIndex,
+      if (description != null) 'description': description,
+      if (iconAttachmentId != null) 'icon_attachment_id': iconAttachmentId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2230,6 +2337,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     Value<String>? optionText,
     Value<String>? valueKey,
     Value<int>? orderIndex,
+    Value<String?>? description,
+    Value<String?>? iconAttachmentId,
     Value<int>? rowid,
   }) {
     return QuestionOptionsCompanion(
@@ -2238,6 +2347,8 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
       optionText: optionText ?? this.optionText,
       valueKey: valueKey ?? this.valueKey,
       orderIndex: orderIndex ?? this.orderIndex,
+      description: description ?? this.description,
+      iconAttachmentId: iconAttachmentId ?? this.iconAttachmentId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2260,6 +2371,12 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (iconAttachmentId.present) {
+      map['icon_attachment_id'] = Variable<String>(iconAttachmentId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2274,6 +2391,382 @@ class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
           ..write('optionText: $optionText, ')
           ..write('valueKey: $valueKey, ')
           ..write('orderIndex: $orderIndex, ')
+          ..write('description: $description, ')
+          ..write('iconAttachmentId: $iconAttachmentId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $QuestionOptionPhotosTable extends QuestionOptionPhotos
+    with TableInfo<$QuestionOptionPhotosTable, QuestionOptionPhoto> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuestionOptionPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _optionIdMeta = const VerificationMeta(
+    'optionId',
+  );
+  @override
+  late final GeneratedColumn<String> optionId = GeneratedColumn<String>(
+    'option_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderIndexMeta = const VerificationMeta(
+    'orderIndex',
+  );
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+    'order_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _fileExtensionMeta = const VerificationMeta(
+    'fileExtension',
+  );
+  @override
+  late final GeneratedColumn<String> fileExtension = GeneratedColumn<String>(
+    'file_extension',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    optionId,
+    orderIndex,
+    fileExtension,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'question_option_photos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QuestionOptionPhoto> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('option_id')) {
+      context.handle(
+        _optionIdMeta,
+        optionId.isAcceptableOrUnknown(data['option_id']!, _optionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_optionIdMeta);
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+        _orderIndexMeta,
+        orderIndex.isAcceptableOrUnknown(data['order_index']!, _orderIndexMeta),
+      );
+    }
+    if (data.containsKey('file_extension')) {
+      context.handle(
+        _fileExtensionMeta,
+        fileExtension.isAcceptableOrUnknown(
+          data['file_extension']!,
+          _fileExtensionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuestionOptionPhoto map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuestionOptionPhoto(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      optionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}option_id'],
+      )!,
+      orderIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}order_index'],
+      )!,
+      fileExtension: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_extension'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      ),
+    );
+  }
+
+  @override
+  $QuestionOptionPhotosTable createAlias(String alias) {
+    return $QuestionOptionPhotosTable(attachedDatabase, alias);
+  }
+}
+
+class QuestionOptionPhoto extends DataClass
+    implements Insertable<QuestionOptionPhoto> {
+  final String id;
+  final String optionId;
+  final int orderIndex;
+  final String? fileExtension;
+  final String? createdAt;
+  const QuestionOptionPhoto({
+    required this.id,
+    required this.optionId,
+    required this.orderIndex,
+    this.fileExtension,
+    this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['option_id'] = Variable<String>(optionId);
+    map['order_index'] = Variable<int>(orderIndex);
+    if (!nullToAbsent || fileExtension != null) {
+      map['file_extension'] = Variable<String>(fileExtension);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<String>(createdAt);
+    }
+    return map;
+  }
+
+  QuestionOptionPhotosCompanion toCompanion(bool nullToAbsent) {
+    return QuestionOptionPhotosCompanion(
+      id: Value(id),
+      optionId: Value(optionId),
+      orderIndex: Value(orderIndex),
+      fileExtension: fileExtension == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileExtension),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+    );
+  }
+
+  factory QuestionOptionPhoto.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuestionOptionPhoto(
+      id: serializer.fromJson<String>(json['id']),
+      optionId: serializer.fromJson<String>(json['optionId']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      fileExtension: serializer.fromJson<String?>(json['fileExtension']),
+      createdAt: serializer.fromJson<String?>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'optionId': serializer.toJson<String>(optionId),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'fileExtension': serializer.toJson<String?>(fileExtension),
+      'createdAt': serializer.toJson<String?>(createdAt),
+    };
+  }
+
+  QuestionOptionPhoto copyWith({
+    String? id,
+    String? optionId,
+    int? orderIndex,
+    Value<String?> fileExtension = const Value.absent(),
+    Value<String?> createdAt = const Value.absent(),
+  }) => QuestionOptionPhoto(
+    id: id ?? this.id,
+    optionId: optionId ?? this.optionId,
+    orderIndex: orderIndex ?? this.orderIndex,
+    fileExtension: fileExtension.present
+        ? fileExtension.value
+        : this.fileExtension,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+  );
+  QuestionOptionPhoto copyWithCompanion(QuestionOptionPhotosCompanion data) {
+    return QuestionOptionPhoto(
+      id: data.id.present ? data.id.value : this.id,
+      optionId: data.optionId.present ? data.optionId.value : this.optionId,
+      orderIndex: data.orderIndex.present
+          ? data.orderIndex.value
+          : this.orderIndex,
+      fileExtension: data.fileExtension.present
+          ? data.fileExtension.value
+          : this.fileExtension,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionOptionPhoto(')
+          ..write('id: $id, ')
+          ..write('optionId: $optionId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('fileExtension: $fileExtension, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, optionId, orderIndex, fileExtension, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuestionOptionPhoto &&
+          other.id == this.id &&
+          other.optionId == this.optionId &&
+          other.orderIndex == this.orderIndex &&
+          other.fileExtension == this.fileExtension &&
+          other.createdAt == this.createdAt);
+}
+
+class QuestionOptionPhotosCompanion
+    extends UpdateCompanion<QuestionOptionPhoto> {
+  final Value<String> id;
+  final Value<String> optionId;
+  final Value<int> orderIndex;
+  final Value<String?> fileExtension;
+  final Value<String?> createdAt;
+  final Value<int> rowid;
+  const QuestionOptionPhotosCompanion({
+    this.id = const Value.absent(),
+    this.optionId = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.fileExtension = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuestionOptionPhotosCompanion.insert({
+    required String id,
+    required String optionId,
+    this.orderIndex = const Value.absent(),
+    this.fileExtension = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       optionId = Value(optionId);
+  static Insertable<QuestionOptionPhoto> custom({
+    Expression<String>? id,
+    Expression<String>? optionId,
+    Expression<int>? orderIndex,
+    Expression<String>? fileExtension,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (optionId != null) 'option_id': optionId,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (fileExtension != null) 'file_extension': fileExtension,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuestionOptionPhotosCompanion copyWith({
+    Value<String>? id,
+    Value<String>? optionId,
+    Value<int>? orderIndex,
+    Value<String?>? fileExtension,
+    Value<String?>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return QuestionOptionPhotosCompanion(
+      id: id ?? this.id,
+      optionId: optionId ?? this.optionId,
+      orderIndex: orderIndex ?? this.orderIndex,
+      fileExtension: fileExtension ?? this.fileExtension,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (optionId.present) {
+      map['option_id'] = Variable<String>(optionId.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (fileExtension.present) {
+      map['file_extension'] = Variable<String>(fileExtension.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionOptionPhotosCompanion(')
+          ..write('id: $id, ')
+          ..write('optionId: $optionId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('fileExtension: $fileExtension, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5402,6 +5895,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $QuestionOptionsTable questionOptions = $QuestionOptionsTable(
     this,
   );
+  late final $QuestionOptionPhotosTable questionOptionPhotos =
+      $QuestionOptionPhotosTable(this);
   late final $SpeciesTraitsTable speciesTraits = $SpeciesTraitsTable(this);
   late final $ObservationsTable observations = $ObservationsTable(this);
   late final $ObservationPhotosTable observationPhotos =
@@ -5416,6 +5911,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     species,
     questions,
     questionOptions,
+    questionOptionPhotos,
     speciesTraits,
     observations,
     observationPhotos,
@@ -6331,6 +6827,8 @@ typedef $$QuestionOptionsTableCreateCompanionBuilder =
       required String optionText,
       Value<String> valueKey,
       Value<int> orderIndex,
+      Value<String?> description,
+      Value<String?> iconAttachmentId,
       Value<int> rowid,
     });
 typedef $$QuestionOptionsTableUpdateCompanionBuilder =
@@ -6340,6 +6838,8 @@ typedef $$QuestionOptionsTableUpdateCompanionBuilder =
       Value<String> optionText,
       Value<String> valueKey,
       Value<int> orderIndex,
+      Value<String?> description,
+      Value<String?> iconAttachmentId,
       Value<int> rowid,
     });
 
@@ -6374,6 +6874,16 @@ class $$QuestionOptionsTableFilterComposer
 
   ColumnFilters<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconAttachmentId => $composableBuilder(
+    column: $table.iconAttachmentId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6411,6 +6921,16 @@ class $$QuestionOptionsTableOrderingComposer
     column: $table.orderIndex,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconAttachmentId => $composableBuilder(
+    column: $table.iconAttachmentId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$QuestionOptionsTableAnnotationComposer
@@ -6440,6 +6960,16 @@ class $$QuestionOptionsTableAnnotationComposer
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
     column: $table.orderIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconAttachmentId => $composableBuilder(
+    column: $table.iconAttachmentId,
     builder: (column) => column,
   );
 }
@@ -6486,6 +7016,8 @@ class $$QuestionOptionsTableTableManager
                 Value<String> optionText = const Value.absent(),
                 Value<String> valueKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> iconAttachmentId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => QuestionOptionsCompanion(
                 id: id,
@@ -6493,6 +7025,8 @@ class $$QuestionOptionsTableTableManager
                 optionText: optionText,
                 valueKey: valueKey,
                 orderIndex: orderIndex,
+                description: description,
+                iconAttachmentId: iconAttachmentId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6502,6 +7036,8 @@ class $$QuestionOptionsTableTableManager
                 required String optionText,
                 Value<String> valueKey = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> iconAttachmentId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => QuestionOptionsCompanion.insert(
                 id: id,
@@ -6509,6 +7045,8 @@ class $$QuestionOptionsTableTableManager
                 optionText: optionText,
                 valueKey: valueKey,
                 orderIndex: orderIndex,
+                description: description,
+                iconAttachmentId: iconAttachmentId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6543,6 +7081,237 @@ typedef $$QuestionOptionsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $QuestionOptionsTable, QuestionOption>,
       ),
       QuestionOption,
+      PrefetchHooks Function()
+    >;
+typedef $$QuestionOptionPhotosTableCreateCompanionBuilder =
+    QuestionOptionPhotosCompanion Function({
+      required String id,
+      required String optionId,
+      Value<int> orderIndex,
+      Value<String?> fileExtension,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+typedef $$QuestionOptionPhotosTableUpdateCompanionBuilder =
+    QuestionOptionPhotosCompanion Function({
+      Value<String> id,
+      Value<String> optionId,
+      Value<int> orderIndex,
+      Value<String?> fileExtension,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+
+class $$QuestionOptionPhotosTableFilterComposer
+    extends Composer<_$AppDatabase, $QuestionOptionPhotosTable> {
+  $$QuestionOptionPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get optionId => $composableBuilder(
+    column: $table.optionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$QuestionOptionPhotosTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuestionOptionPhotosTable> {
+  $$QuestionOptionPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get optionId => $composableBuilder(
+    column: $table.optionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QuestionOptionPhotosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuestionOptionPhotosTable> {
+  $$QuestionOptionPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get optionId =>
+      $composableBuilder(column: $table.optionId, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fileExtension => $composableBuilder(
+    column: $table.fileExtension,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$QuestionOptionPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuestionOptionPhotosTable,
+          QuestionOptionPhoto,
+          $$QuestionOptionPhotosTableFilterComposer,
+          $$QuestionOptionPhotosTableOrderingComposer,
+          $$QuestionOptionPhotosTableAnnotationComposer,
+          $$QuestionOptionPhotosTableCreateCompanionBuilder,
+          $$QuestionOptionPhotosTableUpdateCompanionBuilder,
+          (
+            QuestionOptionPhoto,
+            BaseReferences<
+              _$AppDatabase,
+              $QuestionOptionPhotosTable,
+              QuestionOptionPhoto
+            >,
+          ),
+          QuestionOptionPhoto,
+          PrefetchHooks Function()
+        > {
+  $$QuestionOptionPhotosTableTableManager(
+    _$AppDatabase db,
+    $QuestionOptionPhotosTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuestionOptionPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuestionOptionPhotosTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$QuestionOptionPhotosTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> optionId = const Value.absent(),
+                Value<int> orderIndex = const Value.absent(),
+                Value<String?> fileExtension = const Value.absent(),
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuestionOptionPhotosCompanion(
+                id: id,
+                optionId: optionId,
+                orderIndex: orderIndex,
+                fileExtension: fileExtension,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String optionId,
+                Value<int> orderIndex = const Value.absent(),
+                Value<String?> fileExtension = const Value.absent(),
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuestionOptionPhotosCompanion.insert(
+                id: id,
+                optionId: optionId,
+                orderIndex: orderIndex,
+                fileExtension: fileExtension,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$QuestionOptionPhotosTable, QuestionOptionPhoto>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $QuestionOptionPhotosTable,
+                    QuestionOptionPhoto
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$QuestionOptionPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuestionOptionPhotosTable,
+      QuestionOptionPhoto,
+      $$QuestionOptionPhotosTableFilterComposer,
+      $$QuestionOptionPhotosTableOrderingComposer,
+      $$QuestionOptionPhotosTableAnnotationComposer,
+      $$QuestionOptionPhotosTableCreateCompanionBuilder,
+      $$QuestionOptionPhotosTableUpdateCompanionBuilder,
+      (
+        QuestionOptionPhoto,
+        BaseReferences<
+          _$AppDatabase,
+          $QuestionOptionPhotosTable,
+          QuestionOptionPhoto
+        >,
+      ),
+      QuestionOptionPhoto,
       PrefetchHooks Function()
     >;
 typedef $$SpeciesTraitsTableCreateCompanionBuilder =
@@ -8123,6 +8892,8 @@ class $AppDatabaseManager {
       $$QuestionsTableTableManager(_db, _db.questions);
   $$QuestionOptionsTableTableManager get questionOptions =>
       $$QuestionOptionsTableTableManager(_db, _db.questionOptions);
+  $$QuestionOptionPhotosTableTableManager get questionOptionPhotos =>
+      $$QuestionOptionPhotosTableTableManager(_db, _db.questionOptionPhotos);
   $$SpeciesTraitsTableTableManager get speciesTraits =>
       $$SpeciesTraitsTableTableManager(_db, _db.speciesTraits);
   $$ObservationsTableTableManager get observations =>

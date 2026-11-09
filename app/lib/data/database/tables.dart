@@ -65,6 +65,24 @@ class QuestionOptions extends Table {
 
   IntColumn get orderIndex => integer().withDefault(const Constant(0))();
 
+  /// Texto descriptivo de la opción (gestionado desde la web admin).
+  TextColumn get description => text().nullable()();
+
+  /// Id del adjunto del icono/logo de la opción servido por la API.
+  TextColumn get iconAttachmentId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Fotos de ayuda (galería) asociadas a una opción de pregunta.
+class QuestionOptionPhotos extends Table {
+  TextColumn get id => text()();
+  TextColumn get optionId => text()();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+  TextColumn get fileExtension => text().nullable()();
+  TextColumn get createdAt => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

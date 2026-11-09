@@ -15,6 +15,7 @@ part 'app_database.g.dart';
     Species,
     Questions,
     QuestionOptions,
+    QuestionOptionPhotos,
     SpeciesTraits,
     Observations,
     ObservationPhotos,
@@ -61,6 +62,11 @@ class AppDatabase extends _$AppDatabase {
           );
           await m.addColumn(observationPhotos, observationPhotos.validatedAt);
           await m.addColumn(observationPhotos, observationPhotos.validatedBy);
+        }
+        if (from < 10) {
+          await m.addColumn(questionOptions, questionOptions.description);
+          await m.addColumn(questionOptions, questionOptions.iconAttachmentId);
+          await m.createTable(questionOptionPhotos);
         }
       },
     );
@@ -168,6 +174,12 @@ class AppDatabase extends _$AppDatabase {
   Future<List<QuestionOption>> getOptionsForQuestion(String questionId) =>
       (select(questionOptions)
             ..where((t) => t.questionId.equals(questionId))
+            ..orderBy([(t) => OrderingTerm.asc(t.orderIndex)]))
+          .get();
+
+  Future<List<QuestionOptionPhoto>> getOptionPhotos(String optionId) =>
+      (select(questionOptionPhotos)
+            ..where((t) => t.optionId.equals(optionId))
             ..orderBy([(t) => OrderingTerm.asc(t.orderIndex)]))
           .get();
 

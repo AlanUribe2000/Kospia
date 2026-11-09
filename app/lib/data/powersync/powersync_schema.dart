@@ -40,6 +40,15 @@ final Schema kospiaPowerSyncSchema = Schema([
     Column.text('option_text'),
     Column.text('value_key'),
     Column.integer('order_index'),
+    Column.text('description'),
+    Column.text('icon_attachment_id'),
+    Column.text('icon_extension'),
+  ]),
+  Table('question_option_photos', [
+    Column.text('option_id'),
+    Column.integer('order_index'),
+    Column.text('file_extension'),
+    Column.text('created_at'),
   ]),
   Table('species_traits', [
     Column.text('species_id'),

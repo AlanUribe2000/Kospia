@@ -1,0 +1,104 @@
+========================================================================
+QUE HACER DESPUES DEL PULL
+========================================================================
+Estos pasos aplican los cambios de esta tanda (fichas de ayuda + arreglos
+de observaciones y UX de la app). Hacelos en orden. Son rapidos.
+
+Rutas: la raiz del repo es la carpeta Kospia. Los comandos indican desde
+donde correrlos.
+
+
+------------------------------------------------------------------------
+1. BASE DE DATOS  -> aplicar la migracion 008
+------------------------------------------------------------------------
+Hay una migracion nueva (008_add_help_cards.sql) que agrega las tablas y
+columnas de las fichas de ayuda. Es idempotente (se puede correr dos veces
+sin romper nada).
+
+Si tenes psql en el PATH:
+    psql -h <DB_HOST> -p <DB_PORT> -U <DB_USER> -d <DB_NAME> \
+         -f api/backend/migrations/008_add_help_cards.sql
+    (los valores de conexion estan en api/backend/.env)
+
+Si NO tenes psql, aplicala con cualquier cliente de Postgres (DBeaver,
+pgAdmin, etc.) ejecutando el contenido de:
+    api/backend/migrations/008_add_help_cards.sql
+
+NO necesitas sembrar ningun usuario "admin". La gestion de fichas de ayuda
+quedo habilitada para el rol 'professional' (ver punto 4).
+
+
+------------------------------------------------------------------------
+2. POWERSYNC  -> REINICIAR el servicio (paso OBLIGATORIO)
+------------------------------------------------------------------------
+IMPORTANTE: despues de aplicar la migracion 008 hay que reiniciar PowerSync,
+si no, la tabla de fotos de ayuda (question_option_photos) NO sincroniza y
+las fotos no aparecen en la app aunque esten cargadas desde la web.
+
+Si PowerSync ya estaba corriendo:
+    docker restart powersync_backend-powersync-1
+
+Si lo vas a levantar de cero (desde api/backend/powersync/docker):
+    docker compose up -d
+    (el stack se llama powersync_backend; el servicio, powersync; puerto 8080)
+
+
+------------------------------------------------------------------------
+3. BACKEND (API)
+------------------------------------------------------------------------
+Desde api/backend:
+    .venv\Scripts\activate
+    py app.py
+Arranca en http://127.0.0.1:5000
+La carpeta de uploads de iconos/fotos de ayuda se crea sola cuando haga falta.
+
+
+------------------------------------------------------------------------
+4. WEB
+------------------------------------------------------------------------
+Desde web:
+    npm install        (solo si cambiaron dependencias)
+    npm run dev        (o npm run build para produccion)
+
+La seccion "Fichas de ayuda" aparece en la barra superior para el usuario
+con rol 'professional'. Desde ahi se eligen las preguntas y, por cada opcion,
+se cargan el icono, la descripcion y las fotos de la galeria.
+
+
+------------------------------------------------------------------------
+5. APP (Flutter)
+------------------------------------------------------------------------
+La base local de la app subio a databaseVersion = 10, asi que hay que
+regenerar el codigo y correr limpio.
+
+Desde app:
+    flutter pub get
+    dart run build_runner build --delete-conflicting-outputs
+    flutter run --dart-define=KOSPIA_BACKEND_URL=http://<IP_DEL_BACKEND>:5000 --dart-define=KOSPIA_POWERSYNC_URL=http://<IP_DEL_BACKEND>:8080 --dart-define=KOSPIA_TOKEN_PATH=/auth/powersync-token --dart-define=KOSPIA_GOOGLE_SERVER_CLIENT_ID=804279267852-u645tsbnee3unkqtibphiif9e67ta4k5.apps.googleusercontent.com
+
+Reemplaza <IP_DEL_BACKEND> por la IP de la maquina donde corre el backend
+(en dispositivo fisico, la IP de la PC en la red local; en emulador Android,
+usar 10.0.2.2 en lugar de la IP).
+
+
+------------------------------------------------------------------------
+COMPROBACION RAPIDA (que todo quedo bien)
+------------------------------------------------------------------------
+1. Entrar a la web como 'professional' -> debe verse la seccion
+   "Fichas de ayuda". Cargar una foto y una descripcion a una opcion.
+2. En la app, en el cuestionario de identificacion, la opcion con fotos
+   muestra el icono de info (i) arriba a la derecha. Tocarlo abre el popup
+   con la descripcion y el carrusel; las fotos se ven completas y al tocarlas
+   se abren a pantalla completa con zoom (doble toque o pellizco).
+3. Con la app abierta en esa pantalla, editar algo desde la web y confirmar
+   que el cambio aparece solo, sin cerrar ni reiniciar la app (sync en vivo).
+
+
+------------------------------------------------------------------------
+NOTA
+------------------------------------------------------------------------
+El archivo viejo CAMBIOS_FICHAS_AYUDA.txt quedo desactualizado: menciona que
+la seccion es "solo admin" y que hay que sembrar un usuario admin, y describe
+un icono "?" a nivel pregunta. Eso YA NO aplica. La version vigente es la de
+este documento (rol 'professional', icono de info por opcion). Usar este
+archivo como referencia.

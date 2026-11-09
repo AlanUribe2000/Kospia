@@ -5,6 +5,7 @@ import type { CredentialResponse } from '@react-oauth/google'
 import { ApiError, getProfessionalMe, loginWithGoogle } from './api/client.ts'
 import ObservationsPanel from './components/ObservationsPanel.tsx'
 import ObservationDetailView from './components/ObservationDetail.tsx'
+import HelpCardsAdmin from './components/HelpCardsAdmin.tsx'
 import type { ProfessionalUser } from './types/auth.ts'
 import type { ValidationStatus } from './types/observations.ts'
 
@@ -30,6 +31,10 @@ function App() {
   const [selectedObservationId, setSelectedObservationId] = useState<
     string | null
   >(null)
+  // Sección activa del panel (solo relevante para rol admin).
+  const [adminSection, setAdminSection] = useState<'observations' | 'helpCards'>(
+    'observations',
+  )
 
   const fetchSession = useCallback(async (token: string) => {
     try {
@@ -80,6 +85,7 @@ function App() {
     setNotice(message)
     setSelectedObservationId(null)
     setFilter('pending')
+    setAdminSection('observations')
     setSession({ status: 'anonymous' })
   }, [])
 
@@ -129,11 +135,16 @@ function App() {
     setNotice(null)
     setSelectedObservationId(null)
     setFilter('pending')
+    setAdminSection('observations')
     setSession({ status: 'anonymous' })
   }
 
   if (session.status === 'active') {
     const { user } = session
+    // La sección "Fichas de ayuda" la gestiona el rol professional (no existe
+    // un rol admin en producción); se incluye admin por compatibilidad.
+    const canManageHelpCards =
+      user.role === 'professional' || user.role === 'admin'
 
     return (
       <div className="dashboard">
@@ -141,6 +152,36 @@ function App() {
           <div>
             <p className="eyebrow">Kospia</p>
             <h1>Panel profesional</h1>
+            {canManageHelpCards && (
+              <nav
+                className="admin-nav"
+                role="tablist"
+                aria-label="Secciones de administración"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={adminSection === 'observations'}
+                  className={
+                    adminSection === 'observations' ? 'filter active' : 'filter'
+                  }
+                  onClick={() => setAdminSection('observations')}
+                >
+                  Panel profesional
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={adminSection === 'helpCards'}
+                  className={
+                    adminSection === 'helpCards' ? 'filter active' : 'filter'
+                  }
+                  onClick={() => setAdminSection('helpCards')}
+                >
+                  Fichas de ayuda
+                </button>
+              </nav>
+            )}
           </div>
           <div className="session-info">
             {user.photo_url && (
@@ -161,7 +202,12 @@ function App() {
           </div>
         </header>
 
-        {selectedObservationId === null ? (
+        {canManageHelpCards && adminSection === 'helpCards' ? (
+          <HelpCardsAdmin
+            token={session.token}
+            onSessionInvalid={handleSessionInvalid}
+          />
+        ) : selectedObservationId === null ? (
           <ObservationsPanel
             token={session.token}
             filter={filter}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError, getAttachmentBlob } from '../api/client.ts'
+import { ApiError, getAttachmentBlob, getOptionImageBlob } from '../api/client.ts'
 
 interface Props {
   token: string
@@ -10,6 +10,9 @@ interface Props {
   onImageChange?: (photoId: string, url: string | null) => void
   onOpen?: () => void
   openLabel?: string
+  // 'attachment' (por defecto) descarga de /attachments/<id>; 'option-image'
+  // descarga de /option-images/<id> (iconos/galería de fichas de ayuda).
+  source?: 'attachment' | 'option-image'
 }
 
 // El resultado queda asociado a la carga que lo produjo.
@@ -25,6 +28,7 @@ function AuthenticatedPhoto({
   onImageChange,
   onOpen,
   openLabel,
+  source = 'attachment',
 }: Props) {
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<Result | null>(null)
@@ -36,7 +40,10 @@ function AuthenticatedPhoto({
     const controller = new AbortController()
     let objectUrl: string | null = null
 
-    getAttachmentBlob(token, photoId, controller.signal).then(
+    const loadBlob =
+      source === 'option-image' ? getOptionImageBlob : getAttachmentBlob
+
+    loadBlob(token, photoId, controller.signal).then(
       (blob) => {
         if (controller.signal.aborted) return
         objectUrl = URL.createObjectURL(blob)
@@ -69,7 +76,7 @@ function AuthenticatedPhoto({
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [token, photoId, key, onSessionInvalid, onImageChange])
+  }, [token, photoId, key, onSessionInvalid, onImageChange, source])
 
   if (current === null) {
     return (

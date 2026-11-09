@@ -82,6 +82,8 @@ streams:
       - |
         SELECT * FROM question_options
       - |
+        SELECT * FROM question_option_photos
+      - |
         SELECT * FROM species_traits
 
   user_data:

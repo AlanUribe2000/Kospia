@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,7 +12,9 @@ import '../../../data/repositories/species_repository.dart';
 import '../../../data/services/sequential_questionnaire.dart';
 import '../../catalog/screens/species_detail_screen.dart';
 import '../screens/identify_flow_screen.dart';
+import 'option_help_dialog.dart';
 import 'option_illustration.dart';
+import 'option_image.dart';
 
 /// Paso 2: Identificar la planta.
 /// Cuestionario secuencial filtrado por las partes fotografiadas.
@@ -59,6 +62,23 @@ class _StepIdentifyState extends State<StepIdentify> {
   _IdentifyMode _mode = _IdentifyMode.questionnaire;
   final _noteController = TextEditingController();
 
+  /// Datos de ayuda (texto + icono + galería) de la pregunta actualmente
+  /// mostrada. Se actualizan EN VIVO vía una suscripción reactiva al
+  /// `watch` de PowerSync en SpeciesRepository: cuando la web agrega/edita
+  /// íconos, descripciones o fotos, PowerSync sincroniza y el stream re-emite,
+  /// así la grilla (íconos + condición de mostrar info) y el popup reflejan lo
+  /// último sin salir ni reiniciar. `null` mientras aún no llegó el primer
+  /// dato (no se muestra ícono de info, sin parpadeos).
+  List<OptionHelp>? _optionHelp;
+
+  /// Id de la pregunta cuya ayuda estamos observando. Al cambiar la pregunta
+  /// mostrada se cancela la suscripción vieja y se re-suscribe.
+  String? _helpQuestionId;
+
+  /// Suscripción activa al stream de ayuda. Se cancela en [dispose] y al
+  /// re-suscribir, para evitar fugas y setState tras dispose.
+  StreamSubscription<List<OptionHelp>>? _helpSub;
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +87,7 @@ class _StepIdentifyState extends State<StepIdentify> {
 
   @override
   void dispose() {
+    _helpSub?.cancel();
     _noteController.dispose();
     super.dispose();
   }
@@ -130,6 +151,71 @@ class _StepIdentifyState extends State<StepIdentify> {
 
   void _selectSpecies(Specy species) {
     widget.onSpeciesSelected(species);
+  }
+
+  /// Se suscribe (reactivamente) a los datos de ayuda de la pregunta dada.
+  /// Si ya estamos observando esa misma pregunta, no hace nada. Si cambió la
+  /// pregunta mostrada, cancela la suscripción anterior, limpia el valor
+  /// cacheado y abre una nueva: el stream de PowerSync re-emite ante cualquier
+  /// cambio en las opciones o sus fotos, manteniendo la grilla y el popup al
+  /// día sin salir de la pantalla.
+  void _subscribeOptionHelp(String questionId) {
+    if (_helpQuestionId == questionId && _helpSub != null) return;
+    _helpSub?.cancel();
+    _helpQuestionId = questionId;
+    _optionHelp = null;
+    final repo = context.read<SpeciesRepository>();
+    _helpSub = repo.watchOptionHelpForQuestion(questionId).listen((help) {
+      if (!mounted) return;
+      setState(() => _optionHelp = help);
+    });
+  }
+
+  /// Abre el popup de ayuda (ícono de info) de UNA opción de la pregunta.
+  Future<void> _openHelpDialog(
+    QuestionConfig question,
+    OptionHelp option,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => OptionHelpDialog(
+        questionText: question.text,
+        fieldName: question.fieldName,
+        option: option,
+      ),
+    );
+  }
+
+  /// Mapa valueKey/optionText -> icon_attachment_id para la pregunta dada,
+  /// a partir del último valor emitido por el stream. Vacío si aún no llegó
+  /// el primer dato o si corresponde a otra pregunta.
+  Map<String, String> _iconMapForQuestion(String questionId) {
+    final help = _helpQuestionId == questionId ? _optionHelp : null;
+    if (help == null) return const {};
+    final map = <String, String>{};
+    for (final h in help) {
+      final iconId = h.iconAttachmentId;
+      if (iconId == null || iconId.isEmpty) continue;
+      final key = h.valueKey.isEmpty ? h.optionText : h.valueKey;
+      if (key.isNotEmpty) map[key] = iconId;
+    }
+    return map;
+  }
+
+  /// Devuelve el [OptionHelp] de una opción (por su valueKey/optionText) solo
+  /// si tiene al menos una foto de ayuda cargada. Devuelve null si los datos
+  /// aún no cargaron, si no hay match o si la opción no tiene fotos. Esto
+  /// condiciona que la tarjeta muestre (o no) el ícono de info.
+  OptionHelp? _optionHelpWithPhotos(String questionId, String optionValue) {
+    final help = _helpQuestionId == questionId ? _optionHelp : null;
+    if (help == null) return null;
+    for (final h in help) {
+      final key = h.valueKey.isEmpty ? h.optionText : h.valueKey;
+      if (key == optionValue) {
+        return h.photos.isNotEmpty ? h : null;
+      }
+    }
+    return null;
   }
 
   void _markUnidentified() {
@@ -366,12 +452,18 @@ class _StepIdentifyState extends State<StepIdentify> {
       );
     }
 
+    // Suscribirse (reactivamente) a los datos de ayuda de esta pregunta para
+    // el ícono de info por opción y el icono servido por la API. Si cambió la
+    // pregunta mostrada, se re-suscribe automáticamente.
+    _subscribeOptionHelp(question.id);
+
     return Column(
       children: [
-        // Question card (matching option card background)
+        // Question card (matching option card background). El ícono de ayuda
+        // ya no vive aquí: pasó a cada tarjeta de opción (ver _buildOptionsGrid).
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
           decoration: BoxDecoration(
             color: AppColors.surfaceLilac.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
@@ -430,6 +522,7 @@ class _StepIdentifyState extends State<StepIdentify> {
     final hasVisual = OptionIllustration.hasVisualIllustration(
       question.fieldName,
     );
+    final iconMap = _iconMapForQuestion(question.id);
 
     // Total de opciones = las de la pregunta + "No sé / No contesta"
     final totalOptions = question.options.length + 1;
@@ -455,11 +548,14 @@ class _StepIdentifyState extends State<StepIdentify> {
             question.fieldName,
             option,
           );
+          final help = _optionHelpWithPhotos(question.id, option);
           return _VisualOptionCard(
             label: label,
             fieldName: question.fieldName,
             optionValue: option,
+            iconAttachmentId: iconMap[option],
             onTap: () => _answerQuestion(option),
+            onHelp: help != null ? () => _openHelpDialog(question, help) : null,
           );
         },
       );
@@ -486,11 +582,14 @@ class _StepIdentifyState extends State<StepIdentify> {
           question.fieldName,
           option,
         );
+        final help = _optionHelpWithPhotos(question.id, option);
         return _VisualOptionCard(
           label: label,
           fieldName: question.fieldName,
           optionValue: option,
+          iconAttachmentId: iconMap[option],
           onTap: () => _answerQuestion(option),
+          onHelp: help != null ? () => _openHelpDialog(question, help) : null,
         );
       },
     );
@@ -760,13 +859,23 @@ class _VisualOptionCard extends StatelessWidget {
   final String label;
   final String fieldName;
   final String optionValue;
+
+  /// Id del icono/logo servido por la API para esta opción. Si está presente
+  /// se renderiza esa imagen; si es null/vacío se usa el painter/icono local.
+  final String? iconAttachmentId;
   final VoidCallback onTap;
+
+  /// Callback del ícono de info (arriba a la derecha). Si es null, la tarjeta
+  /// no muestra el ícono (opción sin fotos de ayuda o datos aún sin cargar).
+  final VoidCallback? onHelp;
 
   const _VisualOptionCard({
     required this.label,
     required this.fieldName,
     required this.optionValue,
+    this.iconAttachmentId,
     required this.onTap,
+    this.onHelp,
   });
 
   @override
@@ -783,53 +892,97 @@ class _VisualOptionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.surfaceLilac, width: 1),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Illustration area
-              SizedBox(
-                width: 52,
-                height: 52,
-                child: OptionIllustration(
-                  fieldName: fieldName,
-                  optionValue: optionValue,
-                  size: 52,
-                ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Illustration area: icono servido por la API si existe,
+                  // con fallback al painter/icono local. Se centra
+                  // horizontalmente con Center para que la imagen de la API
+                  // (option_image) quede igual que las ilustraciones vectoriales.
+                  Center(
+                    child: SizedBox(
+                      width: 52,
+                      height: 52,
+                      child:
+                          (iconAttachmentId != null &&
+                              iconAttachmentId!.isNotEmpty)
+                          ? OptionImage(
+                              imageId: iconAttachmentId!,
+                              width: 52,
+                              height: 52,
+                              borderRadius: 10,
+                              fit: BoxFit.contain,
+                              placeholder: OptionIllustration(
+                                fieldName: fieldName,
+                                optionValue: optionValue,
+                                size: 52,
+                              ),
+                            )
+                          : OptionIllustration(
+                              fieldName: fieldName,
+                              optionValue: optionValue,
+                              size: 52,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Main label
+                  Text(
+                    mainLabel,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDark,
+                      height: 1.2,
+                    ),
+                  ),
+                  // Subtitle with measurement range
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textMedium,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 6),
-              // Main label
-              Text(
-                mainLabel,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textDark,
-                  height: 1.2,
-                ),
-              ),
-              // Subtitle with measurement range
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textMedium,
-                    height: 1.2,
+            ),
+            // Ícono de info arriba a la derecha, solo si la opción tiene
+            // fotos de ayuda (onHelp != null).
+            if (onHelp != null)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: IconButton(
+                  onPressed: onHelp,
+                  icon: const Icon(Icons.info_outline_rounded),
+                  color: AppColors.accentGreen,
+                  iconSize: 20,
+                  tooltip: 'Más información',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
                   ),
                 ),
-              ],
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

@@ -130,9 +130,201 @@ class SpeciesRepository {
             optionText: row['option_text']?.toString() ?? '',
             valueKey: row['value_key']?.toString() ?? '',
             orderIndex: (row['order_index'] as num?)?.toInt() ?? 0,
+            description: _nullableString(row['description']),
+            iconAttachmentId: _nullableString(row['icon_attachment_id']),
           ),
         )
         .toList();
+  }
+
+  /// Datos de ayuda de las opciones de una pregunta: etiqueta, texto
+  /// descriptivo, icono (icon_attachment_id) y galería de fotos de ayuda.
+  /// Se usa para el popup de ayuda ('?') de cada tarjeta de pregunta.
+  /// PowerSync-first, con fallback a drift local.
+  Future<List<OptionHelp>> getOptionHelpForQuestion(String questionId) async {
+    final options = await getOptionsForQuestion(questionId);
+    final help = <OptionHelp>[];
+    for (final option in options) {
+      final photos = await getOptionPhotos(option.id);
+      help.add(
+        OptionHelp(
+          optionId: option.id,
+          valueKey: option.valueKey,
+          optionText: option.optionText,
+          description: option.description,
+          iconAttachmentId: option.iconAttachmentId,
+          photos: photos,
+        ),
+      );
+    }
+    return help;
+  }
+
+  /// Versión reactiva de [getOptionHelpForQuestion]: emite la lista de
+  /// [OptionHelp] de la pregunta cada vez que PowerSync aplica cambios en las
+  /// tablas subyacentes (`question_options` y `question_option_photos`), ya
+  /// sea por escrituras locales o por sync entrante desde la web. Así la
+  /// pantalla de identificación refleja en vivo íconos/descripciones/fotos
+  /// nuevos sin salir ni reiniciar la app.
+  ///
+  /// Un único [PowerSyncDatabase.watch] con JOIN evita el N+1 por opción:
+  /// trae opciones + fotos en una sola consulta y reconstruye la lista en cada
+  /// emisión. `triggerOnTables` asegura que un cambio en cualquiera de las dos
+  /// tablas dispare una nueva emisión aunque la pregunta no tenga filas en
+  /// `question_option_photos` todavía.
+  ///
+  /// Fallback a drift local SOLO para el arranque offline (cuando PowerSync
+  /// aún no tiene filas), igual que el resto del repo; se prioriza PowerSync.
+  Stream<List<OptionHelp>> watchOptionHelpForQuestion(String questionId) {
+    return _powerSync
+        .watch(
+          '''
+          SELECT
+            o.id AS option_id,
+            o.question_id AS question_id,
+            o.option_text AS option_text,
+            o.value_key AS value_key,
+            o.order_index AS option_order_index,
+            o.description AS description,
+            o.icon_attachment_id AS icon_attachment_id,
+            p.id AS photo_id,
+            p.order_index AS photo_order_index,
+            p.file_extension AS photo_file_extension
+          FROM question_options o
+          LEFT JOIN question_option_photos p ON p.option_id = o.id
+          WHERE o.question_id = ?
+          ORDER BY o.order_index ASC, p.order_index ASC
+          ''',
+          parameters: [questionId],
+          triggerOnTables: const {'question_options', 'question_option_photos'},
+        )
+        .asyncMap((rows) async {
+          if (rows.isEmpty) {
+            // Arranque offline: PowerSync aún no sincronizó. Usar drift local.
+            return _optionHelpFromDrift(questionId);
+          }
+          return _optionHelpFromJoinedRows(rows);
+        });
+  }
+
+  /// Reconstruye la lista de [OptionHelp] a partir de las filas del JOIN
+  /// opciones+fotos, preservando el orden de opciones y de fotos.
+  List<OptionHelp> _optionHelpFromJoinedRows(List<Map<String, dynamic>> rows) {
+    final byOption = <String, OptionHelp>{};
+    final photosByOption = <String, List<OptionPhoto>>{};
+    final order = <String>[];
+
+    for (final row in rows) {
+      final optionId = row['option_id']?.toString() ?? '';
+      if (optionId.isEmpty) continue;
+      if (!byOption.containsKey(optionId)) {
+        order.add(optionId);
+        byOption[optionId] = OptionHelp(
+          optionId: optionId,
+          valueKey: row['value_key']?.toString() ?? '',
+          optionText: row['option_text']?.toString() ?? '',
+          description: _nullableString(row['description']),
+          iconAttachmentId: _nullableString(row['icon_attachment_id']),
+          photos: const [],
+        );
+        photosByOption[optionId] = [];
+      }
+      final photoId = row['photo_id']?.toString();
+      if (photoId != null && photoId.isNotEmpty) {
+        photosByOption[optionId]!.add(
+          OptionPhoto(
+            id: photoId,
+            optionId: optionId,
+            orderIndex: (row['photo_order_index'] as num?)?.toInt() ?? 0,
+            fileExtension: _nullableString(row['photo_file_extension']),
+          ),
+        );
+      }
+    }
+
+    return [
+      for (final optionId in order)
+        OptionHelp(
+          optionId: byOption[optionId]!.optionId,
+          valueKey: byOption[optionId]!.valueKey,
+          optionText: byOption[optionId]!.optionText,
+          description: byOption[optionId]!.description,
+          iconAttachmentId: byOption[optionId]!.iconAttachmentId,
+          photos: photosByOption[optionId]!,
+        ),
+    ];
+  }
+
+  /// Fallback offline: arma la ayuda desde drift local (mismo patrón que
+  /// [getOptionHelpForQuestion] pero sin tocar PowerSync).
+  Future<List<OptionHelp>> _optionHelpFromDrift(String questionId) async {
+    final options = await _drift.getOptionsForQuestion(questionId);
+    final help = <OptionHelp>[];
+    for (final option in options) {
+      final localPhotos = await _drift.getOptionPhotos(option.id);
+      help.add(
+        OptionHelp(
+          optionId: option.id,
+          valueKey: option.valueKey,
+          optionText: option.optionText,
+          description: option.description,
+          iconAttachmentId: option.iconAttachmentId,
+          photos: localPhotos
+              .map(
+                (row) => OptionPhoto(
+                  id: row.id,
+                  optionId: row.optionId,
+                  orderIndex: row.orderIndex,
+                  fileExtension: row.fileExtension,
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+    return help;
+  }
+
+  /// Fotos de ayuda de una opción, ordenadas por order_index.
+  /// PowerSync-first, con fallback a drift local.
+  Future<List<OptionPhoto>> getOptionPhotos(String optionId) async {
+    final rows = await _powerSync.getAll(
+      '''
+      SELECT * FROM question_option_photos
+      WHERE option_id = ?
+      ORDER BY order_index ASC
+    ''',
+      [optionId],
+    );
+    if (rows.isNotEmpty) {
+      return rows
+          .map(
+            (row) => OptionPhoto(
+              id: row['id']?.toString() ?? '',
+              optionId: row['option_id']?.toString() ?? '',
+              orderIndex: (row['order_index'] as num?)?.toInt() ?? 0,
+              fileExtension: _nullableString(row['file_extension']),
+            ),
+          )
+          .toList();
+    }
+    final local = await _drift.getOptionPhotos(optionId);
+    return local
+        .map(
+          (row) => OptionPhoto(
+            id: row.id,
+            optionId: row.optionId,
+            orderIndex: row.orderIndex,
+            fileExtension: row.fileExtension,
+          ),
+        )
+        .toList();
+  }
+
+  String? _nullableString(dynamic value) {
+    final text = value?.toString();
+    if (text == null || text.isEmpty) return null;
+    return text;
   }
 
   Future<List<SpeciesTrait>> getAllTraits() async {
@@ -234,4 +426,39 @@ class SpeciesRepository {
     return value?.toString().toLowerCase() == 'true' ||
         value?.toString() == '1';
   }
+}
+
+/// Datos de ayuda de una opción para el popup del cuestionario:
+/// etiqueta, texto descriptivo, icono (si tiene) y galería de fotos.
+class OptionHelp {
+  final String optionId;
+  final String valueKey;
+  final String optionText;
+  final String? description;
+  final String? iconAttachmentId;
+  final List<OptionPhoto> photos;
+
+  const OptionHelp({
+    required this.optionId,
+    required this.valueKey,
+    required this.optionText,
+    required this.description,
+    required this.iconAttachmentId,
+    required this.photos,
+  });
+}
+
+/// Foto de ayuda (galería) de una opción.
+class OptionPhoto {
+  final String id;
+  final String optionId;
+  final int orderIndex;
+  final String? fileExtension;
+
+  const OptionPhoto({
+    required this.id,
+    required this.optionId,
+    required this.orderIndex,
+    required this.fileExtension,
+  });
 }

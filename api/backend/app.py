@@ -9,6 +9,7 @@ from routes.tasks import tasks
 from routes.observaciones import observaciones
 from routes.attachments import attachments
 from routes.fotografias import fotografias
+from routes.help_cards import help_cards
 from routes.auth import auth
 from routes.professional import professional
 from routes.notifications import notifications
@@ -45,6 +46,7 @@ api.register_blueprint(tasks)
 api.register_blueprint(observaciones)
 api.register_blueprint(attachments)
 api.register_blueprint(fotografias)
+api.register_blueprint(help_cards)
 api.register_blueprint(auth)
 
 # professional es un Blueprint común de Flask, no de flask-smorest.

@@ -19,6 +19,16 @@ export interface SpeciesSummary {
   scientific_name: string | null
 }
 
+// Resumen por foto a nivel observación, para estadísticas/gráficos futuros.
+// 'reassigned' = fotos cuya especie confirmada (validated_species_id) difiere
+// de la especie propuesta de la observación.
+export interface ObservationPhotoSummary {
+  validated: number
+  rejected: number
+  pending: number
+  reassigned: number
+}
+
 export interface ObservationSummary {
   id: string
   validation_status: ValidationStatus
@@ -27,6 +37,7 @@ export interface ObservationSummary {
   proposed_species: SpeciesSummary | null
   confirmed_species: SpeciesSummary | null
   photo_count: number
+  photo_summary: ObservationPhotoSummary
 }
 
 export interface ProfessionalSpecies {
@@ -78,6 +89,13 @@ export interface ObservationSummaryCounts {
   pending: number
 }
 
+// El detalle (GET /observations/<id>) agrega además 'reassigned' al summary;
+// la respuesta de "aplicar a todas" mantiene solo los tres buckets de estado.
+export interface ObservationDetailSummaryCounts
+  extends ObservationSummaryCounts {
+  reassigned: number
+}
+
 export interface ObservationDetail {
   id: string
   notes: string | null
@@ -93,7 +111,7 @@ export interface ObservationDetail {
   proposed_species: SpeciesSummary | null
   confirmed_species: SpeciesSummary | null
   photos: ObservationPhoto[]
-  summary: ObservationSummaryCounts
+  summary: ObservationDetailSummaryCounts
 }
 
 export interface ProfessionalObservationResponse {

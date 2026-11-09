@@ -259,52 +259,6 @@ def recompute_observation_status(cursor, observation_id):
     return aggregated_status
 
 
-def resolve_target_observation(
-    cursor, user_id, target_species_id, exclude_obs_id
-):
-    # Regla determinista de reasignación (§2.3): reutiliza la observación
-    # pending/validated más reciente del usuario cuya especie efectiva
-    # COALESCE(validated_species_id, species_id) sea target_species_id,
-    # excluyendo rejected y exclude_obs_id; si no existe, crea una nueva.
-    # Devuelve el id de la observación destino.
-    cursor.execute(
-        """
-        SELECT id
-        FROM public.observations
-        WHERE user_id = %s
-          AND id <> %s
-          AND validation_status <> 'rejected'
-          AND COALESCE(validated_species_id, species_id) = %s
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1;
-        """,
-        (user_id, exclude_obs_id, target_species_id),
-    )
-
-    row = cursor.fetchone()
-
-    if row is not None:
-        return row[0]
-
-    new_obs_id = str(uuid.uuid4())
-
-    cursor.execute(
-        """
-        INSERT INTO public.observations
-            (id, user_id, species_id, notes, sync_status,
-             validation_status, validated_species_id,
-             created_at, updated_at, synced_at)
-        VALUES
-            (%s, %s, %s, '', 'synced',
-             'pending', NULL,
-             NOW(), NOW(), NOW());
-        """,
-        (new_obs_id, user_id, target_species_id),
-    )
-
-    return new_obs_id
-
-
 def _species_or_none(species_id, common_name, scientific_name):
     # species_id viene del JOIN: es None si no resolvió una fila de species.
     if species_id is None:
@@ -442,7 +396,20 @@ def list_professional_observations():
                 COUNT(p.id) AS photo_count,
                 confirmed.id,
                 confirmed.common_name,
-                confirmed.scientific_name
+                confirmed.scientific_name,
+                COUNT(p.id) FILTER (
+                    WHERE p.validation_status = 'validated'
+                ) AS photos_validated,
+                COUNT(p.id) FILTER (
+                    WHERE p.validation_status = 'rejected'
+                ) AS photos_rejected,
+                COUNT(p.id) FILTER (
+                    WHERE p.validation_status = 'pending'
+                ) AS photos_pending,
+                COUNT(p.id) FILTER (
+                    WHERE p.validated_species_id IS NOT NULL
+                      AND p.validated_species_id <> o.species_id
+                ) AS photos_reassigned
             FROM public.observations o
             LEFT JOIN public.users u
                 ON u.id::text = o.user_id
@@ -492,6 +459,12 @@ def list_professional_observations():
                     row[10], row[11], row[12]
                 ),
                 "photo_count": row[9],
+                "photo_summary": {
+                    "validated": row[13],
+                    "rejected": row[14],
+                    "pending": row[15],
+                    "reassigned": row[16],
+                },
             })
 
         return jsonify({
@@ -675,11 +648,17 @@ def get_professional_observation(observation_id):
         cursor.execute(
             """
             SELECT
-                COUNT(*) FILTER (WHERE validation_status = 'validated'),
-                COUNT(*) FILTER (WHERE validation_status = 'rejected'),
-                COUNT(*) FILTER (WHERE validation_status = 'pending')
-            FROM public.observation_photos
-            WHERE observation_id = %s;
+                COUNT(*) FILTER (WHERE op.validation_status = 'validated'),
+                COUNT(*) FILTER (WHERE op.validation_status = 'rejected'),
+                COUNT(*) FILTER (WHERE op.validation_status = 'pending'),
+                COUNT(*) FILTER (
+                    WHERE op.validated_species_id IS NOT NULL
+                      AND op.validated_species_id <> o.species_id
+                )
+            FROM public.observation_photos op
+            INNER JOIN public.observations o
+                ON o.id = op.observation_id
+            WHERE op.observation_id = %s;
             """,
             (observation_id,),
         )
@@ -689,6 +668,7 @@ def get_professional_observation(observation_id):
             "validated": summary_row[0] if summary_row else 0,
             "rejected": summary_row[1] if summary_row else 0,
             "pending": summary_row[2] if summary_row else 0,
+            "reassigned": summary_row[3] if summary_row else 0,
         }
 
         return jsonify({
@@ -1236,18 +1216,13 @@ def decide_photo_validation(observation_id, photo_id):
                     )
                 }), 400
 
-            target_obs_id = resolve_target_observation(
-                cursor,
-                observation_user_id,
-                target_species_id,
-                observation_id,
-            )
-
+            # La foto permanece en su observación original: 1 subida = 1
+            # observación. Reasignar solo actualiza la especie confirmada de
+            # ESTA foto (validated_species_id); no se mueve observation_id.
             cursor.execute(
                 """
                 UPDATE public.observation_photos
-                SET observation_id = %s,
-                    validation_status = 'validated',
+                SET validation_status = 'validated',
                     validation_comment = %s,
                     validated_species_id = %s,
                     validated_at = NOW(),
@@ -1255,7 +1230,6 @@ def decide_photo_validation(observation_id, photo_id):
                 WHERE id = %s;
                 """,
                 (
-                    target_obs_id,
                     comment,
                     target_species_id,
                     g.kospia_user_id,
@@ -1264,7 +1238,6 @@ def decide_photo_validation(observation_id, photo_id):
             )
 
             recompute_observation_status(cursor, observation_id)
-            recompute_observation_status(cursor, target_obs_id)
 
             names = _fetch_species_names(
                 cursor, [source_species_id, target_species_id]
@@ -1503,20 +1476,14 @@ def decide_all_photos_validation(observation_id):
                     )
                 }), 409
 
-            target_obs_id = resolve_target_observation(
-                cursor,
-                observation_user_id,
-                target_species_id,
-                observation_id,
-            )
-
-            # Solo se trasladan las fotos pendientes; las ya decididas se quedan
-            # en la observación origen con su estado final (§C).
+            # Las fotos permanecen en su observación original: 1 subida = 1
+            # observación. Reasignar solo actualiza la especie confirmada de
+            # las fotos pendientes; no se mueve observation_id. Las ya
+            # decididas conservan su estado final (§C).
             cursor.execute(
                 """
                 UPDATE public.observation_photos
-                SET observation_id = %s,
-                    validation_status = 'validated',
+                SET validation_status = 'validated',
                     validation_comment = %s,
                     validated_species_id = %s,
                     validated_at = NOW(),
@@ -1525,7 +1492,6 @@ def decide_all_photos_validation(observation_id):
                   AND validation_status = 'pending';
                 """,
                 (
-                    target_obs_id,
                     comment,
                     target_species_id,
                     g.kospia_user_id,
@@ -1534,7 +1500,6 @@ def decide_all_photos_validation(observation_id):
             )
 
             recompute_observation_status(cursor, observation_id)
-            recompute_observation_status(cursor, target_obs_id)
 
             names = _fetch_species_names(
                 cursor, [source_species_id, target_species_id]
