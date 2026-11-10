@@ -1,0 +1,246 @@
+﻿KOSPIA - CAMBIOS E INSTRUCCIONES DESPUES DEL PULL
+=================================================
+
+Rama de integracion: integracion/kospia-4b6
+Base de integracion: 25bcc9e
+Fecha: 10/11/2026
+
+1. RESUMEN DE LA INTEGRACION
+----------------------------
+
+Se integraron los desarrollos de ambos integrantes del proyecto Kospia,
+incluyendo Flutter, Flask, PostgreSQL, PowerSync y el panel web React.
+
+La integracion incorpora:
+
+- Administracion del catalogo de especies desde el panel web.
+- Edicion de especies y sus rasgos utilizados para la identificacion.
+- Administracion de descripciones, iconos e imagenes de ayuda para
+  las opciones del cuestionario.
+- Mejoras en la identificacion de especies mediante sus rasgos.
+- Sincronizacion offline-first mediante PowerSync.
+- Observaciones y fotografias asociadas a los usuarios.
+- Mejoras en el manejo de la cola local de subida de fotografias.
+- Ajustes en autenticacion y administracion de observaciones.
+
+2. AYUDA PARA LAS OPCIONES DEL CUESTIONARIO
+-------------------------------------------
+
+Desde el panel web se pueden administrar:
+
+- La descripcion de una opcion.
+- El icono o imagen representativa de una opcion.
+- Una galeria de imagenes de ayuda.
+
+Ejemplo:
+Una opcion como "Subarbusto" puede incluir una descripcion y fotografias
+que ayuden al usuario a comprender su significado.
+
+En Flutter, las opciones pueden mostrar un icono de informacion en la
+esquina superior derecha. Al tocarlo, se abre una ventana emergente
+con la descripcion y un carrusel de imagenes de ayuda.
+
+Los cambios del catalogo se distribuyen mediante PowerSync cuando
+existe conectividad y la sincronizacion funciona correctamente.
+
+En modo offline, la aplicacion utiliza los datos ya sincronizados.
+Las imagenes requieren estar disponibles en cache o almacenamiento local
+para poder visualizarse sin conexion.
+
+3. MIGRACIONES POSTGRESQL
+-------------------------
+
+Las migraciones del proyecto estan organizadas del 001 al 010.
+
+Nuevas migraciones integradas:
+
+008_add_species_images.sql
+009_add_help_cards.sql
+010_species_traits_integrity.sql
+
+IMPORTANTE:
+
+- No ejecutar todas las migraciones indiscriminadamente.
+- Comprobar primero cuales fueron aplicadas en cada base de datos.
+- Realizar una copia de seguridad antes de modificar el esquema.
+- Ejecutar solamente las migraciones pendientes, en orden.
+- Verificar que las tablas y datos existentes sean compatibles.
+- No borrar ni recrear la base de datos para actualizar el proyecto.
+
+La migracion original 008_add_help_cards.sql fue sustituida en esta
+integracion por 009_add_help_cards.sql para evitar la duplicacion del
+numero 008.
+
+Si una instalacion ya ejecuto la antigua 008_add_help_cards.sql,
+revisar su esquema y el historial de migraciones antes de continuar.
+
+4. POWERSYNC
+------------
+
+Se actualizo:
+
+api/backend/powersync/sync-config.yaml
+
+La configuracion integrada contempla:
+
+- Catalogo global de preguntas, opciones y datos de ayuda.
+- Sincronizacion de fotografias de ayuda por opcion.
+- Observaciones y fotografias modernas asociadas a cada usuario.
+- Notificaciones privadas por usuario.
+
+Se retiraron de la configuracion de sincronizacion las tablas
+legadas observaciones y fotografias_observacion.
+
+IMPORTANTE:
+
+Actualizar el archivo de reglas de sincronizacion del servidor
+PowerSync y aplicar los cambios mediante el procedimiento de
+despliegue correspondiente.
+
+No reemplazar automaticamente service.yaml ni los secretos locales.
+
+Los cambios de sync-config.yaml no se aplican por el simple hecho
+de hacer git pull: deben cargarse en el servicio PowerSync activo.
+
+5. BACKEND FLASK
+----------------
+
+Se integraron rutas para administrar el catalogo y las fichas
+de ayuda de las opciones.
+
+Las rutas legadas GET/POST de:
+
+/observaciones
+/fotografias-observacion
+
+fueron deshabilitadas y responden HTTP 410.
+
+Se debe utilizar la API moderna de observaciones y fotografias.
+
+IMPORTANTE:
+
+- Revisar las variables de entorno locales.
+- Mantener las credenciales y puertos propios de cada equipo.
+- Reiniciar Flask mediante el procedimiento habitual despues
+  de actualizar el codigo.
+- Verificar los permisos de usuario y administrador.
+
+6. PANEL WEB REACT
+------------------
+
+Se incorporaron funcionalidades de administracion de:
+
+- Especies.
+- Rasgos de especies.
+- Iconos de las opciones del cuestionario.
+- Descripciones de ayuda.
+- Galerias de fotografias de ayuda.
+
+Despues de actualizar:
+
+1) Ingresar a la carpeta web.
+2) Instalar las dependencias correspondientes con npm ci.
+3) Ejecutar la aplicacion o compilarla segun el entorno.
+4) Comprobar el acceso de administradores y los permisos.
+5) Verificar que los cambios realizados desde la web lleguen
+   a la aplicacion Flutter mediante PowerSync.
+
+7. APLICACION FLUTTER
+---------------------
+
+Se incorporaron:
+
+- Mejoras en el motor de identificacion por rasgos.
+- Visualizacion de ayuda contextual para las opciones.
+- Manejo de iconos e imagenes de opciones.
+- Escritura transaccional de observaciones y su cola local.
+- Manejo de respuestas HTTP durante la subida de fotografias.
+
+Comportamiento de subida de adjuntos:
+
+- HTTP 2xx: se elimina el elemento pendiente de la cola.
+- HTTP 404: el elemento permanece pendiente.
+- HTTP 401/403: se detiene el procesamiento conservando la cola.
+- Otros errores HTTP: se conserva el elemento para reintento.
+
+El reintento no implica necesariamente ejecucion periodica automatica.
+La API de almacenamiento debe manejar correctamente los reintentos
+para evitar duplicaciones.
+
+Despues de actualizar:
+
+1) Ingresar a la carpeta app.
+2) Ejecutar flutter pub get.
+3) Ejecutar flutter analyze.
+4) Ejecutar flutter test.
+5) Probar el flujo completo de identificacion y observaciones.
+
+El archivo generado app_database.g.dart fue comparado entre ambas
+versiones y su contenido resulto identico, ignorando finales de linea.
+
+8. CONFIGURACION DE CADA DESARROLLADOR
+--------------------------------------
+
+Cada integrante mantiene sus propias configuraciones locales:
+
+- Puertos de PostgreSQL, Flask y PowerSync.
+- Credenciales de bases de datos.
+- Claves y parametros JWT.
+- Direcciones del servidor.
+- Configuracion de Docker.
+- Conectividad local o remota.
+
+Los archivos .env.example sirven como referencia.
+
+No reemplazar los archivos .env reales de otro desarrollador.
+No copiar automaticamente service.yaml entre computadoras.
+
+9. PRUEBAS REALIZADAS
+---------------------
+
+En la carpeta aislada de integracion se ejecutaron:
+
+- Flutter: 28 pruebas superadas.
+- Pruebas de backend y catalogo con entorno de prueba.
+- Pruebas de ayuda contextual.
+- Pruebas de sincronizacion y aislamiento de usuarios.
+- Verificaciones de migraciones en PostgreSQL aislado.
+- Pruebas y compilacion del panel React.
+
+IMPORTANTE:
+
+Estas verificaciones corresponden a la copia de integracion.
+Antes de desplegar, repetir las pruebas en el entorno definitivo.
+
+10. VERIFICACIONES RECOMENDADAS
+-------------------------------
+
+Antes de considerar terminada la actualizacion:
+
+- Confirmar que Flask inicia correctamente.
+- Confirmar que PowerSync sincroniza sin errores.
+- Confirmar que el catalogo mantiene sus especies y rasgos.
+- Crear o editar una ficha de ayuda desde React.
+- Comprobar que Flutter recibe la descripcion y el icono.
+- Abrir el popup y recorrer las imagenes de ayuda.
+- Probar el funcionamiento offline con datos sincronizados.
+- Registrar una observacion y adjuntar fotografias.
+- Probar una subida interrumpida y su posterior reintento.
+- Comprobar el aislamiento de datos entre usuarios.
+- Confirmar que no se perdieron observaciones ni fotografias.
+
+11. ADVERTENCIAS
+----------------
+
+El git pull actualiza archivos del repositorio, pero no:
+
+- Ejecuta migraciones SQL.
+- Actualiza automaticamente las reglas activas de PowerSync.
+- Reinicia Flask ni otros servicios.
+- Configura las credenciales locales.
+- Garantiza que las imagenes remotas esten disponibles offline.
+
+Realizar las actualizaciones de infraestructura por separado
+y de manera controlada.
+
+FIN DEL DOCUMENTO

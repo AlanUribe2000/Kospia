@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 
 import psycopg2
@@ -21,6 +22,19 @@ ALLOWED_EXTENSIONS = {
     "png",
     "webp",
 }
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+def _valid_image_id(image_id):
+    return re.fullmatch(r"[A-Za-z0-9_-]{1,128}", image_id) is not None
+
+
+def _matches_image_extension(data, extension):
+    if extension in {"jpg", "jpeg"}:
+        return data.startswith(b"\xff\xd8\xff")
+    if extension == "png":
+        return data.startswith(b"\x89PNG\r\n\x1a\n")
+    return len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
 # Carpeta donde se almacenan físicamente los iconos y fotos de galería de las
@@ -128,7 +142,9 @@ def _resolve_image_extension(image_id):
         "Requiere rol professional o admin. Envíe el contenido binario "
         "directamente en el "
         "cuerpo. El parámetro `extension` es opcional (por defecto `jpg`) y "
-        "solo admite `jpg`, `jpeg`, `png` o `webp`."
+        "solo admite `jpg`, `jpeg`, `png` o `webp`. Máximo 10 MiB; la firma "
+        "debe corresponder a la extensión. Si el archivo ya existe, responde "
+        "con 409 y no lo sobrescribe."
     ),
     parameters=[
         {
@@ -161,6 +177,8 @@ def _resolve_image_extension(image_id):
 @require_kospia_jwt
 @require_role("professional", "admin")
 def upload_option_image(image_id):
+    if not _valid_image_id(image_id):
+        return jsonify({"error": "Id de imagen no válido"}), 400
     extension = request.args.get("extension", "jpg")
     extension = extension.lower().lstrip(".")
 
@@ -169,13 +187,21 @@ def upload_option_image(image_id):
             "error": "Extensión de archivo no permitida"
         }), 400
 
+    if request.content_length is not None and request.content_length > MAX_IMAGE_BYTES:
+        return jsonify({"error": "La imagen excede el tamaño permitido"}), 413
+    data = request.stream.read(MAX_IMAGE_BYTES + 1)
+    if len(data) > MAX_IMAGE_BYTES:
+        return jsonify({"error": "La imagen excede el tamaño permitido"}), 413
+    if not _matches_image_extension(data, extension):
+        return jsonify({"error": "El contenido no coincide con la extensión"}), 400
+
     _ensure_upload_folder()
 
     file_path = _get_path(image_id, extension)
 
     try:
-        with open(file_path, "wb") as file:
-            file.write(request.get_data())
+        with open(file_path, "xb") as file:
+            file.write(data)
 
         return jsonify({
             "message": "Archivo guardado correctamente",
@@ -183,6 +209,8 @@ def upload_option_image(image_id):
             "extension": extension,
         }), 200
 
+    except FileExistsError:
+        return jsonify({"error": "El archivo de imagen ya existe"}), 409
     except Exception as error:
         return jsonify({
             "error": "No se pudo guardar el archivo",
@@ -213,6 +241,8 @@ def upload_option_image(image_id):
 )
 @require_kospia_jwt
 def download_option_image(image_id):
+    if not _valid_image_id(image_id):
+        return jsonify({"error": "Id de imagen no válido"}), 400
     extension = _resolve_image_extension(image_id)
 
     if extension is None:
@@ -269,6 +299,8 @@ def download_option_image(image_id):
 @require_kospia_jwt
 @require_role("professional", "admin")
 def delete_option_image(image_id):
+    if not _valid_image_id(image_id):
+        return jsonify({"error": "Id de imagen no válido"}), 400
     extension = request.args.get("extension")
 
     # Si no nos pasan extensión, intentamos resolverla desde la base.
@@ -276,6 +308,8 @@ def delete_option_image(image_id):
         extension = _resolve_image_extension(image_id)
 
     extension = (extension or "jpg").lower().lstrip(".")
+    if extension not in ALLOWED_EXTENSIONS:
+        return jsonify({"error": "Extensión de archivo no permitida"}), 400
 
     file_path = _get_path(image_id, extension)
 
@@ -438,13 +472,12 @@ def list_options(question_id):
     summary="Crear una opción",
     description=(
         "Crea una opción para la pregunta. Body JSON: option_text (obligatorio),"
-        " value_key, description, order_index. Requiere rol professional o "
-        "admin."
+        " value_key, description, order_index. Requiere rol admin."
     ),
     security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
-@require_role("professional", "admin")
+@require_role("admin")
 def create_option(question_id):
     data = request.get_json(silent=True)
 
@@ -527,12 +560,12 @@ def create_option(question_id):
     summary="Editar una opción",
     description=(
         "Edita option_text / value_key / description de una opción. Requiere "
-        "rol professional o admin."
+        "rol admin."
     ),
     security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
-@require_role("professional", "admin")
+@require_role("admin")
 def update_option(option_id):
     data = request.get_json(silent=True)
 
@@ -585,6 +618,46 @@ def update_option(option_id):
         conn.close()
 
 
+@help_cards.route("/options/<string:option_id>/help", methods=["PATCH"])
+@help_cards.doc(
+    summary="Actualizar la descripción de ayuda de una opción",
+    description="Recibe exactamente description (texto o null). Requiere rol professional o admin.",
+    security=[{"KospiaBearerAuth": []}],
+)
+@require_kospia_jwt
+@require_role("professional", "admin")
+def update_option_help(option_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or set(data) != {"description"}:
+        return jsonify({"error": "El cuerpo debe contener solo description"}), 400
+    description = data["description"]
+    if description is not None and not isinstance(description, str):
+        return jsonify({"error": "description debe ser texto o null"}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE public.question_options SET description = %s
+            WHERE id = %s RETURNING id;
+            """,
+            (description, option_id),
+        )
+        if cursor.fetchone() is None:
+            conn.rollback()
+            return jsonify({"error": "La opción no existe"}), 404
+        conn.commit()
+        return jsonify({"message": "Descripción actualizada correctamente"}), 200
+    except psycopg2.Error as exc:
+        conn.rollback()
+        _log_psycopg_error(exc, "Error al editar ayuda (option=%s)", option_id)
+        return jsonify({"error": "No se pudo actualizar la descripción"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @help_cards.route(
     "/options/<string:option_id>",
     methods=["DELETE"],
@@ -593,14 +666,14 @@ def update_option(option_id):
     summary="Eliminar una opción",
     description=(
         "Elimina una opción (y en cascada sus fotos de galería). Requiere rol "
-        "professional o admin. Devuelve los ids/extensiones de las fotos "
+        "admin. Devuelve los ids/extensiones de las fotos "
         "borradas "
         "para que el cliente pueda limpiar los archivos físicos."
     ),
     security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
-@require_role("professional", "admin")
+@require_role("admin")
 def delete_option(option_id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -625,7 +698,7 @@ def delete_option(option_id):
             SELECT icon_attachment_id, icon_extension
             FROM public.question_options
             WHERE id = %s
-            LIMIT 1;
+            FOR UPDATE;
             """,
             (option_id,),
         )
@@ -634,6 +707,14 @@ def delete_option(option_id):
         if icon_row is None:
             conn.rollback()
             return jsonify({"error": "La opción no existe"}), 404
+
+        cursor.execute(
+            "SELECT 1 FROM public.species_traits WHERE option_id = %s LIMIT 1;",
+            (option_id,),
+        )
+        if cursor.fetchone() is not None:
+            conn.rollback()
+            return jsonify({"error": "La opción está referenciada por especies"}), 409
 
         cursor.execute(
             """
@@ -652,6 +733,8 @@ def delete_option(option_id):
 
     except psycopg2.Error as exc:
         conn.rollback()
+        if getattr(exc, "pgcode", None) == "23503":
+            return jsonify({"error": "La opción está referenciada"}), 409
         _log_psycopg_error(
             exc, "Error al eliminar opción (option=%s)", option_id
         )
@@ -670,12 +753,12 @@ def delete_option(option_id):
     summary="Reordenar las opciones de una pregunta",
     description=(
         "Recibe {\"option_ids\": [...]} con los ids en el orden deseado y "
-        "asigna order_index por posición. Requiere rol professional o admin."
+        "asigna order_index por posición. Requiere rol admin."
     ),
     security=[{"KospiaBearerAuth": []}],
 )
 @require_kospia_jwt
-@require_role("professional", "admin")
+@require_role("admin")
 def reorder_options(question_id):
     data = request.get_json(silent=True)
 
@@ -743,6 +826,8 @@ def set_option_icon(option_id):
     icon_attachment_id = data.get("icon_attachment_id")
     if not isinstance(icon_attachment_id, str) or not icon_attachment_id.strip():
         return jsonify({"error": "icon_attachment_id es obligatorio"}), 400
+    if not _valid_image_id(icon_attachment_id.strip()):
+        return jsonify({"error": "Id de imagen no válido"}), 400
 
     icon_extension = data.get("icon_extension")
     if not isinstance(icon_extension, str) or not icon_extension.strip():

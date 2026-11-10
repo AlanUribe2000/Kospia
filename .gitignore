@@ -1,5 +1,5 @@
 # Versión anterior utilizada solo como referencia
-test/
+/test/
 
 # Archivos locales de VS Code
 *.code-workspace
@@ -17,3 +17,5 @@ api/**/__pycache__/
 # Los .venv
 api/.venv/
 api/backend/.venv/
+/tool/powersync-4b3/*evidence*
+/tool/powersync-4b3/*.log

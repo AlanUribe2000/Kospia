@@ -67,6 +67,7 @@ class _OptionImageState extends State<OptionImage> {
   Uint8List? _bytes;
   bool _loading = true;
   bool _failed = false;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
@@ -83,6 +84,7 @@ class _OptionImageState extends State<OptionImage> {
   }
 
   Future<void> _resolve() async {
+    final generation = ++_requestGeneration;
     setState(() {
       _loading = true;
       _failed = false;
@@ -90,7 +92,7 @@ class _OptionImageState extends State<OptionImage> {
     });
 
     final data = await _load(context, widget.imageId);
-    if (!mounted) return;
+    if (!mounted || generation != _requestGeneration) return;
     setState(() {
       if (data != null) {
         _bytes = data;
@@ -133,11 +135,16 @@ class _OptionImageState extends State<OptionImage> {
     String imageId,
   ) async {
     // 2) Caché en disco de descargas previas.
-    final cacheFile = await _cacheFileFor(imageId);
-    if (await cacheFile.exists()) {
-      final data = await cacheFile.readAsBytes();
-      _memoryCache[imageId] = data;
-      return data;
+    File? cacheFile;
+    try {
+      cacheFile = await _cacheFileFor(imageId);
+      if (await cacheFile.exists()) {
+        final data = await cacheFile.readAsBytes();
+        _memoryCache[imageId] = data;
+        return data;
+      }
+    } catch (_) {
+      cacheFile = null;
     }
 
     // 3) Descarga desde el backend y cacheo.
@@ -154,7 +161,7 @@ class _OptionImageState extends State<OptionImage> {
         final data = response.bodyBytes;
         _memoryCache[imageId] = data;
         try {
-          await cacheFile.writeAsBytes(data, flush: true);
+          await cacheFile?.writeAsBytes(data, flush: true);
         } catch (_) {
           // Si falla la escritura en caché, igual devolvemos los bytes.
         }

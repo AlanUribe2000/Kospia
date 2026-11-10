@@ -26,6 +26,11 @@ observaciones = Blueprint("observaciones", __name__)
 )
 def get_observaciones():
 
+    return jsonify({
+        "error": "Endpoint legado deshabilitado",
+        "message": "Esta ruta fue retirada. Utilice la API moderna de Kospia."
+    }), 410
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -133,6 +138,11 @@ def get_observaciones():
     },
 )
 def create_observacion():
+
+    return jsonify({
+        "error": "Endpoint legado deshabilitado",
+        "message": "Esta ruta fue retirada. Utilice la API moderna de Kospia."
+    }), 410
 
     data = request.get_json(silent=True) or {}
 

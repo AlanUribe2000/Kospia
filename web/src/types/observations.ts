@@ -37,7 +37,7 @@ export interface ObservationSummary {
   proposed_species: SpeciesSummary | null
   confirmed_species: SpeciesSummary | null
   photo_count: number
-  photo_summary: ObservationPhotoSummary
+  photo_summary?: ObservationPhotoSummary
 }
 
 export interface ProfessionalSpecies {
@@ -93,7 +93,7 @@ export interface ObservationSummaryCounts {
 // la respuesta de "aplicar a todas" mantiene solo los tres buckets de estado.
 export interface ObservationDetailSummaryCounts
   extends ObservationSummaryCounts {
-  reassigned: number
+  reassigned?: number
 }
 
 export interface ObservationDetail {

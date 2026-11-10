@@ -23,6 +23,11 @@ fotografias = Blueprint("fotografias", __name__)
 )
 def get_fotografias():
 
+    return jsonify({
+        "error": "Endpoint legado deshabilitado",
+        "message": "Esta ruta fue retirada. Utilice la API moderna de Kospia."
+    }), 410
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -110,6 +115,11 @@ def get_fotografias():
     },
 )
 def create_fotografia():
+
+    return jsonify({
+        "error": "Endpoint legado deshabilitado",
+        "message": "Esta ruta fue retirada. Utilice la API moderna de Kospia."
+    }), 410
 
     data = request.get_json(silent=True) or {}
 

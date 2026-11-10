@@ -44,12 +44,14 @@ class AuthController extends ChangeNotifier {
       try {
         await _powerSyncSessionManager.activateSession(restoredSession);
         _setStatus(AuthStatus.authenticated);
-      } catch (error) {
+      } catch (error, stackTrace) {
+        _logFailure('restore_powersync_activate', error, stackTrace);
         // Keep the valid local session and its per-user SQLite database. A
         // temporary PowerSync/network failure must not log the user out.
         _setError(error);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logFailure('restore_load_session', error, stackTrace);
       _session = null;
       _setError(error);
     } finally {
@@ -62,10 +64,14 @@ class AuthController extends ChangeNotifier {
 
     _beginOperation();
     _session = null;
+    var stage = 'start';
     try {
+      stage = 'google_authenticate';
       await _googleAuthService.authenticate();
+      stage = 'kospia_backend_auth_google';
       final authenticatedSession = await _googleAuthService
           .authenticateWithKospiaBackend();
+      stage = 'save_session_secure_storage';
 
       // Save only after Google and /auth/google have both returned a complete
       // Kospia session. A failed authentication never persists a new session.
@@ -73,14 +79,17 @@ class AuthController extends ChangeNotifier {
       _session = authenticatedSession;
 
       try {
+        stage = 'powersync_activate';
         await _powerSyncSessionManager.activateSession(authenticatedSession);
         _setStatus(AuthStatus.authenticated);
-      } catch (error) {
+      } catch (error, stackTrace) {
+        _logFailure(stage, error, stackTrace);
         // The Kospia session is valid even when PowerSync is temporarily
         // unavailable, so keep it for a later retry.
         _setError(error);
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logFailure(stage, error, stackTrace);
       _session = null;
       _setError(error);
     } finally {
@@ -125,6 +134,11 @@ class AuthController extends ChangeNotifier {
     if (firstError != null) {
       throw StateError('No se pudo completar completamente el logout.');
     }
+  }
+
+  void _logFailure(String stage, Object error, StackTrace stackTrace) {
+    debugPrint('[Auth] fallo en etapa=$stage tipo=${error.runtimeType} causa=$error');
+    debugPrintStack(stackTrace: stackTrace, maxFrames: 8);
   }
 
   void _beginOperation() {

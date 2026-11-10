@@ -202,17 +202,13 @@ class _StepIdentifyState extends State<StepIdentify> {
     return map;
   }
 
-  /// Devuelve el [OptionHelp] de una opción (por su valueKey/optionText) solo
-  /// si tiene al menos una foto de ayuda cargada. Devuelve null si los datos
-  /// aún no cargaron, si no hay match o si la opción no tiene fotos. Esto
-  /// condiciona que la tarjeta muestre (o no) el ícono de info.
-  OptionHelp? _optionHelpWithPhotos(String questionId, String optionValue) {
+  OptionHelp? _optionHelpForOption(String questionId, String optionValue) {
     final help = _helpQuestionId == questionId ? _optionHelp : null;
     if (help == null) return null;
     for (final h in help) {
       final key = h.valueKey.isEmpty ? h.optionText : h.valueKey;
       if (key == optionValue) {
-        return h.photos.isNotEmpty ? h : null;
+        return h.hasContent ? h : null;
       }
     }
     return null;
@@ -472,10 +468,8 @@ class _StepIdentifyState extends State<StepIdentify> {
           child: Text(
             _formatQuestionText(question.text),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18),
           ),
         ),
         const SizedBox(height: 16),
@@ -548,7 +542,7 @@ class _StepIdentifyState extends State<StepIdentify> {
             question.fieldName,
             option,
           );
-          final help = _optionHelpWithPhotos(question.id, option);
+          final help = _optionHelpForOption(question.id, option);
           return _VisualOptionCard(
             label: label,
             fieldName: question.fieldName,
@@ -582,7 +576,7 @@ class _StepIdentifyState extends State<StepIdentify> {
           question.fieldName,
           option,
         );
-        final help = _optionHelpWithPhotos(question.id, option);
+        final help = _optionHelpForOption(question.id, option);
         return _VisualOptionCard(
           label: label,
           fieldName: question.fieldName,

@@ -733,6 +733,32 @@ export async function updateOption(
   if (!response.ok) throw await helpCardsError(response)
 }
 
+export async function updateOptionHelp(
+  token: string,
+  optionId: string,
+  description: string | null,
+): Promise<void> {
+  let response: Response
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/options/${encodeURIComponent(optionId)}/help`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description }),
+      },
+    )
+  } catch {
+    throw networkError()
+  }
+
+  if (!response.ok) throw await helpCardsError(response)
+}
+
 export async function deleteOption(
   token: string,
   optionId: string,
@@ -841,6 +867,17 @@ export async function setOptionIcon(
   }
 
   if (!response.ok) throw await helpCardsError(response)
+}
+
+export async function replaceOptionIcon(
+  token: string,
+  optionId: string,
+  extension: string,
+  data: Blob,
+): Promise<void> {
+  const imageId = `icon-${Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+  await uploadOptionImage(token, imageId, extension, data)
+  await setOptionIcon(token, optionId, imageId, extension)
 }
 
 export async function deleteOptionIcon(

@@ -299,63 +299,65 @@ class ObservationRepository extends ChangeNotifier {
     final observationId = _uuid.v4();
     final now = DateTime.now().toUtc().toIso8601String();
 
-    await _powerSync.execute(
-      '''
-      INSERT INTO observations
-        (id, user_id, species_id, notes, sync_status, validation_status, created_at, updated_at, synced_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''',
-      [
-        observationId,
-        session.userId,
-        speciesId,
-        notes,
-        AppConstants.syncPending,
-        AppConstants.validationPending,
-        now,
-        now,
-        null,
-      ],
-    );
-
-    for (final photo in photos) {
-      final photoId = _uuid.v4();
-      final extension = _fileExtension(photo.path);
-
-      await _powerSync.execute(
+    await _powerSync.writeTransaction((tx) async {
+      await tx.execute(
         '''
-        INSERT INTO observation_photos
-          (id, observation_id, photo_path, plant_part, latitude, longitude,
-           altitude, accuracy, source, sync_status, captured_at, file_extension,
-           validation_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO observations
+          (id, user_id, species_id, notes, sync_status, validation_status, created_at, updated_at, synced_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
         [
-          photoId,
           observationId,
-          photo.path,
-          photo.plantPart,
-          photo.latitude,
-          photo.longitude,
-          photo.altitude,
-          photo.accuracy,
-          photo.source,
+          session.userId,
+          speciesId,
+          notes,
           AppConstants.syncPending,
-          (photo.capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
-          extension,
           AppConstants.validationPending,
+          now,
+          now,
+          null,
         ],
       );
 
-      await _powerSync.execute(
-        '''
-        INSERT INTO attachments_queue
-          (id, photo_id, local_path, extension, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      ''',
-        [_uuid.v4(), photoId, photo.path, extension, 'pending', now],
-      );
-    }
+      for (final photo in photos) {
+        final photoId = _uuid.v4();
+        final extension = _fileExtension(photo.path);
+
+        await tx.execute(
+          '''
+          INSERT INTO observation_photos
+            (id, observation_id, photo_path, plant_part, latitude, longitude,
+             altitude, accuracy, source, sync_status, captured_at, file_extension,
+             validation_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+          [
+            photoId,
+            observationId,
+            photo.path,
+            photo.plantPart,
+            photo.latitude,
+            photo.longitude,
+            photo.altitude,
+            photo.accuracy,
+            photo.source,
+            AppConstants.syncPending,
+            (photo.capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
+            extension,
+            AppConstants.validationPending,
+          ],
+        );
+
+        await tx.execute(
+          '''
+          INSERT INTO attachments_queue
+            (id, photo_id, local_path, extension, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+          [_uuid.v4(), photoId, photo.path, extension, 'pending', now],
+        );
+      }
+    });
 
     notifyListeners();
     _attachmentUploadService.uploadPending().catchError((error) {

@@ -1,0 +1,15 @@
+CREATE TABLE observations (id text PRIMARY KEY, user_id text NOT NULL, species_id text, notes text, updated_at text);
+CREATE TABLE observation_photos (id text PRIMARY KEY, observation_id text NOT NULL, photo_path text, plant_part text, latitude double precision, longitude double precision, file_extension text, captured_at text);
+CREATE TABLE notifications (id text PRIMARY KEY, user_id text NOT NULL, body text);
+CREATE TABLE observaciones (id text PRIMARY KEY, especie_propuesta_id text, descripcion text, latitud double precision, longitud double precision, fecha_registro text, estado_validacion text, especie_validada_id text, comentario_profesional text, created_at text, updated_at text, deleted_at text, version integer);
+CREATE TABLE fotografias_observacion (id text PRIMARY KEY, observacion_id text, tipo_foto text, file_extension text, mime_type text, created_at text, updated_at text, deleted_at text, version integer);
+CREATE TABLE tasks (id text PRIMARY KEY, title text, completed boolean);
+CREATE TABLE flores (id text PRIMARY KEY, codigo_origen text, nombre_comun text, nombre_cientifico text, color_flor text, tamano_flor text, cantidad_petalos text, tipo_planta text, espinas text, fruto_visible text, color_fruto text, forma_hoja text, borde_hoja text, altura_aproximada text, habitat text, descripcion text, aroma text, color_centro text, agrupacion_flor text, hojas_perennes text, habitat_humedo text, flor_colgante text, flores_por_tallo text, espinas_visibles text, epoca_floracion text, zona_patagonia text, created_at text, updated_at text);
+CREATE TABLE species (id text PRIMARY KEY, name text);
+CREATE TABLE questions (id text PRIMARY KEY);
+CREATE TABLE question_options (id text PRIMARY KEY, question_id text, option_text text, description text, icon_attachment_id text, icon_extension text);
+CREATE TABLE question_option_photos (id text PRIMARY KEY, option_id text, order_index integer, file_extension text, created_at text);
+CREATE TABLE species_traits (id text PRIMARY KEY);
+CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSWORD 'phase-b-replication-only';
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO powersync_role;
+CREATE PUBLICATION powersync FOR ALL TABLES;
