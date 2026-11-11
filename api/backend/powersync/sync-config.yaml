@@ -10,39 +10,9 @@ streams:
       - |
         SELECT
           id,
-          especie_propuesta_id,
-          descripcion,
-          latitud,
-          longitud,
-          fecha_registro,
-          estado_validacion,
-          especie_validada_id,
-          comentario_profesional,
-          created_at,
-          updated_at,
-          deleted_at,
-          version
-        FROM observaciones
-
-      - |
-        SELECT
-          id,
           title,
           completed
         FROM tasks
-
-      - |
-        SELECT
-          id,
-          observacion_id,
-          tipo_foto,
-          file_extension,
-          mime_type,
-          created_at,
-          updated_at,
-          deleted_at,
-          version
-        FROM fotografias_observacion
 
       - |
         SELECT

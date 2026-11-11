@@ -5,6 +5,7 @@ import type { CredentialResponse } from '@react-oauth/google'
 import { ApiError, getProfessionalMe, loginWithGoogle } from './api/client.ts'
 import ObservationsPanel from './components/ObservationsPanel.tsx'
 import ObservationDetailView from './components/ObservationDetail.tsx'
+import CatalogPanel from './components/CatalogPanel.tsx'
 import HelpCardsAdmin from './components/HelpCardsAdmin.tsx'
 import type { ProfessionalUser } from './types/auth.ts'
 import type { ValidationStatus } from './types/observations.ts'
@@ -28,13 +29,10 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [tokenInput, setTokenInput] = useState('')
   const [filter, setFilter] = useState<ValidationStatus>('pending')
+  const [section, setSection] = useState<'observations' | 'catalog' | 'helpCards'>('observations')
   const [selectedObservationId, setSelectedObservationId] = useState<
     string | null
   >(null)
-  // Sección activa del panel (solo relevante para rol admin).
-  const [adminSection, setAdminSection] = useState<'observations' | 'helpCards'>(
-    'observations',
-  )
 
   const fetchSession = useCallback(async (token: string) => {
     try {
@@ -85,7 +83,7 @@ function App() {
     setNotice(message)
     setSelectedObservationId(null)
     setFilter('pending')
-    setAdminSection('observations')
+    setSection('observations')
     setSession({ status: 'anonymous' })
   }, [])
 
@@ -135,16 +133,12 @@ function App() {
     setNotice(null)
     setSelectedObservationId(null)
     setFilter('pending')
-    setAdminSection('observations')
+    setSection('observations')
     setSession({ status: 'anonymous' })
   }
 
   if (session.status === 'active') {
     const { user } = session
-    // La sección "Fichas de ayuda" la gestiona el rol professional (no existe
-    // un rol admin en producción); se incluye admin por compatibilidad.
-    const canManageHelpCards =
-      user.role === 'professional' || user.role === 'admin'
 
     return (
       <div className="dashboard">
@@ -152,36 +146,6 @@ function App() {
           <div>
             <p className="eyebrow">Kospia</p>
             <h1>Panel profesional</h1>
-            {canManageHelpCards && (
-              <nav
-                className="admin-nav"
-                role="tablist"
-                aria-label="Secciones de administración"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={adminSection === 'observations'}
-                  className={
-                    adminSection === 'observations' ? 'filter active' : 'filter'
-                  }
-                  onClick={() => setAdminSection('observations')}
-                >
-                  Panel profesional
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={adminSection === 'helpCards'}
-                  className={
-                    adminSection === 'helpCards' ? 'filter active' : 'filter'
-                  }
-                  onClick={() => setAdminSection('helpCards')}
-                >
-                  Fichas de ayuda
-                </button>
-              </nav>
-            )}
           </div>
           <div className="session-info">
             {user.photo_url && (
@@ -202,11 +166,18 @@ function App() {
           </div>
         </header>
 
-        {canManageHelpCards && adminSection === 'helpCards' ? (
-          <HelpCardsAdmin
-            token={session.token}
-            onSessionInvalid={handleSessionInvalid}
-          />
+        <nav className="catalog-navigation" aria-label="Secciones del panel">
+          <button type="button" className={section === 'observations' ? '' : 'secondary'} aria-current={section === 'observations' ? 'page' : undefined} onClick={() => setSection('observations')}>Observaciones</button>
+          <button type="button" className={section === 'helpCards' ? '' : 'secondary'} aria-current={section === 'helpCards' ? 'page' : undefined} onClick={() => setSection('helpCards')}>Fichas de ayuda</button>
+          {user.role === 'admin' && (
+            <button type="button" className={section === 'catalog' ? '' : 'secondary'} aria-current={section === 'catalog' ? 'page' : undefined} onClick={() => setSection('catalog')}>Administración de plantas</button>
+          )}
+        </nav>
+
+        {user.role === 'admin' && section === 'catalog' ? (
+          <CatalogPanel token={session.token} onSessionInvalid={handleSessionInvalid} />
+        ) : section === 'helpCards' ? (
+          <HelpCardsAdmin token={session.token} role={user.role} onSessionInvalid={handleSessionInvalid} />
         ) : selectedObservationId === null ? (
           <ObservationsPanel
             token={session.token}

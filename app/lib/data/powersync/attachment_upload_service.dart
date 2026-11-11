@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:powersync/powersync.dart';
 
@@ -15,7 +16,15 @@ class AttachmentUploadService {
   bool _isUploading = false;
   bool _isActive = true;
 
-  AttachmentUploadService(this._database, this._sessionService);
+  final http.Client _httpClient;
+  final bool _ownsHttpClient;
+
+  AttachmentUploadService(
+    this._database,
+    this._sessionService, {
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null;
 
   void startConnectivityListener() {
     _connectivitySubscription?.cancel();
@@ -59,7 +68,7 @@ class AttachmentUploadService {
         }
 
         try {
-          final response = await http.put(
+          final response = await _httpClient.put(
             Uri.parse(
               '${PowerSyncConfig.backendUrl}/attachments/$photoId'
               '?extension=$extension',
@@ -85,10 +94,17 @@ class AttachmentUploadService {
             // completar un upload de PowerSync o al cambiar la conectividad),
             // sin cortar la subida del resto de la cola.
             continue;
-          } else {
+          } else if (response.statusCode == 401 || response.statusCode == 403) {
             throw StateError(
-              'Error seguro subiendo attachment. HTTP ${response.statusCode}',
+              'Error de autorizacion subiendo attachment. HTTP ${response.statusCode}',
             );
+          } else {
+            // Error temporal: conservar el archivo para reintentar.
+            debugPrint(
+              'Attachments: subida pendiente de reintento. '
+              'HTTP ${response.statusCode}, photoId=$photoId',
+            );
+            continue;
           }
         } on StateError {
           rethrow;
@@ -105,6 +121,9 @@ class AttachmentUploadService {
     _isActive = false;
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    if (_ownsHttpClient) {
+      _httpClient.close();
+    }
   }
 
   String _contentTypeForExtension(String extension) {

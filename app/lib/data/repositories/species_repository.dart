@@ -1,6 +1,7 @@
 import '../database/app_database.dart';
 import '../seed/seed_data.dart';
 import '../services/sequential_questionnaire.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 
@@ -446,6 +447,9 @@ class OptionHelp {
     required this.iconAttachmentId,
     required this.photos,
   });
+
+  bool get hasContent =>
+      photos.isNotEmpty || (description?.trim().isNotEmpty ?? false);
 }
 
 /// Foto de ayuda (galería) de una opción.

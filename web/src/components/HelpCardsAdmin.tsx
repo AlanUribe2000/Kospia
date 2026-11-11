@@ -11,16 +11,19 @@ import {
   getQuestionOptions,
   reorderOptionPhotos,
   reorderOptions,
-  setOptionIcon,
+  replaceOptionIcon,
   updateOption,
+  updateOptionHelp,
   uploadOptionImage,
 } from '../api/client.ts'
+import type { ProfessionalRole } from '../types/auth.ts'
 import type { Option, Question } from '../types/helpCards.ts'
 import AuthenticatedPhoto from './AuthenticatedPhoto.tsx'
 import ModalShell from './ModalShell.tsx'
 
 interface Props {
   token: string
+  role: ProfessionalRole
   onSessionInvalid: (message: string) => void
 }
 
@@ -45,7 +48,8 @@ type OptionFormState =
   | { mode: 'create' }
   | { mode: 'edit'; option: Option }
 
-function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
+function HelpCardsAdmin({ token, role, onSessionInvalid }: Props) {
+  const isAdmin = role === 'admin'
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [questionsError, setQuestionsError] = useState<string | null>(null)
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
@@ -162,7 +166,7 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
     const descriptionRaw = String(data.get('description') ?? '').trim()
     const description = descriptionRaw === '' ? null : descriptionRaw
 
-    if (!optionText) {
+    if (isAdmin && !optionText) {
       setNotice('El nombre de la opción es obligatorio.')
       return
     }
@@ -170,18 +174,21 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
     setBusy(true)
     try {
       if (form.mode === 'create') {
+        if (!isAdmin) return
         await createOption(token, selectedQuestionId, {
           option_text: optionText,
           value_key: valueKey,
           description,
           order_index: options?.length ?? 0,
         })
-      } else {
+      } else if (isAdmin) {
         await updateOption(token, form.option.id, {
           option_text: optionText,
           value_key: valueKey,
           description,
         })
+      } else {
+        await updateOptionHelp(token, form.option.id, description)
       }
       setOptionForm(null)
       afterMutation(
@@ -195,6 +202,7 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
   }
 
   async function handleConfirmDelete(option: Option) {
+    if (!isAdmin) return
     setBusy(true)
     try {
       const result = await deleteOption(token, option.id)
@@ -210,7 +218,7 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
   }
 
   async function handleMoveOption(index: number, direction: -1 | 1) {
-    if (options === null || selectedQuestionId === null) return
+    if (!isAdmin || options === null || selectedQuestionId === null) return
     const target = index + direction
     if (target < 0 || target >= options.length) return
 
@@ -241,11 +249,9 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
       return
     }
 
-    const imageId = `icon-${option.id}`
     setBusy(true)
     try {
-      await uploadOptionImage(token, imageId, ext, file)
-      await setOptionIcon(token, option.id, imageId, ext)
+      await replaceOptionIcon(token, option.id, ext, file)
       afterMutation('Icono actualizado.')
     } catch (error) {
       if (!handleApiError(error)) setNotice(describeError(error))
@@ -383,14 +389,16 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
             {selectedQuestion && (
               <div className="help-options-header">
                 <h3>{selectedQuestion.question_text}</h3>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => setOptionForm({ mode: 'create' })}
-                >
-                  Agregar opción
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => setOptionForm({ mode: 'create' })}
+                  >
+                    Agregar opción
+                  </button>
+                )}
               </div>
             )}
 
@@ -436,6 +444,7 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
                   index={index}
                   total={options.length}
                   busy={busy}
+                  isAdmin={isAdmin}
                   onSessionInvalid={onSessionInvalid}
                   onEdit={() => setOptionForm({ mode: 'edit', option })}
                   onDelete={() => setOptionToDelete(option)}
@@ -465,32 +474,37 @@ function HelpCardsAdmin({ token, onSessionInvalid }: Props) {
             className="form"
             onSubmit={(event) => void handleSubmitOption(event, optionForm)}
           >
-            <label htmlFor="option_text">Nombre de la opción</label>
-            <input
-              id="option_text"
-              name="option_text"
-              type="text"
-              defaultValue={
-                optionForm.mode === 'edit' ? optionForm.option.option_text : ''
-              }
-              autoFocus
-            />
+            {isAdmin && (
+              <>
+                <label htmlFor="option_text">Nombre de la opción</label>
+                <input
+                  id="option_text"
+                  name="option_text"
+                  type="text"
+                  defaultValue={
+                    optionForm.mode === 'edit' ? optionForm.option.option_text : ''
+                  }
+                  autoFocus
+                />
 
-            <label htmlFor="value_key">Clave (value_key)</label>
-            <input
-              id="value_key"
-              name="value_key"
-              type="text"
-              defaultValue={
-                optionForm.mode === 'edit' ? optionForm.option.value_key : ''
-              }
-            />
+                <label htmlFor="value_key">Clave (value_key)</label>
+                <input
+                  id="value_key"
+                  name="value_key"
+                  type="text"
+                  defaultValue={
+                    optionForm.mode === 'edit' ? optionForm.option.value_key : ''
+                  }
+                />
+              </>
+            )}
 
             <label htmlFor="description">Texto descriptivo</label>
             <textarea
               id="description"
               name="description"
               rows={4}
+              autoFocus={!isAdmin}
               defaultValue={
                 optionForm.mode === 'edit'
                   ? (optionForm.option.description ?? '')
@@ -585,6 +599,7 @@ interface OptionCardProps {
   index: number
   total: number
   busy: boolean
+  isAdmin: boolean
   onSessionInvalid: (message: string) => void
   onEdit: () => void
   onDelete: () => void
@@ -596,12 +611,13 @@ interface OptionCardProps {
   onPhotoMove: (photoIndex: number, direction: -1 | 1) => void
 }
 
-function OptionCard({
+export function OptionCard({
   token,
   option,
   index,
   total,
   busy,
+  isAdmin,
   onSessionInvalid,
   onEdit,
   onDelete,
@@ -618,26 +634,28 @@ function OptionCard({
   return (
     <article className="help-option-card">
       <div className="help-option-top">
-        <div className="help-option-reorder">
-          <button
-            type="button"
-            className="secondary"
-            aria-label="Mover arriba"
-            disabled={busy || index === 0}
-            onClick={() => onMove(-1)}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            aria-label="Mover abajo"
-            disabled={busy || index === total - 1}
-            onClick={() => onMove(1)}
-          >
-            ↓
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="help-option-reorder">
+            <button
+              type="button"
+              className="secondary"
+              aria-label="Mover arriba"
+              disabled={busy || index === 0}
+              onClick={() => onMove(-1)}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              aria-label="Mover abajo"
+              disabled={busy || index === total - 1}
+              onClick={() => onMove(1)}
+            >
+              ↓
+            </button>
+          </div>
+        )}
 
         <div className="help-option-info">
           <strong>{option.option_text}</strong>
@@ -660,14 +678,16 @@ function OptionCard({
           >
             Editar
           </button>
-          <button
-            type="button"
-            className="btn-reject"
-            disabled={busy}
-            onClick={onDelete}
-          >
-            Borrar
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn-reject"
+              disabled={busy}
+              onClick={onDelete}
+            >
+              Borrar
+            </button>
+          )}
         </div>
       </div>
 

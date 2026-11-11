@@ -1,0 +1,31 @@
+_type: self-hosted
+telemetry:
+  disable_telemetry_sharing: false
+
+sync_config:
+  path: sync-config.yaml
+
+api:
+  tokens:
+    - !env PS_ADMIN_API_TOKEN
+
+client_auth:
+  jwks:
+    keys:
+      - kty: oct
+        alg: HS256
+        kid: !env PS_JWT_KID
+        k: !env PS_JWT_SECRET
+  audience:
+    - !env PS_JWT_AUDIENCE
+
+replication:
+  connections:
+    - sslmode: disable
+      type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+
+storage:
+  sslmode: disable
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
